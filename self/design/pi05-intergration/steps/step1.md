@@ -1,6 +1,6 @@
 # Step 1：用 OpenPI 跑通原始 LIBERO 任务
 
-日期：2026-11-05。状态：待 GPU 实测。本文是[实施计划第 1 步](../pi05-integration-plan.md#1-跑通原始-libero-任务)的操作方案，面向拥有 Linux NVIDIA GPU 机器的实施者。目标是在固定配置下，由真实 π0.5 完成一次“把指定物品放入篮子”的原始 LIBERO 任务，并保存全部尝试记录。
+日期：2026-11-06。状态：待 GPU 实测。本文是[实施计划第 1 步](../pi05-integration-plan.md#1-跑通原始-libero-任务)的操作方案，面向拥有 Linux NVIDIA GPU 机器的实施者。目标是在固定配置下，由真实 π0.5 完成“把指定物品放入篮子”的原始 LIBERO 任务，取得完整成功证据和固定批次成功率，并保存全部尝试记录。
 
 本文命令参考 OpenPI 官方示例，尚未在目标 GPU 机器执行；运行验证由 Step 1 实施者完成。任务 ID、物品、初态和具体依赖版本在实测后填写，不能将本文视为已经通过的实验报告。
 
@@ -21,7 +21,7 @@
 
 选择 OpenPI 是为了让原始基线、观测预处理及后续远程策略调用使用同一套实现。LeRobot 也支持 π0.5 和 LIBERO，但其公布的复现结果使用额外微调的权重；本步采用 OpenPI 以减少迁移时需要同时比较的差异。参考 [OpenPI LIBERO 示例](https://github.com/Physical-Intelligence/openpi/blob/main/examples/libero/README.md)、[远程推理说明](https://github.com/Physical-Intelligence/openpi/blob/main/docs/remote_inference.md)和 [LeRobot LIBERO 说明](https://huggingface.co/docs/lerobot/libero)。
 
-本步只验证原始仿真与策略，不修改 Steward 的机器人、WSim、EH 工具或 ER 控制路径。一次成功证明候选配置可运行，批量成功率与跨任务能力按后续范围安排。
+本步只验证原始仿真与策略，不修改 Steward 的机器人、WSim、EH 工具或 ER 控制路径。先取得一次完整任务成功证据，再按实施计划第 1 步，在运行前冻结初态集合、Episode 数 N（N > 1）、种子、预算及计数规则，完成原始环境固定批次评测并报告成功次数、总次数和成功率。Steward 内的成功率验收在第 8 步完成，全量基准与跨任务能力留待后续。
 
 ## 2. 准备 GPU 机器与运行目录
 
@@ -124,6 +124,7 @@ docker compose -f examples/libero/compose.yml up --build
 - [ ] 真实 `pi05_libero` 已加载，模型和配套环境版本可核对。
 - [ ] 选定任务、原始指令、初态和完整启动方式已经固定。
 - [ ] 至少一次完整抓取、搬运、放入篮子的任务成功，基准成功信号成立且录像可见完整过程。
+- [ ] 原始环境固定批次已经完成，按预先冻结的初态、次数、预算与计数规则报告成功次数、总次数和成功率；保留全部失败与人工干预记录。
 - [ ] 全部尝试、失败、异常、超时与人工干预记录保留，录像未被覆盖。
 - [ ] 相机、状态、动作、控制周期、执行前缀和机器人资产规格足以开展后续适配。
 - [ ] 实测报告区分原始基线成功与 Steward 接入验收；后者仍按[实施计划](../pi05-integration-plan.md)推进。
