@@ -1,12 +1,12 @@
 # Steward π0.5 具身操作接入设计
 
-状态：设计提案，尚未实现。日期：2026-11-06。
+状态：设计提案，尚未实现。日期：2026-11-09。
 
 需求依据：[接入 PRD](pi05-integration-prd.md)。架构约束：[steward.md](../../../steward.md)。本文统一维护接入方案与单阶段完整任务验收的技术设计；所选权重、机器人资产和控制参数仍需通过独立基线核实。
 
 ## 1. Problem Statement
 
-- `steward_bot` 的技能由规则生成运动，抓取采用几何捕获与理想附着，不能代表 π0.5 的视觉闭环和物理操作能力。
+- EH 已能编写、保存和复用组合工具的能力程序。ER 的基础技能由几何规划和手写控制流程生成运动，抓取采用几何捕获与理想附着；π0.5 的视觉闭环和接触操作仍需单独验证。
 - 现成 π0.5 权重依赖特定机器人、相机、状态与动作定义，旧本体的控制、感知和 ESim 不能直接复用。
 - 测量成功率还需要配套任务、可重置初态和独立成功判据，只有推理接口不足以开展评测。
 
@@ -20,18 +20,39 @@
 
 ```text
 EH → Ego 工具与安全守卫 → ctx.ego / Ego API → ER Job
+EH ↔ run_code / capability 工具 ↔ 机器人持久能力库
 ER → 机器人传感器 → π0.5 服务 → 动作检查 → 执行器 → WSim
 WSim → 世界侧 GT 评估 → 实验报告（不返回机器人）
 ```
 
 ER 保持唯一执行控制权；π0.5 服务只返回候选动作，没有执行器或 WCA 权限。
 
+### 3.1 LLM 能力程序与 π0.5 动作策略
+
+现有能力库保存 LLM 编写的程序，程序通过 `run_code` 调用机器人工具，跨会话复用并可由模型修改后重新保存。`skill` 表示参数化的可复用操作，`recipe` 表示组合多个操作的任务流程。能力库实现和 Ego Harness 提示分别维护保存规则与复用方式。参见[能力库](../../../steward/dsh/packages/dsh-tool-ego-capabilities/src/index.ts)与[任务提示](../../../steward/src/steward/world/chat.py)。
+
+| 策略层 | 当前实现或拟接入实现 | 承担的决策 |
+| --- | --- | --- |
+| EH 与能力程序 | LLM 生成的工具调用、计算、条件与循环 | 选择任务和对象，组合操作，读取反馈并决定下一步 |
+| ER 基础技能 | ESim 规划与 SkillExecutor 控制，通过 Arm 适配本体 | 停靠、抓取、放置等动作计划及反馈控制 |
+| ER 策略 Job | 拟接入 π0.5 观测与动作循环 | 在已授权任务内根据图像和本体反馈持续生成动作 |
+
+现有 Phase 配置选择感知实现。`phase0` 由世界侧生成带噪声检测，机器人侧融合为 ES；`phase1` 与 `phase1-sam` 使用 RGB-D 感知链路。π0.5 接入另外涉及观测编码、动作生成与执行检查，设计需显式固定供策略使用的图像、本体反馈及供安全检查使用的 ES 来源。参见 [Phase 配置](../../../steward/src/steward/phases.py)。
+
+例如 `flip_flat_objects_face_up` 能力逐个调用抓取和带 `flip: true` 的放置，具体翻面动作由底层技能执行。能力程序的存在说明机器人已具备代码化任务策略；评估 π0.5 时仍须记录实际进入策略 Job 的执行路径。
+
+首期由 EH 发起一个完整任务 Job，π0.5 在其中连续控制。已保存的能力只有在所选本体提供语义一致的基础技能时才能复用；任务级策略 Job 的能力说明需明确支持任务、参数、前置条件、完成证据和失败结果。选定任务通过真实 profile 的嵌套 `run_code` 调用也需验证，跨多个策略 Job 的 recipe 编排留待后续。
+
+能力库当前依据取用能力的 `run_code` 是否无错误结束统计成功。默认跨两个不同 Harness run 成功后标记 `verified`，连续三次失败后标记 `deprecated`；改动代码会递增版本并重置为 `candidate`。该统计用于能力复用，π0.5 的验收另按 §10.4 关联具体 Job、模型配置、机器人完成判断和世界侧评估。本文不以本地能力文件的计数声明任务已经验证。
+
+### 3.2 修改位置
+
 修改集中在下列现有模块，新增模块名称在实现时固定：
 
 | 位置 | 计划修改 |
 | --- | --- |
 | `steward/src/steward/ego` | 增加 π0.5 策略适配、受限动作执行、观测完成判定与策略记录；扩展运行时配置 |
-| `steward/src/steward/ego/skills.py`、`cobot_skills.py`、`cobot_runtime.py`、`cobot_server.py` | 核对两种现有执行实现，复用适用的单技能 Job、取消和结束通知；为选定本体接通预测、执行、查询与控制权接口 |
+| `steward/src/steward/ego/runtime.py`、`skills.py`、`arm.py`、`bodies.py`、`cobot_arm.py` | 复用共享 Ego Runtime 的单技能 Job、取消与结束通知；核对 Arm 的本体适配范围，接入策略执行与安全检查 |
 | `steward/src/steward/embodiments.py`、`cli.py` | 登记选定本体及对应 ER，沿用按 Scenario 启停独立 ER 的装配方式，增加配套配置校验 |
 | `steward/src/steward/ego/esim.py` | 增加所选本体与候选动作的风险检查，不能复用旧本体检查后直接放行 |
 | `steward/src/steward/world`、`scene`、`assets` | 加入匹配的本体与场景，补足传感器和执行器支持，增加世界侧验收 |
@@ -76,10 +97,10 @@ OpenPI LIBERO 示例是选定路线的独立基线。独立运行该示例用于
 | --- | --- | --- |
 | `WorldSim.command` | 除旧机构字段外，已支持 `joints` 关节目标和按抓取连杆寻址的多夹爪命令；尚无 LIBERO 策略动作适配 | 复用适用的关节寻址，接入配套控制器；分别校验策略动作、控制器输入和执行器输入 |
 | WSim 抓取与反馈 | 原有 `holding` 来源包含理想附着状态 | 新本体使用与基线匹配的夹爪和接触机制；机器人只获得可作为传感器建模的反馈，不直接获得被附着物体的 GT 身份 |
-| `EgoEstimator` 相机变换 | 已通过通用关节树和编码器计算连杆及相机位姿，Cobot 已配置顶部与双腕相机 | 复用运动学计算，验证 LIBERO 本体的关节映射、相机标定与采样同步；策略专用编码另行适配 |
-| `Esim` 初始化与技能计划 | 直接查找 `base`、`lift`、`gripper_mount`，并使用升降和伸缩范围 | 为新本体提供运动学、可达性和候选动作检查实现；旧本体保留原路径 |
-| `SkillExecutor`、`CobotSkills` | 分别提供旧机构技能与 Cobot IK 技能；Cobot 的只读 Ego API 尚未接通 EH 技能调用 | 为选定本体接入策略 Job、预测凭据、控制权与停止流程，复用适用生命周期，不把脚本任务视为 EH 链路已贯通 |
-| CLI、Scenario 与运行时装配 | 已由本体注册表按 Scenario 为每个机器人选择独立 ER；移动机器人 ER 内仍固定构造 `steward_bot` | 登记 LIBERO 本体与对应 ER，复用进程装配；校验本体、控制器、相机与策略配置一致性 |
+| `EgoEstimator` 相机变换 | 已通过通用关节树和编码器计算连杆及相机位姿；Cobot 当前本体登记为头部双相机 | 复用运动学计算，验证 LIBERO 本体的关节映射、相机标定与采样同步；策略专用编码另行适配 |
+| `Esim`、`Arm` 与 `PiperArm` | ESim 已接受 Arm，Cobot 通过虚拟升降、伸出和手腕量及 IK 适配；规划仍使用移动底盘与平面臂假设 | 核对固定基座机器人和策略动作所需的运动学、可达性与候选动作检查 |
+| 共享 `EgoRuntime` 与 `SkillExecutor` | 两种本体共用预测、执行、查询与控制权接口；Cobot 的脚本运行时另有独立入口 | 复用适用的 Job 生命周期，为选定本体接入策略动作循环、授权与停止流程 |
+| CLI、Scenario 与运行时装配 | 本体注册表按 Scenario 启动独立 ER；`_start_ego` 经 `bodies.py` 加载对应模型、Arm 和配置 | 登记 LIBERO 本体与运行时配置，复用进程装配；校验本体、控制器、相机与策略配置一致性 |
 
 这些适配按确实存在差异的职责拆分，不先建设面向所有机器人的插件平台。固定基座机器人不应被要求提供虚构的移动里程计；ER 的自有坐标系、初始定位知识与反馈来源必须明确声明。世界侧知道其真实安装位姿，不等于机器人可以查询任意 GT 位姿。
 
@@ -104,7 +125,7 @@ LIBERO 固定任务与机器人资产
 | 世界侧控制 | 在 `world/sim.py` 按本体配置选择控制实现；新本体接入配套控制器，旧本体保留原命令和理想夹爪路径 | ER 的已检查动作经控制器转换为执行器输入，物体运动由接触动力学产生 |
 | 机器人端口 | 沿 `RobotLink` 现有传感器、图像、命令和时钟通道扩展新本体所需字段，明确单位、顺序、参考系、采样时刻与版本 | 机器人端只能获得允许的图像、本体反馈和控制状态，不获得场景 GT 或隐藏成功信号 |
 | ER 本体适配 | 在登记的本体 ER 中装配估计器、预测器与策略执行实现；复用关节树运动学并补齐策略所需的末端与相机编码 | ES、策略观测和动作预测使用同一份本体定义，不调用旧机器人的升降/伸缩假设 |
-| 启动装配 | 在 `embodiments.py` 登记本体及 ER 子命令，复用 `cli.py` 的 `_RuntimeKeeper` 与 `_EgoProcess`；新 ER 加载自己的机器人描述和策略配置 | 世界侧与 ER 使用一致的本体、控制器和相机版本；配置不匹配时拒绝启动策略能力 |
+| 启动装配 | 在 `embodiments.py` 登记本体及 ER 子命令，复用 `cli.py` 的 `EgoSupervisor` 与 `_EgoProcess`；新 ER 加载自己的机器人描述和策略配置 | 世界侧与 ER 使用一致的本体、控制器和相机版本；配置不匹配时拒绝启动策略能力 |
 
 部署配置必须关联 Scenario、机器人资产版本、ER 本体描述、控制器、策略配置及机器人端口。世界侧加载完整场景；ER 单独加载机器人自有描述和允许的定位知识，不能为匹配配置而读取完整世界场景。启动先核对关节、执行器、相机和动作表示，再开放技能；重置时同步失效旧 Episode 的控制命令与策略结果。
 
@@ -149,7 +170,7 @@ Steward 接入时，由 ER 的策略适配承担上述模型客户端职责，�
 
 ### 5.1 保留预测、执行、查询和停止
 
-完整接口目前由移动机器人 Ego API 提供。[Cobot Ego API](../../../steward/src/steward/ego/cobot_server.py)只发布状态、视图和告警，本体登记中的 `skills: false` 会禁止控制台为其启动 EH 任务。新本体必须接通下述接口与安全守卫后才能开放 EH 技能入口；Cobot 的内置脚本任务不能替代此验证。
+两种现有本体均登记 `skills: true`，通过共享 [Ego API](../../../steward/src/steward/ego/server.py)提供完整技能入口。`cobot_server.py` 的只读 API 属于独立的脚本运行路径。新本体需验证下述接口与安全守卫，并明确其支持的技能集合。现有调用链以注册表、`bodies.py` 和 `_start_ego` 的装配为准。
 
 ```text
 EH 读取 ego_state / 必要时观察
@@ -368,6 +389,7 @@ ER 从 ES 解析对象引用，再由技能配置生成已经验证的模型指�
 | ER + 可控策略替身 + WSim 已应用动作记录 | 取消与动作接收竞态、迟到响应、越界、超时、前缀调度、未知停止不产生后续动作 | ER 技能、停止和独占控制测试 |
 | Ego API 与 `ctx.ego` 工具 | 预测→执行→查询的行为，结果字段和默认等待语义一致 | 工具测试与端到端测试 |
 | 真实 ego profile | 嵌套 PTC 调用仍受守卫约束，不新增通用计算机工具 | 真实组合与配置快照测试 |
+| 能力程序与策略 Job | `run_code` 中调用任务级技能仍执行预测与安全检查；失败或未确认阻止依赖步骤，能力运行计数与物理验收分别记录 | 能力库与工具执行测试 |
 | WSim 机器人端口与 Observer | 无 WCA 路由、无 GT 输入、世界评估不回流 | 端到端隔离与 ES 泄漏测试 |
 | 新本体动作记录重放 | 固定动作与应用时刻可重现对应物理执行 | 现有倍率与输入重放测试 |
 | 真实 GPU Episode | π0.5 完成一次选定的完整任务，保存成功、误判、耗时和故障证据 | 单独执行，不由替身测试冒充 |
@@ -388,5 +410,6 @@ ER 从 ES 解析对象引用，再由技能配置生成已经验证的模型指�
 - [Steward README](../../../steward/README.md)：当前运行入口与开发检查。
 - [技能执行器](../../../steward/src/steward/ego/skills.py)、[Ego Runtime](../../../steward/src/steward/ego/runtime.py)、[ESim](../../../steward/src/steward/ego/esim.py)、[机器人本体生成器](../../../steward/src/steward/assets/generators.py)。
 - [Ego 工具](../../../steward/dsh/packages/dsh-tool-ego/src/index.ts)、[安全守卫](../../../steward/dsh/packages/dsh-robot-safety/src/index.ts)、[Ego bundle](../../../steward/dsh/packages/dsh-bundle-ego/cordis.patch.yml)。
+- [本体注册](../../../steward/src/steward/embodiments.py)、[运行时本体配置](../../../steward/src/steward/ego/bodies.py)、[Arm](../../../steward/src/steward/ego/arm.py)、[PiperArm](../../../steward/src/steward/ego/cobot_arm.py)。
 - [现有端到端测试](../../../steward/tests/test_e2e.py)、[工具测试](../../../steward/dsh/test/tools.test.mjs)、[真实组合测试](../../../steward/dsh/test/integration.test.mjs)、[倍率与重放测试](../../../steward/tests/test_speed.py)。
 - [OpenPI 官方项目](https://github.com/Physical-Intelligence/openpi)、[LIBERO 示例](https://github.com/Physical-Intelligence/openpi/blob/main/examples/libero/README.md)、[远程推理说明](https://github.com/Physical-Intelligence/openpi/blob/main/docs/remote_inference.md)。
