@@ -38,6 +38,18 @@
 
 原始逐周期、逐子步轨迹在 `libero-baseline/init-*-repeat-*.json.gz`，对应 WSim 数据在 `wsim/wsim-init-*.json.gz`。约 92 MB 的完整准备态 MJCF、资产、原始许可证和 SHA256 清单位于 4090-2 的 `/home/huawei/hqk/workspace/steward/steward/var/step3/baseline-final-2/`。
 
+## 完整套件回归
+
+完整 Steward Python 套件结果为 339 通过、3 失败。将本次代码与 Step 3 前的 `810593ce2c` 在同一环境中分别重跑：
+
+| 测试 | 完整套件 | Step 3 前重跑 | Step 3 后重跑 |
+| --- | --- | --- | --- |
+| Cobot 双抽屉取物 | 失败 | 通过 | 通过 |
+| Phase 1 RGB-D 探索位置误差 | 失败 | 失败 | 失败 |
+| Phase 1 柜体上半部识别 | 失败 | 失败 | 失败 |
+
+两项 Phase 1 失败在基线版本同样出现。Cobot 的完整套件失败在单测重跑中未复现。4090-2 原始日志位于 `steward/var/step3/pytest-full.log`、`pytest-drawer-{base,current}.log` 和 `pytest-phase-{base,current}.log`。
+
 ## 复现
 
 从 4090-2 仓库根目录执行，输出目录须尚未存在。
