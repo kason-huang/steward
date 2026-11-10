@@ -1,0 +1,8 @@
+{
+  "steps": 1250,
+  "settled_window": 125,
+  "max_settled_speed_m_s": 0.02,
+  "initial_index": 0,
+  "height_above_site_m": 0.25,
+  "outside_offset_x_m": 0.3
+}

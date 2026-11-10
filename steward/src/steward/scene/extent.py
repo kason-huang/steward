@@ -66,9 +66,17 @@ def entity_obb(model: mujoco.MjModel, data: mujoco.MjData, names: EntityNames,
     for gid in range(model.ngeom):
         if model.geom_bodyid[gid] not in body_ids:
             continue
-        half = _geom_half_extents(model, gid)
         r_g = data.geom_xmat[gid].reshape(3, 3)
         p_g = data.geom_xpos[gid]
+        if model.geom_type[gid] == mujoco.mjtGeom.mjGEOM_MESH:
+            mesh = model.geom_dataid[gid]
+            start = model.mesh_vertadr[mesh]
+            vertices = model.mesh_vert[start : start + model.mesh_vertnum[mesh]]
+            points = (vertices @ r_g.T + p_g - p_root) @ r_root
+            lo = np.minimum(lo, points.min(axis=0))
+            hi = np.maximum(hi, points.max(axis=0))
+            continue
+        half = _geom_half_extents(model, gid)
         for sx in (-1, 1):
             for sy in (-1, 1):
                 for sz in (-1, 1):

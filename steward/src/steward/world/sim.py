@@ -201,9 +201,12 @@ def _robot_state(ent) -> _RobotState:
 class WorldSim:
     def __init__(self, scene: dict, *, timestep: float = 0.002, speed: float = 1.0, seed: int = 0,
                  perception: PerceptionConfig | None = None, grasp: GraspConfig | None = None,
-                 overview_camera: dict | None = None, freeze_idle: bool = False, appearance: str = "flat"):
+                 overview_camera: dict | None = None, freeze_idle: bool = False, appearance: str = "flat",
+                 prepared_build: MjcfBuild | None = None):
+        """Create a world. A prepared build supplies its own timestep and a fixed entity layout."""
         self._initial_scene = copy.deepcopy(scene)
         self.timestep = timestep
+        self._prepared_build = prepared_build
         self.speed = speed
         # The world stands still while no one waits for world time to pass: no robot acts and no
         # client sleeps, e.g. while the agents think.
@@ -232,10 +235,11 @@ class WorldSim:
     def _load(self, scene_dict: dict) -> None:
         self.episode = next(_EPISODES)
         self.template = SceneState.from_dict(scene_dict)
-        cameras = [self._overview or self._default_overview()]
-        self.build: MjcfBuild = build_mjcf(self.template, timestep=self.timestep, extra_cameras=cameras,
-                                           appearance=self.appearance)
+        self.build = self._prepared_build or build_mjcf(
+            self.template, timestep=self.timestep, extra_cameras=[self._overview or self._default_overview()],
+            appearance=self.appearance)
         self.model = self.build.compile()
+        self.timestep = float(self.model.opt.timestep)
         self.data = mujoco.MjData(self.model)
         self.build.apply_initial(self.model, self.data)
         self.robots = {e.id: _robot_state(e) for e in self.template.entities if e.role == "robot"}
@@ -306,6 +310,8 @@ class WorldSim:
         return copy.deepcopy(ent.pose.value)
 
     def _editable(self, entity_id: str) -> object:
+        if self._prepared_build is not None:
+            raise EditError("prepared scenes have a fixed entity layout")
         ent = self.template.find(entity_id)
         if ent is None:
             raise EditError(f"unknown entity {entity_id!r}")
@@ -373,6 +379,8 @@ class WorldSim:
         from steward.assets.library import instantiate
 
         with self.lock:
+            if self._prepared_build is not None:
+                raise EditError("prepared scenes have a fixed entity layout")
             if self.template.find(entity_id) is not None:
                 raise EditError(f"entity id {entity_id!r} is already used")
             if not entity_id.startswith("w:"):

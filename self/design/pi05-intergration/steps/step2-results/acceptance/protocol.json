@@ -1,0 +1,11 @@
+{
+  "reset_absolute_error": 1e-09,
+  "geometry_absolute_error": 2e-06,
+  "body_relative_error": 1e-05,
+  "settled_position_m": 0.002,
+  "settled_rotation_deg": 2.0,
+  "settled_linear_speed_m_s": 0.02,
+  "settled_angular_speed_rad_s": 0.05,
+  "settled_penetration_m": 0.002,
+  "settle_steps": 250
+}

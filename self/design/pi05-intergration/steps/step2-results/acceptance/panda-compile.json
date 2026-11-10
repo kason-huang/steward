@@ -1,0 +1,27 @@
+{
+  "mujoco": "3.17.0",
+  "compiled": true,
+  "actuators": 9,
+  "panda_base": {
+    "position": [
+      -0.6,
+      0.0,
+      0.0
+    ],
+    "quaternion": [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  "panda_joint_names": [
+    "robot0_joint1",
+    "robot0_joint2",
+    "robot0_joint3",
+    "robot0_joint4",
+    "robot0_joint5",
+    "robot0_joint6",
+    "robot0_joint7"
+  ]
+}

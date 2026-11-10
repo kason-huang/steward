@@ -75,7 +75,11 @@ class AuthoringService:
 
     # ----------------------------------------------------------------- scenes
     def compose_scene(self, spec: dict) -> dict:
+        from steward.scene.libero import SCENARIO_NAMES
+
         name = spec["name"]
+        if name in SCENARIO_NAMES:
+            raise AuthoringError("Prepared LIBERO scenes are registered from their asset bundle")
         scene = SceneState(mode="world", layers=SpatialLayers(regions=copy.deepcopy(spec.get("regions", []))))
         for placement in spec["entities"]:
             record = self.library.get(placement["asset"], placement.get("version"))
@@ -178,6 +182,10 @@ class AuthoringService:
         return report
 
     def render_scene_views(self, scene_name: str) -> list[str]:
+        from steward.scene.libero import SCENARIO_NAMES
+
+        if scene_name in SCENARIO_NAMES:
+            raise AuthoringError("Prepared LIBERO scenes are rendered through the Steward console")
         scene = SceneState.from_dict(self.load_scene(scene_name))
         width, depth, cx, cy = 6.0, 5.0, 0.0, 0.0
         for ent in scene.entities:
@@ -235,6 +243,15 @@ class AuthoringService:
         for key in ("name", "scene", "robots", "task"):
             if key not in scenario:
                 raise AuthoringError(f"scenario needs {key!r}")
+        from steward.scene.libero import SCENARIO_NAMES, scenario_name
+
+        if scenario["scene"] in SCENARIO_NAMES or scenario["name"] in SCENARIO_NAMES or "liberoInitialState" in scenario:
+            try:
+                valid = scenario_name(scenario.get("liberoInitialState")) == scenario["scene"] == scenario["name"]
+            except ValueError:
+                valid = False
+            if not valid or scenario["robots"]:
+                raise AuthoringError("Prepared LIBERO scenarios require the matching fixed scene and initial state")
         scene = self.load_scene(scenario["scene"])
         ids = {e["id"] for e in scene["entities"]}
         for rid in scenario["robots"]:

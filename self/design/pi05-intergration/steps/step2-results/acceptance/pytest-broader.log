@@ -1,0 +1,43 @@
+.........................F.......................
+=================================== FAILURES ===================================
+_________ test_stopping_a_robot_turn_ends_the_run_and_releases_control _________
+
+tmp_path = PosixPath('/tmp/pytest-of-huawei/pytest-1/test_stopping_a_robot_turn_end0')
+
+    def test_stopping_a_robot_turn_ends_the_run_and_releases_control(tmp_path):
+        robot = _home(tmp_path, "robot-1", "ego")
+        script = _launcher(tmp_path, "sys.stdin.read()\nprint('{\"type\": \"session\", \"sessionId\": \"s-1\"}', flush=True)\ntime.sleep(30)\n")
+        calls = []
+
+        def control(q, b):
+            calls.append(b["action"])
+            return {"owner": None}
+
+        ego = JsonServer({("POST", "/ego/control"): control, ("GET", "/ego/control"): lambda q, b: {"owner": None},
+                          ("POST", "/skill/stop"): lambda q, b: calls.append("stop") or {"stopped": None}}).start()
+        try:
+            chat = HarnessChat(ChatConfig(dsh=script, cwd=tmp_path, env_file=tmp_path / ".env", robot_home=robot,
+                                          ego_api=ego.url), lambda: "unused")
+            chat.send("robot", "去拿椅子")
+            deadline = time.time() + 5
+            while chat.agents["robot"].session_id is None and time.time() < deadline:
+                time.sleep(0.02)
+            started = time.time()
+            assert chat.cancel("robot") == {"stopped": True}
+            _wait_idle(chat, "robot")
+            assert time.time() - started < 5
+        finally:
+            ego.stop()
+>       assert calls == ["acquire", "stop", "release"]
+E       AssertionError: assert ['acquire', 'release', 'stop'] == ['acquire', 'stop', 'release']
+E
+E         At index 1 diff: 'release' != 'stop'
+E         Use -v to get more diff
+
+tests/test_chat.py:172: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_chat.py::test_stopping_a_robot_turn_ends_the_run_and_releases_control
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! KeyboardInterrupt !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+/home/huawei/hqk/workspace/steward/steward/src/steward/chores.py:203: KeyboardInterrupt
+(to show a full traceback on KeyboardInterrupt use --full-trace)
+1 failed, 48 passed in 467.22s (0:07:47)

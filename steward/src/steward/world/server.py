@@ -162,15 +162,37 @@ class StewardHost:
         scenario = self.scenario_for(name)
         if scenario.get("phase"):
             phase_modules(scenario["phase"])  # a scenario declares the level it was built for; unknown ones fail here
-        self.phase = self._pinned_phase or scenario.get("phase") or self._fallback_phase
+        phase = self._pinned_phase or scenario.get("phase") or self._fallback_phase
+        scene = scenario["sceneState"]
+        prepared = None
+        if "liberoInitialState" in scenario:
+            from steward.scene.libero import load_scene, scenario_name
+
+            index = scenario["liberoInitialState"]
+            try:
+                if scenario["robots"] or name != scenario_name(index):
+                    raise ValueError("Invalid fixed LIBERO scenario")
+                scene, prepared = load_scene(self.authoring.root / "libero-step2", index)
+            except (OSError, ValueError, KeyError) as exc:
+                raise AuthoringError(f"Cannot load LIBERO scenario {name!r}: {exc}") from exc
+        modules = phase_modules(phase)
+        try:
+            sim = WorldSim(scene, speed=self.speed, seed=self.seed, freeze_idle=self.freeze_idle,
+                           appearance=self.appearance, prepared_build=prepared,
+                           perception=PerceptionConfig(mode=modules["perception"], masks=modules.get("masks", True),
+                                                       misnames=self._misnames_at(phase)))
+        except ValueError as exc:
+            if prepared is None:
+                raise
+            raise AuthoringError(f"Cannot compile LIBERO scenario {name!r}: {exc}") from exc
+        self._stop_robot_turn()
+        if self.before_episode_load is not None:
+            self.before_episode_load(scenario)
         self.sensor_cameras.recordings.interrupt("Scene changed; start a new RGB recording")
         if self.sim is not None:
             self.sim.stop()
-        self.sim = WorldSim(scenario["sceneState"], speed=self.speed, seed=self.seed, freeze_idle=self.freeze_idle,
-                            appearance=self.appearance,
-                            perception=PerceptionConfig(mode=phase_modules(self.phase)["perception"],
-                                                        masks=phase_modules(self.phase).get("masks", True),
-                                                        misnames=self._misnames_at(self.phase)))
+        self.phase = phase
+        self.sim = sim
         self.scenario = scenario
         self.embodiments = scenario_embodiments(scenario)
         self.observer.reset()
@@ -364,11 +386,8 @@ class StewardHost:
             if action == "load":
                 if "body" in b:
                     self.set_body(b["body"] or None)
-                self._stop_robot_turn()
 
                 def load() -> dict:
-                    if self.before_episode_load is not None:
-                        self.before_episode_load(self.scenario_for(b["scenario"]))
                     result = self.load_episode(b["scenario"])
                     self.sim.start()
                     return result

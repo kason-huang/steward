@@ -1,0 +1,21 @@
+{
+  "kitchen_load": {
+    "scenario": "phase0-kitchen",
+    "robots": {
+      "w:robot-1": "http://127.0.0.1:36345"
+    },
+    "task": "\u628a\u676f\u5b50\u653e\u5230\u684c\u4e0a\u3002"
+  },
+  "kitchen_reset": {
+    "reset": true
+  },
+  "invalid_bundle": {
+    "error": "Cannot load LIBERO scenario 'libero-object-alphabet-soup': [Errno 2] No such file or directory: '/home/huawei/hqk/workspace/steward/steward/var/step2/final-root/libero-step2/initial-states.json'"
+  },
+  "kitchen_preserved": true,
+  "libero_after_recovery": {
+    "scenario": "libero-object-alphabet-soup",
+    "robots": {},
+    "task": "pick up the alphabet soup and place it in the basket"
+  }
+}

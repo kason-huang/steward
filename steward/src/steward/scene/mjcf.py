@@ -60,6 +60,8 @@ class MjcfBuild:
     shadows: bool = False
     """Whether the renderer should cast the key light. Flat appearance leaves this off."""
 
+    initial_qvel: dict[str, list[float]] = field(default_factory=dict)
+
     def compile(self) -> mujoco.MjModel:
         return mujoco.MjModel.from_xml_string(self.xml, self.assets or None)
 
@@ -69,6 +71,10 @@ class MjcfBuild:
             jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, name)
             adr = model.jnt_qposadr[jid]
             data.qpos[adr : adr + len(values)] = values
+        for name, values in self.initial_qvel.items():
+            jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, name)
+            adr = model.jnt_dofadr[jid]
+            data.qvel[adr : adr + len(values)] = values
         for names in self.names.values():
             for key, act_name in names.actuators.items():
                 aid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, act_name)
