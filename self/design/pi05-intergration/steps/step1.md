@@ -1,12 +1,27 @@
 # Step 1：用 OpenPI 跑通原始 LIBERO 任务
 
-日期：2026-11-09。状态：待 GPU 实测。本文是[实施计划第 1 步](../pi05-integration-plan.md#1-跑通原始-libero-任务)的操作方案，面向拥有 Linux NVIDIA GPU 机器的实施者。目标是在固定配置下，由真实 π0.5 完成“将字母汤罐放入篮子”的原始 LIBERO 任务，取得完整成功证据和固定批次成功率，并保存全部尝试记录。
+操作方案日期为 2026-11-09，实测日期为 2026-11-10（北京时间）。**状态：原始 LIBERO 基线验收通过。** 本步对应[实施计划第 1 步](../pi05-integration-plan.md#1-跑通原始-libero-任务)。
 
-本文命令参考 OpenPI 官方示例，尚未在目标 GPU 机器执行；运行验证由 Step 1 实施者完成。模型、本体与任务选型见第 1 节，任务数字 ID、初态和具体依赖版本在实测后填写，不能将本文视为已经通过的实验报告。
+在 `rtx-4090-2` 上使用 OpenPI 的非 Docker 双 Python 环境和 EGL，运行官方 `pi05_libero`。官方 `libero_object` 试跑 10/10 成功。目标任务为字母汤罐入篮，任务 ID 0、排序 0。资格回合在第 130 个策略控制步收到 LIBERO 成功信号。固定正式批次使用种子 7、初态 0–4，**5/5 成功（100%）**，无人工干预。
+
+- [实测报告及录像索引](step1-results/README.md)
+- [复现手册](step1-results/REPRODUCE.md)
+- [字母汤罐入篮录像](step1-results/runs/20261110T021656Z/target-qualification/episode.mp4)
+- [正式批次结果](step1-results/runs/20261110T021656Z-batch/summary.json)
+
+原始日志、逐次推理输入和动作轨迹保存在远端 `/home/huawei/hqk/workspace/pi05-step1`。验收运行 ID 为 `20261110T021656Z`。
+
+在已配置的 `4090-2` 上，登录后执行：
+
+```bash
+ssh rtx-4090-2
+cd /home/huawei/hqk/workspace/pi05-step1
+bash run-validation.sh
+```
 
 ## 1. 固定技术路线
 
-采用 OpenPI 官方实现、官方 `pi05_libero` 权重及其配套 LIBERO 子模块，优先使用官方 Docker Compose 同机运行策略服务与仿真客户端。Step 1 的策略服务在后续接入中继续作为候选，ER 调用方式见[接入设计](../pi05-integration-design.md)。
+采用 OpenPI 官方实现、官方 `pi05_libero` 权重及其配套 LIBERO 子模块，官方 Docker Compose 是备选运行方式。4090-2 实测使用同机的非 Docker 双 Python 环境。Step 1 的策略服务在后续接入中继续作为候选，ER 调用方式见[接入设计](../pi05-integration-design.md)。
 
 ### 1.1 模型、机器人与任务选型
 
@@ -56,7 +71,7 @@ Hugging Face 可下载 [LeRobot 基础版本](https://huggingface.co/lerobot/pi0
 
 ## 2. 准备 GPU 机器与运行目录
 
-在 GPU 机器安装 NVIDIA 驱动、Docker、Compose 插件和 NVIDIA Container Toolkit，并验证容器可以访问 GPU。具体安装按 [NVIDIA Container Toolkit 官方说明](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)执行。记录 GPU 型号、显存、驱动、操作系统、Docker 和 Compose 版本；为模型下载、构建缓存、录像和轨迹预留磁盘空间。
+在 GPU 机器安装 NVIDIA 驱动。若采用 Docker 路线，安装 Docker、Compose 插件和 NVIDIA Container Toolkit，并验证容器可以访问 GPU。具体安装按 [NVIDIA Container Toolkit 官方说明](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)执行。记录 GPU 型号、显存、驱动、操作系统、Docker 和 Compose 版本；为模型下载、构建缓存、录像和轨迹预留磁盘空间。
 
 OpenPI 的通用推理要求列为显存大于 8 GB，这不是包含仿真渲染在内的总资源保证。实际显存占用、首次加载与推理耗时以本机记录为准，见 [OpenPI 环境要求](https://github.com/Physical-Intelligence/openpi#requirements)。
 
@@ -76,7 +91,7 @@ Steward 仓库内新增的基线入口、配置和说明集中放在 `steward/` 
 
 ### 2.1 下载访问验证
 
-2026-11-09 在当前 Mac 上通过 GCS HTTPS 接口匿名列举到 16 个文件，总计 12,439,085,481 字节，约 12.44 GB。完整下载 `norm_stats.json` 返回 HTTP 200，JSON 解析成功。抽样下载一个大型参数文件的前 1 MiB 返回 HTTP 206，用时约 1.65 秒。当前证据覆盖目录访问和抽样下载，完整权重下载、模型加载及 GPU 评测均待 Step 1 实施者验证。
+2026-11-09 在当前 Mac 上通过 GCS HTTPS 接口匿名列举到 16 个文件，总计 12,439,085,481 字节，约 12.44 GB。完整下载 `norm_stats.json` 返回 HTTP 200，JSON 解析成功。抽样下载一个大型参数文件的前 1 MiB 返回 HTTP 206，用时约 1.65 秒。随后在 4090-2 下载并校验了全部 16 个权重文件，并完成 GPU 加载和评测，见[实测报告](step1-results/README.md)。
 
 下面的命令可在目标 GPU 机器复查元数据文件访问，成功时保存 JSON 并显示 HTTP 200。完整模型的下载由第 3 节的策略服务启动过程触发，需为权重、镜像及实验输出预留磁盘空间。
 
@@ -89,7 +104,7 @@ curl -fLsS --connect-timeout 15 --max-time 30 \
 
 ## 3. 用官方示例试跑
 
-以下命令在 OpenPI 仓库根目录执行，显式指定权重与 `libero_object`。首次先运行每个任务一个回合，确认模型加载、通信、渲染和动作执行；这轮试跑也属于需要保留的尝试。
+以下是官方 Docker 试跑参考。在 OpenPI 仓库根目录执行时，显式指定权重与 `libero_object`。4090-2 实测命令见[复现手册](step1-results/REPRODUCE.md)。首次先运行每个任务一个回合，确认模型加载、通信、渲染和动作执行；这轮试跑也属于需要保留的尝试。
 
 ```bash
 export MUJOCO_GL=egl
@@ -133,7 +148,7 @@ uv run scripts/serve_policy.py policy:checkpoint \
 4. 保存策略实际输入、推理返回的动作段、实际执行的动作前缀、仿真步编号、终止原因和独立的基准成功信号。
 5. 为两路策略图像保存可核对的样例，为完整 Episode 保存录像；录像生成失败时记录原因并补齐验收证据。
 
-这些参数是待实现的基线入口要求，不是官方现有 CLI 参数。新增入口的实际命令、配置文件和改动差异必须在验收报告中给出。
+这些参数由本次[评测入口](step1-results/evaluate.py)提供。实际启动命令和配置见[复现手册](step1-results/REPRODUCE.md)。
 
 官方当前录像命名包含任务指令及成功/失败后缀，但没有尝试编号；同任务同结果的多次尝试可能覆盖录像。补齐独立输出目录或唯一文件名后，再进行重复验收。不得只保留成功回合，也不得在失败后悄悄更换初态或人工挪动物体。
 
@@ -176,14 +191,14 @@ uv run scripts/serve_policy.py policy:checkpoint \
 
 在相同任务、初态和配置下复跑验证启动方式可重复使用，并保留所有结果；随机生成策略与 GPU 计算不保证每次获得完全相同轨迹。若改变模型、控制参数或初态，建立新的配置标识，分别报告结果。
 
-全部满足以下条件后，才将实施计划第 1 步标为完成：
+以下验收项均已通过，证据见[实测报告](step1-results/README.md)。
 
-- [ ] 真实 `pi05_libero` 已加载，模型和配套环境版本可核对。
-- [ ] 选定任务、原始指令、初态和完整启动方式已经固定。
-- [ ] 至少一次完整抓取、搬运、放入篮子的任务成功，基准成功信号成立且录像可见完整过程。
-- [ ] 原始环境固定批次已经完成，按预先冻结的初态、次数、预算与计数规则报告成功次数、总次数和成功率；保留全部失败与人工干预记录。
-- [ ] 全部尝试、失败、异常、超时与人工干预记录保留，录像未被覆盖。
-- [ ] 相机、状态、动作、控制周期、执行前缀和机器人资产规格足以开展后续适配。
-- [ ] 实测报告区分原始基线成功与 Steward 接入验收；后者仍按[实施计划](../pi05-integration-plan.md)推进。
+- [x] 真实 `pi05_libero` 已加载，模型和配套环境版本可核对。
+- [x] 选定任务、原始指令、初态和完整启动方式已经固定。
+- [x] 至少一次完整抓取、搬运、放入篮子的任务成功，基准成功信号成立且录像可见完整过程。
+- [x] 原始环境固定批次已经完成，按预先冻结的初态、次数、预算与计数规则报告成功次数、总次数和成功率；保留全部失败与人工干预记录。
+- [x] 全部尝试、失败、异常、超时与人工干预记录保留，录像未被覆盖。
+- [x] 相机、状态、动作、控制周期、执行前缀和机器人资产规格足以开展后续适配。
+- [x] 实测报告区分原始基线成功与 Steward 接入验收；后者仍按[实施计划](../pi05-integration-plan.md)推进。
 
 若始终失败，先用已保存的两路图像、原始动作与仿真日志定位模型加载、预处理、归一化、控制器或物理执行问题。保留每次修改与对应结果；不能用其他模型的成功记录替代 π0.5 基线，也不能在只有容器启动或单次推理成功时宣布本步完成。
