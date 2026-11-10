@@ -1,0 +1,41 @@
+{
+  "sessionId": "session-6ef26212-f0aa-45ab-9f12-a9350185a642",
+  "turns": 1,
+  "outerCalls": {
+    "run_code": 96
+  },
+  "innerCalls": {
+    "capability_get": {
+      "count": 3,
+      "errors": 0
+    },
+    "ego_annotate": {
+      "count": 3,
+      "errors": 0
+    },
+    "ego_inspect": {
+      "count": 233,
+      "errors": 0
+    },
+    "ego_match_face": {
+      "count": 17,
+      "errors": 2
+    },
+    "ego_observe": {
+      "count": 1,
+      "errors": 0
+    },
+    "ego_predict": {
+      "count": 108,
+      "errors": 0
+    },
+    "ego_state": {
+      "count": 124,
+      "errors": 0
+    },
+    "skill_run": {
+      "count": 93,
+      "errors": 0
+    }
+  }
+}
