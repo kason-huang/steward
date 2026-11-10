@@ -283,7 +283,8 @@ class HarnessChat:
             agents["robot"].update(robot)
         return {"agents": agents, "messages": messages}
 
-    def send(self, key: str, text: str) -> dict:
+    def send(self, key: str, text: str, reply_override: Callable[[str], str | None] | None = None) -> dict:
+        """Start a turn. An optional check returns replacement text for the final reply."""
         text = (text or "").strip()
         if not text:
             raise HttpError(400, "message is empty")
@@ -300,7 +301,7 @@ class HarnessChat:
             self._set_wait(agent, "llm")
             entry = self._add(key, "user", text)
             first = agent.session_id is None
-        threading.Thread(target=self._run, args=(agent, text, first), name=f"chat-{key}", daemon=True).start()
+        threading.Thread(target=self._run, args=(agent, text, first, reply_override), name=f"chat-{key}", daemon=True).start()
         return {"accepted": True, "id": entry.id}
 
     def reset(self, key: str) -> dict:
@@ -359,7 +360,7 @@ class HarnessChat:
                 raise HttpError(504, f"{agent.label} did not end its running turn within {self.config.stop_wait_s:g} s")
             time.sleep(0.05)
 
-    def assign(self, key: str, text: str) -> dict:
+    def assign(self, key: str, text: str, reply_override: Callable[[str], str | None] | None = None) -> dict:
         """Give ``key`` the task ``text`` in a new conversation, its running turn stopped first.
 
         Returns:
@@ -367,7 +368,7 @@ class HarnessChat:
         """
         self.stop_turn(key)
         self.reset(key)
-        return self.send(key, text)
+        return self.send(key, text, reply_override)
 
     def stop(self) -> None:
         for agent in self.agents.values():
@@ -447,7 +448,8 @@ class HarnessChat:
         with self._lock:
             self._add(agent.key, "error", text)
 
-    def _run(self, agent: _Agent, text: str, first: bool) -> None:
+    def _run(self, agent: _Agent, text: str, first: bool,
+             reply_override: Callable[[str], str | None] | None) -> None:
         cfg = self.config
         fd, name = tempfile.mkstemp(prefix=f"steward-{agent.key}-", suffix=".yml")
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
@@ -489,7 +491,7 @@ class HarnessChat:
             timer.start()
             last_text: str | None = None
             for line in proc.stdout:
-                last_text = self._ingest(agent, line, last_text)
+                last_text = self._ingest(agent, line, last_text, defer_reply=reply_override is not None)
             code = proc.wait()
             timer.cancel()
             err_reader.join(2)
@@ -502,6 +504,10 @@ class HarnessChat:
                 self._report(agent, f"{agent.label} 运行失败：{detail}")
                 if agent.on_failure is not None:
                     agent.on_failure(f"{agent.label} 运行失败：{detail[-400:]}")
+            elif reply_override is not None and code == 0 and not agent.cancelled and last_text is not None:
+                replacement = reply_override(last_text)
+                with self._lock:
+                    self._add(agent.key, "assistant", replacement if replacement is not None else last_text)
         except HttpError as exc:
             self._report(agent, f"无法接管机器人：{exc}")
         except OSError as exc:
@@ -554,7 +560,7 @@ class HarnessChat:
                 return value.strip()[:80]
         return None
 
-    def _ingest(self, agent: _Agent, line: str, last_text: str | None) -> str | None:
+    def _ingest(self, agent: _Agent, line: str, last_text: str | None, *, defer_reply: bool) -> str | None:
         try:
             event = json.loads(line)
         except json.JSONDecodeError:
@@ -565,8 +571,12 @@ class HarnessChat:
                 agent.session_id = event.get("sessionId") or agent.session_id
             elif kind == "text" and event.get("text", "").strip():
                 last_text = event["text"].strip()
-                self._add(agent.key, "assistant", last_text)
+                if not defer_reply:
+                    self._add(agent.key, "assistant", last_text)
             elif kind == "tool_call":
+                if defer_reply and last_text is not None:
+                    self._add(agent.key, "assistant", last_text)
+                    last_text = None
                 tool = event.get("tool")
                 self._add(agent.key, "tool", "", tool=tool, input=event.get("input"), status="running",
                           call_id=event.get("callId"))
@@ -583,6 +593,7 @@ class HarnessChat:
                 agent.session_id = event.get("sessionId") or agent.session_id
                 final = (event.get("text") or "").strip()
                 if final and final != last_text:
-                    self._add(agent.key, "assistant", final)
+                    if not defer_reply:
+                        self._add(agent.key, "assistant", final)
                     last_text = final
         return last_text

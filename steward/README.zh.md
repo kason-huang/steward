@@ -38,6 +38,8 @@ echo 'DEEPSEEK_API_KEY=sk-...' > .env     # 已被 Git 忽略，运行脚本自�
 .venv/bin/steward services                # 检查远程感知服务（SAM 3.1、NovelAnything、NVS、SLARM）是否可达
 ```
 
+控制台运行内置拼图任务时，Steward 在显示最终回复前核对机器人的物体估计。拼图块数量不符、同一支撑面上的拼图块估计明显重叠，或无法取得观测时，控制台报告未确认。机器人已明确报告未完成或未确认时，控制台保留原回复及诊断。格位检查只覆盖数量和重叠。
+
 ## Windows
 
 Windows 上使用同样的命令：`uv sync` 把 `steward` 可执行文件装在 `.venv\Scripts` 下，每个 `.sh` 脚本都有同名、同参数的 PowerShell 版本。如果 PowerShell 拒绝运行未签名脚本，先执行一次 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`。

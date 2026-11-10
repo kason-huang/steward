@@ -27,7 +27,7 @@ from typing import Any
 
 import mujoco
 
-from steward.authoring.service import AuthoringError, AuthoringService
+from steward.authoring.service import PUZZLES, AuthoringError, AuthoringService
 from steward.embodiments import EMBODIMENTS, embodiment_catalog, scenario_embodiments, with_body
 from steward.glrender import IMAGE_FORMATS
 from steward.net import NO_CONTENT, Binary, HttpError, JsonServer, call, fetch
@@ -40,6 +40,7 @@ from steward.scene.schema import SceneState
 from steward.world.chat import ChatConfig, HarnessChat
 from steward.viewloop import ViewLoop, ViewSettings, frame_response
 from steward.world.goals import evaluate as evaluate_goal
+from steward.world.puzzle_reply import puzzle_reply_override
 from steward.world.sim import EditError, PerceptionConfig, WorldSim, speed_json
 from steward.world.sensor_cameras import SensorCameras
 from steward.world.thinking import session_files
@@ -299,9 +300,26 @@ class StewardHost:
             self.chat.post_note("robot", f"场景 {self.scenario['name']} 没有任务，没有下发给 {label}")
             return
         try:
-            self.chat.assign("robot", task)
+            self.chat.assign("robot", task, self._puzzle_reply_check())
         except HttpError as exc:
             self.chat.post_error("robot", f"未能把场景任务下发给 {label}：{exc}")
+
+    def _puzzle_reply_check(self) -> Callable[[str], str | None] | None:
+        """Bind the shipped puzzle task's expected count and the current robot's Ego API."""
+        scenario = self.scenario
+        if scenario is None or not scenario["name"].startswith("puzzle-"):
+            return None
+        puzzle = PUZZLES.get(scenario["name"].removeprefix("puzzle-"))
+        ego_url = self.chat.config.ego_api if self.chat.config else None
+        if puzzle is None or ego_url is None:
+            return None
+        return lambda reply: puzzle_reply_override(ego_url, puzzle.grid ** 2, reply)
+
+    def _send_console_chat(self, body: dict) -> dict:
+        agent, message = body.get("agent", "world"), body.get("message", "")
+        scenario_task = (self.scenario or {}).get("task", "").strip()
+        check = self._puzzle_reply_check() if agent == "robot" and scenario_task == (message or "").strip() else None
+        return self.chat.send(agent, message, check)
 
     def _start_robot_runtimes(self) -> None:
         """Run :attr:`on_episode_loaded` once the episode's world is up; raises ``HttpError(500)``
@@ -477,7 +495,7 @@ class StewardHost:
             ("GET", "/wca/phase"): guard(lambda q, b: self.phase_state()),
             ("POST", "/wca/phase"): guard(lambda q, b: self._set_phase_request(b)),
             ("GET", "/console/chat"): guard(lambda q, b: self.chat.state(int(q.get("since", 0)), int(q.get("activity", 0)))),
-            ("POST", "/console/chat"): guard(lambda q, b: self.chat.send(b.get("agent", "world"), b.get("message", ""))),
+            ("POST", "/console/chat"): guard(lambda q, b: self._send_console_chat(b)),
             ("POST", "/console/chat/reset"): guard(lambda q, b: self.chat.reset(b.get("agent", "world"))),
             ("POST", "/console/chat/stop"): guard(lambda q, b: self.chat.cancel(b.get("agent", "world"))),
             ("POST", "/console/alerts/ack"): guard(lambda q, b: self.acknowledge_alerts()),

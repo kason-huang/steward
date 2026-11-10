@@ -38,6 +38,8 @@ echo 'DEEPSEEK_API_KEY=sk-...' > .env     # 已被 Git 忽略，运行脚本自�
 .venv/bin/steward services                # 检查远程感知服务（SAM 3.1、NovelAnything、NVS、SLARM）是否可达
 ```
 
+For a built-in puzzle task started in the console, Steward checks the robot’s final object estimates before displaying the final reply. A count mismatch, substantial overlap between piece estimates on the same support, or unavailable observations produce an unconfirmed result. An explicit report of noncompletion is kept with its diagnosis. The occupancy check only covers piece count and overlap.
+
 ## Windows
 
 Steward runs on Windows with the same commands: `uv sync` installs the `steward` executable under `.venv\Scripts`, and every `.sh` script has a PowerShell counterpart with the same name and arguments. If PowerShell refuses unsigned scripts, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once.

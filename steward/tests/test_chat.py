@@ -12,7 +12,7 @@ import pytest
 
 from steward.assets.generators import steward_bot
 from steward.ego.runtime import EgoRuntime, RobotLink
-from steward.net import JsonServer
+from steward.net import JsonServer, call
 from steward.world.chat import ChatConfig, HarnessChat, ROBOT_BRIEF, capabilities_digest
 from steward.world.server import StewardHost
 
@@ -263,8 +263,6 @@ def test_a_task_given_anew_stops_the_running_turn_and_starts_a_new_conversation(
 def test_the_host_gives_the_scenario_task_to_the_robot_whenever_an_episode_loads_or_resets(kitchen_root, tmp_path):
     import threading
 
-    from steward.net import call
-
     robot = _home(tmp_path, "robot-1", "ego")
     calls = []
     ego = _robot_ego(calls)
@@ -307,6 +305,80 @@ def test_the_host_gives_the_scenario_task_to_the_robot_whenever_an_episode_loads
     assert all(t["text"].endswith(task) for t in turns)
     assert calls == ["acquire", "release"] * 2
     assert after.count(task) == 1 and len(after) < len(before) + 2, "a reset empties the transcript before the new task"
+
+
+@pytest.mark.parametrize("source, occupancy, reply, already_reported", [
+    ("dispatch", "ten-tracks", "任务完成", False),
+    ("console", "ten-tracks", "任务完成", False),
+    ("console", "nine-with-overlap", "任务完成", False),
+    ("console", "clean", "任务完成", False),
+    ("console", "ten-tracks", "**未完成**：只找到 8 块，第 9 块可能还在盒里。", True),
+    ("console", "unavailable", "拼图完成状态：未确认。两条轨迹疑似重复，需要重看。", True),
+    ("console", "ten-tracks", "未确认其中一块。\n**任务完成**：九块已经拼好。", False),
+])
+def test_puzzle_completion_reply_checks_final_ego_occupancy(kitchen_root, tmp_path, source, occupancy, reply,
+                                                            already_reported):
+    # Final robot-side observations from the 2026-11-10 puzzle-cat baseline.
+    recorded = [
+        ("e:31", [-.129, -.867, .748], [.119, .119, .006], 179.5),
+        ("e:34", [-.232, -.755, .737], [.119, .119, .006], .5),
+        ("e:36", [-.219, -.866, .757], [.119, .119, .006], .3),
+        ("e:61", [-.354, -.968, .756], [.119, .119, .006], 91.4),
+        ("e:72", [-.107, -1.004, .763], [.119, .118, .006], 179.5),
+        ("e:76", [-.361, -.735, .763], [.119, .119, .006], .4),
+        ("e:77", [-.110, -.752, .766], [.119, .119, .006], -91.4),
+        ("e:81", [-.320, -.902, .762], [.119, .119, .006], -86.9),
+        ("e:82", [-.220, -.980, .750], [.119, .118, .006], -.3),
+        ("e:88", [-.067, -.879, .756], [.119, .117, .006], 177.7),
+    ]
+    clean = [(f"e:{r * 3 + c + 1}", [c * .115, r * .115, .753], [.115, .115, .006], 0)
+             for r in range(3) for c in range(3)]
+    cases = {"ten-tracks": recorded, "nine-with-overlap": [p for p in recorded if p[0] != "e:61"], "clean": clean}
+    objects = [{"id": eid, "category": "puzzle_piece", "position": pos, "sizeM": size,
+                "yawDeg": yaw, "on": "e:6"} for eid, pos, size, yaw in cases.get(occupancy, [])]
+    checks = []
+
+    def summary(q, b):
+        checks.append("summary")
+        return {"objects": objects}
+
+    ego = JsonServer({
+        ("POST", "/ego/control"): lambda q, b: checks.append(b["action"]) or {},
+        ("GET", "/ego/control"): lambda q, b: {"owner": None},
+        **({("GET", "/ego/summary"): summary} if occupancy != "unavailable" else {}),
+    }).start()
+    try:
+        events = [{**event, "text": reply} if event["type"] in ("text", "final") else event
+                  for event in EVENTS]
+        stdout = "\n".join(json.dumps(event, ensure_ascii=False) for event in events)
+        script = _launcher(tmp_path, f"sys.stdin.buffer.read()\nprint({stdout!r})\n")
+        config = ChatConfig(dsh=script, cwd=tmp_path, env_file=tmp_path / ".env",
+                            robot_home=_home(tmp_path, "robot-1", "ego"), ego_api=ego.url)
+        host = StewardHost(kitchen_root, scenario="puzzle-cat", run_dir=tmp_path, chat=config,
+                           dispatch_task=source == "dispatch").start()
+        try:
+            if source == "dispatch":
+                host.dispatch_scenario_task()
+            else:
+                call("POST", f"{host.wca.url}/console/chat",
+                     {"agent": "robot", "message": host.scenario["task"]})
+            _wait_idle(host.chat, "robot")
+            messages = call("GET", f"{host.wca.url}/console/chat")["messages"]
+        finally:
+            host.stop()
+    finally:
+        ego.stop()
+
+    replies = [message["text"] for message in messages if message["role"] == "assistant"]
+    assert checks == (["acquire", "release"] if already_reported else ["acquire", "summary", "release"])
+    assert len(replies) == 1
+    if already_reported or occupancy == "clean":
+        assert replies == [reply]
+    else:
+        assert replies[0].startswith("拼图完成状态：未确认。")
+        assert "e:31 / e:88" in replies[0]
+        assert "任务完成" not in replies[0]
+        assert ("预期 9 块，机器人自我状态记录了 10 条" in replies[0]) == (occupancy == "ten-tracks")
 
 
 def test_a_turn_ended_by_the_budget_reports_a_designed_stop_not_a_failure(tmp_path):
