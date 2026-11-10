@@ -62,11 +62,19 @@ class MjcfBuild:
 
     initial_qvel: dict[str, list[float]] = field(default_factory=dict)
 
+    panda_initial: dict | None = None
+
     def compile(self) -> mujoco.MjModel:
         return mujoco.MjModel.from_xml_string(self.xml, self.assets or None)
 
     def apply_initial(self, model: mujoco.MjModel, data: mujoco.MjData) -> None:
         """Set initial joint positions and hold position actuators at them."""
+        if self.panda_initial is not None:
+            for field, supplied in (("qpos", self.initial_qpos), ("qvel", self.initial_qvel)):
+                expected = {model.joint(j).name: getattr(data.joint(j), field).size
+                            for j in range(model.njnt)}
+                if {name: len(values) for name, values in supplied.items()} != expected:
+                    raise ValueError(f"Prepared Panda {field} does not match compiled joints")
         for name, values in self.initial_qpos.items():
             jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, name)
             adr = model.jnt_qposadr[jid]

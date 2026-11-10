@@ -1,0 +1,28 @@
+id: libero-panda
+display: LIBERO Franka Panda
+mechanical:
+  base: fixed
+  arms:
+    - {id: arm, model: OnTheGroundPanda, dof: 7}
+  grippers:
+    - {arm: arm, type: parallel-2f, control: physical-position}
+  grasp:
+    sim: contact
+sensors:
+  cameras:
+    - {id: wrist, kind: rgb, model_camera: robot0_eye_in_hand}
+  proprioception: [arm position, arm velocity, finger position, finger velocity, tool pose]
+self_model:
+  kinematics: {format: mjcf, site: gripper0_grip_site}
+  actuator: {arm: torque, fingers: position}
+control_face:
+  mode: OSC_POSE
+  rates_hz: {goal: 20, physics: 500}
+  port: /control
+execution_stack:
+  ego_runtime: null
+  controller: steward.world.panda_osc.PandaOsc
+sim2real:
+  real_backend: none
+tasks:
+  sim: libero-object-alphabet-soup-panda

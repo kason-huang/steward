@@ -5,28 +5,31 @@ import json
 from pathlib import Path
 
 from steward.authoring.service import AuthoringService
-from steward.scene.libero import load_scene, scenario_name
+from steward.scene.libero import PANDA_ID, load_scene, scenario_name
 from steward.scene.validate import require_valid
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("root", type=Path)
+    parser.add_argument("--panda", action="store_true", help="register the Step 3 Panda variants")
     args = parser.parse_args()
     service = AuthoringService(args.root)
-    bundle = args.root / "libero-step2"
-    prompt = json.loads((bundle / "reference.json").read_text())["prompt"]
+    bundle = args.root / ("libero-step3" if args.panda else "libero-step2")
+    metadata = "protocol.json" if args.panda else "reference.json"
+    prompt = json.loads((bundle / metadata).read_text())["prompt"]
     entries = []
     for index in range(5):
-        scene, _ = load_scene(bundle, index)
+        scene, _ = load_scene(bundle, index, panda=args.panda)
         require_valid(scene)
-        name = scenario_name(index)
+        name = scenario_name(index, panda=args.panda)
         scene_path = args.root / "scenes" / f"{name}.json"
         scenario_path = args.root / "scenarios" / f"{name}.json"
         if scene_path.exists() or scenario_path.exists():
             raise FileExistsError(f"Scenario {name} is already registered")
         entries.append((scene_path, scenario_path, scene, {
-            "name": name, "scene": name, "robots": [], "task": prompt, "liberoInitialState": index,
+            "name": name, "scene": name, "robots": [PANDA_ID] if args.panda else [], "task": prompt, "liberoInitialState": index,
+            **({"liberoPanda": True} if args.panda else {}),
             "view": {"lookat": [0, 0, 0.10], "distance": 1.15, "azimuth": 0, "elevation": -50},
         }))
     created = []

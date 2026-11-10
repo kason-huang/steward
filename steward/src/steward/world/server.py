@@ -149,8 +149,17 @@ class StewardHost:
         # console offers every scene without a separate build command per root.
         self.authoring.ensure_scenario(name)
         scenario = self.authoring.load_scenario(name)
-        if self.body is None or set(scenario_embodiments(scenario)[r]["id"] for r in scenario["robots"]) == {self.body}:
+        from steward.scene.libero import PANDA_BODY, PANDA_ID
+
+        bodies = {entry["id"] for entry in scenario_embodiments(scenario).values()}
+        has_panda = PANDA_BODY in bodies or PANDA_ID in scenario["robots"] or scenario.get("liberoPanda")
+        if has_panda and (scenario.get("liberoPanda") is not True or "liberoInitialState" not in scenario):
+            raise HttpError(409, "Panda requires its fixed LIBERO scenario")
+        if self.body is None or bodies == {self.body}:
             return scenario
+
+        if self.body == PANDA_BODY or scenario.get("liberoPanda"):
+            raise HttpError(409, "Panda requires its fixed LIBERO scenario")
         bodied = with_body(scenario, self.body)
         blocked = start_blocked(bodied)
         if blocked:
@@ -166,13 +175,17 @@ class StewardHost:
         scene = scenario["sceneState"]
         prepared = None
         if "liberoInitialState" in scenario:
-            from steward.scene.libero import load_scene, scenario_name
+            from steward.scene.libero import PANDA_ID, load_scene, scenario_name
 
             index = scenario["liberoInitialState"]
             try:
-                if scenario["robots"] or name != scenario_name(index):
+                panda = scenario.get("liberoPanda", False)
+                if (type(panda) is not bool or scenario["robots"] != ([PANDA_ID] if panda else [])
+                        or name != scenario_name(index, panda=panda)):
                     raise ValueError("Invalid fixed LIBERO scenario")
-                scene, prepared = load_scene(self.authoring.root / "libero-step2", index)
+                bundle = self.authoring.root / ("libero-step3" if panda else "libero-step2")
+                scene, prepared = load_scene(bundle, index, panda=panda)
+                scenario = scenario | {"sceneState": scene}
             except (OSError, ValueError, KeyError) as exc:
                 raise AuthoringError(f"Cannot load LIBERO scenario {name!r}: {exc}") from exc
         modules = phase_modules(phase)
@@ -384,11 +397,15 @@ class StewardHost:
         def episode(q, b):
             action = b.get("action")
             if action == "load":
-                if "body" in b:
-                    self.set_body(b["body"] or None)
-
                 def load() -> dict:
-                    result = self.load_episode(b["scenario"])
+                    previous_body = self.body
+                    if "body" in b:
+                        self.set_body(b["body"] or None)
+                    try:
+                        result = self.load_episode(b["scenario"])
+                    except (HttpError, AuthoringError, ValueError):
+                        self.body = previous_body
+                        raise
                     self.sim.start()
                     return result
                 result = self.on_main(load)
@@ -636,10 +653,13 @@ class StewardHost:
 
     # ------------------------------------------------------------ robot port
     def _robot_routes(self, rid: str) -> dict:
+        from steward.scene.libero import PANDA_ID
+        from steward.world.panda_control import ControlConflict
+
         def camera_id(q) -> str | None:
             """The ``camera`` query (a sensor id of this robot; absent: its primary camera)."""
             camera = q.get("camera")
-            if camera is not None and camera not in {c["id"] for c in self._require_sim().robot_cameras(rid)}:
+            if camera is not None and camera not in self._require_sim().build.names[rid].cameras:
                 raise HttpError(404, f"robot {rid} has no camera {camera!r}")
             return camera
 
@@ -662,6 +682,24 @@ class StewardHost:
                                                             pulls=bool(b.get("pulls", True)))}
             except TimeoutError as exc:
                 raise HttpError(504, str(exc)) from exc
+            except ControlConflict as exc:
+                raise HttpError(409, str(exc)) from exc
+
+        def panda(operation, body):
+            if body is not None and not isinstance(body, dict):
+                raise HttpError(400, "Panda control body must be an object")
+            try:
+                return self._require_sim().panda_request(rid, operation, body or {})
+            except ControlConflict as exc:
+                raise HttpError(409, str(exc)) from exc
+            except ValueError as exc:
+                raise HttpError(400, str(exc)) from exc
+
+        def command(q, b):
+            sim = self._require_sim()
+            if sim.panda is not None:
+                raise HttpError(400, "Use the dedicated Panda control port")
+            return sim.command(rid, b or {})
 
         def telemetry(q, b):
             if not isinstance(b, dict):
@@ -669,7 +707,22 @@ class StewardHost:
             self.observer.ingest(rid, b)
             return {"accepted": True}
 
-        return {
+        shared = {
+            ("GET", "/camera/rgb"): camera,
+            ("POST", "/command"): command,
+            ("POST", "/clock/wait"): clock_wait,
+            ("POST", "/clock/release"): lambda q, b: self._require_sim().release(f"{rid}/{b['hold']}") or {},
+            ("POST", "/clock/renew"): lambda q, b: self._require_sim().renew(f"{rid}/{b['hold']}") or {},
+        }
+        if rid == PANDA_ID:
+            return shared | {
+                ("GET", "/control/status"): lambda q, b: panda("status", b),
+                ("POST", "/control/acquire"): lambda q, b: panda("acquire", b),
+                ("POST", "/control/renew"): lambda q, b: panda("renew", b),
+                ("POST", "/control/action"): lambda q, b: panda("action", b),
+                ("POST", "/control/stop"): lambda q, b: panda("stop", b),
+            }
+        return shared | {
             ("GET", "/sensors"): lambda q, b: self._require_sim().sensors(rid),
             # The robot's own encoders without a perception sample: an Ego-State view polling
             # them at frame rate must not advance the detector's noise stream.
@@ -683,10 +736,5 @@ class StewardHost:
             ("POST", "/sensors/rgb/record/stop"): lambda q, b: self.sensor_cameras.recordings.get(rid, b["recording_id"]).finish(b.get("cancel", False)),
             ("GET", "/sensors/rgb/record/result"): lambda q, b: self.sensor_cameras.recordings.get(rid, q["recording_id"]).result(),
             ("GET", "/sensors/rgb/pose"): lambda q, b: self.sensor_cameras.odometry_kinematics(rid),
-            ("GET", "/camera/rgb"): camera,
-            ("POST", "/command"): lambda q, b: self._require_sim().command(rid, b or {}),
             ("POST", "/telemetry"): telemetry,
-            ("POST", "/clock/wait"): clock_wait,
-            ("POST", "/clock/release"): lambda q, b: self._require_sim().release(f"{rid}/{b['hold']}") or {},
-            ("POST", "/clock/renew"): lambda q, b: self._require_sim().renew(f"{rid}/{b['hold']}") or {},
         }

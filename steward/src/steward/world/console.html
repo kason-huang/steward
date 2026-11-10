@@ -214,6 +214,8 @@
         <img id="camRobot-head_camera" alt="头部相机"></div>
       <div class="cam"><p class="caption" id="camCaption-wide_camera">广角相机 · 短焦，看身前台面与夹爪（垂直视野 100°，俯 45°）</p>
         <img id="camRobot-wide_camera" alt="广角相机"></div>
+      <div class="cam" hidden><p class="caption" id="camCaption-wrist">Panda 腕部相机</p>
+        <img id="camRobot-wrist" alt="Panda 腕部相机"></div>
     </section>
     <section class="card">
       <h2>俯视地图（蓝：真实状态　橙：自我态）</h2>
@@ -941,7 +943,7 @@ $('chatStop').onclick = async () => { try { await api('POST', '/console/chat/sto
 $('chatReset').onclick = async () => { try { await api('POST', '/console/chat/reset', { agent: chatTarget }); refreshChat(); } catch (e) { showError(e); } };
 renderTarget();
 
-const ROBOT_CAMERAS = ['head_camera', 'wide_camera'];
+const ROBOT_CAMERAS = ['head_camera', 'wide_camera', 'wrist'];
 const cameraMeter = rateMeter();
 const cameraShown = {};
 const cameraCaption = Object.fromEntries(ROBOT_CAMERAS.map(c => [c, $('camCaption-' + c).textContent]));
@@ -959,7 +961,10 @@ async function refreshCameraImage(sensor) {
 }
 async function refreshRobotCamera() {
   if (!robotId) return;
-  await Promise.all(ROBOT_CAMERAS.map(refreshCameraImage));
+  const panda = state.embodiments?.[robotId]?.id === 'libero-panda';
+  const visible = ROBOT_CAMERAS.filter(sensor => (sensor === 'wrist') === panda);
+  for (const sensor of ROBOT_CAMERAS) $('camRobot-' + sensor).parentElement.hidden = !visible.includes(sensor);
+  await Promise.all(visible.map(refreshCameraImage));
   setText($('robotCamLabel'), `机器人相机 · ${robotId} · ${cameraMeter().toFixed(1)} fps`);
 }
 
@@ -985,7 +990,12 @@ function loadedBody() {
   const ids = Object.values((state && state.loaded && state.embodiments) || {}).map(b => b.id);
   return ids.length ? ids[0] : hostBody;
 }
-function selectedBody() { return $('body').value; }
+function selectedBody() {
+  const target = catalog.find(s => s.name === $('scenario').value);
+  if (target?.fixedLayout) return scenarioBody(target);
+  const choice = $('body').value;
+  return choice === 'libero-panda' ? scenarioBody(target) : choice;
+}
 function fillScenarios(preferred) {
   const sel = $('scenario');
   sel.innerHTML = catalog.map(s => {
@@ -1019,6 +1029,9 @@ function renderBodies() {
 // Say it on the button when loading would mean a different body, so the confirm is no surprise.
 function updateLoadButton() {
   const switching = !!(state && state.loaded && loadedBody() && selectedBody() && loadedBody() !== selectedBody());
+  const target = catalog.find(s => s.name === $('scenario').value);
+  $('body').disabled = !!target?.fixedLayout;
+  if (target?.fixedLayout && selectedBody() !== 'none') $('body').value = selectedBody();
   $('load').textContent = switching ? '加载（换本体）' : '加载';
   $('load').title = switching
     ? '这会重开 Episode 并换掉机器人运行时：本体编译在世界模型里，不能热切换'
@@ -1065,7 +1078,7 @@ $('load').onclick = async () => {
   if (now && next && loadedBody() !== body && !confirm(
     `切换本体：${now} → ${next}\n\n本体编译在世界模型里，这不是热切换：会重开 Episode，停掉当前机器人的运行时，再拉起新本体的运行时。继续？`)) return;
   if (target && !target.built) setText($('clock'), '正在构建场景…');
-  try { await api('POST', '/wca/episode', { action: 'load', scenario: name, body }); viewKey = ''; refresh(); loadScenarios(); } catch (e) { showError(e); }
+  try { await api('POST', '/wca/episode', { action: 'load', scenario: name, body: target?.fixedLayout ? null : body }); viewKey = ''; refresh(); loadScenarios(); } catch (e) { showError(e); }
 };
 $('reset').onclick = async () => { try { await api('POST', '/wca/episode', { action: 'reset' }); refresh(); refreshChat(); } catch (e) { showError(e); } };
 $('pause').onclick = async () => { try { await api('POST', '/wca/clock', { action: state && state.paused ? 'resume' : 'pause' }); refresh(); } catch (e) { showError(e); } };

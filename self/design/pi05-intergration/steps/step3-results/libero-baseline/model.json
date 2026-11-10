@@ -1,0 +1,2994 @@
+{
+  "model_version": "3.2.3",
+  "robosuite": "1.4.1",
+  "physics_step": 0.002,
+  "control_period": 0.05,
+  "actuators": [
+    "robot0_torq_j1",
+    "robot0_torq_j2",
+    "robot0_torq_j3",
+    "robot0_torq_j4",
+    "robot0_torq_j5",
+    "robot0_torq_j6",
+    "robot0_torq_j7",
+    "gripper0_gripper_finger_joint1",
+    "gripper0_gripper_finger_joint2"
+  ],
+  "effective": {
+    "joint": {
+      "robot0_joint1": {
+        "type": [
+          3
+        ],
+        "axis": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "limited": [
+          1
+        ],
+        "range": [
+          -2.8973,
+          2.8973
+        ]
+      },
+      "robot0_joint2": {
+        "type": [
+          3
+        ],
+        "axis": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "limited": [
+          1
+        ],
+        "range": [
+          -1.7628,
+          1.7628
+        ]
+      },
+      "robot0_joint3": {
+        "type": [
+          3
+        ],
+        "axis": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "limited": [
+          1
+        ],
+        "range": [
+          -2.8973,
+          2.8973
+        ]
+      },
+      "robot0_joint4": {
+        "type": [
+          3
+        ],
+        "axis": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "limited": [
+          1
+        ],
+        "range": [
+          -3.0718,
+          -0.0698
+        ]
+      },
+      "robot0_joint5": {
+        "type": [
+          3
+        ],
+        "axis": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "limited": [
+          1
+        ],
+        "range": [
+          -2.8973,
+          2.8973
+        ]
+      },
+      "robot0_joint6": {
+        "type": [
+          3
+        ],
+        "axis": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "limited": [
+          1
+        ],
+        "range": [
+          -0.0175,
+          3.7525
+        ]
+      },
+      "robot0_joint7": {
+        "type": [
+          3
+        ],
+        "axis": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "limited": [
+          1
+        ],
+        "range": [
+          -2.8973,
+          2.8973
+        ]
+      },
+      "gripper0_finger_joint1": {
+        "type": [
+          2
+        ],
+        "axis": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "limited": [
+          1
+        ],
+        "range": [
+          0.0,
+          0.04
+        ]
+      },
+      "gripper0_finger_joint2": {
+        "type": [
+          2
+        ],
+        "axis": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "limited": [
+          1
+        ],
+        "range": [
+          -0.04,
+          0.0
+        ]
+      },
+      "alphabet_soup_1_joint0": {
+        "type": [
+          0
+        ],
+        "axis": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "limited": [
+          0
+        ],
+        "range": [
+          0.0,
+          0.0
+        ]
+      },
+      "basket_1_joint0": {
+        "type": [
+          0
+        ],
+        "axis": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "limited": [
+          0
+        ],
+        "range": [
+          0.0,
+          0.0
+        ]
+      },
+      "salad_dressing_1_joint0": {
+        "type": [
+          0
+        ],
+        "axis": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "limited": [
+          0
+        ],
+        "range": [
+          0.0,
+          0.0
+        ]
+      },
+      "cream_cheese_1_joint0": {
+        "type": [
+          0
+        ],
+        "axis": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "limited": [
+          0
+        ],
+        "range": [
+          0.0,
+          0.0
+        ]
+      },
+      "milk_1_joint0": {
+        "type": [
+          0
+        ],
+        "axis": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "limited": [
+          0
+        ],
+        "range": [
+          0.0,
+          0.0
+        ]
+      },
+      "tomato_sauce_1_joint0": {
+        "type": [
+          0
+        ],
+        "axis": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "limited": [
+          0
+        ],
+        "range": [
+          0.0,
+          0.0
+        ]
+      },
+      "butter_1_joint0": {
+        "type": [
+          0
+        ],
+        "axis": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "limited": [
+          0
+        ],
+        "range": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "actuator": {
+      "robot0_torq_j1": {
+        "trntype": [
+          0
+        ],
+        "gear": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "ctrlrange": [
+          -80.0,
+          80.0
+        ],
+        "ctrllimited": [
+          1
+        ],
+        "forcerange": [
+          0.0,
+          0.0
+        ],
+        "forcelimited": [
+          0
+        ],
+        "gaintype": [
+          0
+        ],
+        "biastype": [
+          0
+        ],
+        "gainprm": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "biasprm": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "joint": "robot0_joint1"
+      },
+      "robot0_torq_j2": {
+        "trntype": [
+          0
+        ],
+        "gear": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "ctrlrange": [
+          -80.0,
+          80.0
+        ],
+        "ctrllimited": [
+          1
+        ],
+        "forcerange": [
+          0.0,
+          0.0
+        ],
+        "forcelimited": [
+          0
+        ],
+        "gaintype": [
+          0
+        ],
+        "biastype": [
+          0
+        ],
+        "gainprm": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "biasprm": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "joint": "robot0_joint2"
+      },
+      "robot0_torq_j3": {
+        "trntype": [
+          0
+        ],
+        "gear": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "ctrlrange": [
+          -80.0,
+          80.0
+        ],
+        "ctrllimited": [
+          1
+        ],
+        "forcerange": [
+          0.0,
+          0.0
+        ],
+        "forcelimited": [
+          0
+        ],
+        "gaintype": [
+          0
+        ],
+        "biastype": [
+          0
+        ],
+        "gainprm": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "biasprm": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "joint": "robot0_joint3"
+      },
+      "robot0_torq_j4": {
+        "trntype": [
+          0
+        ],
+        "gear": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "ctrlrange": [
+          -80.0,
+          80.0
+        ],
+        "ctrllimited": [
+          1
+        ],
+        "forcerange": [
+          0.0,
+          0.0
+        ],
+        "forcelimited": [
+          0
+        ],
+        "gaintype": [
+          0
+        ],
+        "biastype": [
+          0
+        ],
+        "gainprm": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "biasprm": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "joint": "robot0_joint4"
+      },
+      "robot0_torq_j5": {
+        "trntype": [
+          0
+        ],
+        "gear": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "ctrlrange": [
+          -80.0,
+          80.0
+        ],
+        "ctrllimited": [
+          1
+        ],
+        "forcerange": [
+          0.0,
+          0.0
+        ],
+        "forcelimited": [
+          0
+        ],
+        "gaintype": [
+          0
+        ],
+        "biastype": [
+          0
+        ],
+        "gainprm": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "biasprm": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "joint": "robot0_joint5"
+      },
+      "robot0_torq_j6": {
+        "trntype": [
+          0
+        ],
+        "gear": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "ctrlrange": [
+          -12.0,
+          12.0
+        ],
+        "ctrllimited": [
+          1
+        ],
+        "forcerange": [
+          0.0,
+          0.0
+        ],
+        "forcelimited": [
+          0
+        ],
+        "gaintype": [
+          0
+        ],
+        "biastype": [
+          0
+        ],
+        "gainprm": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "biasprm": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "joint": "robot0_joint6"
+      },
+      "robot0_torq_j7": {
+        "trntype": [
+          0
+        ],
+        "gear": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "ctrlrange": [
+          -12.0,
+          12.0
+        ],
+        "ctrllimited": [
+          1
+        ],
+        "forcerange": [
+          0.0,
+          0.0
+        ],
+        "forcelimited": [
+          0
+        ],
+        "gaintype": [
+          0
+        ],
+        "biastype": [
+          0
+        ],
+        "gainprm": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "biasprm": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "joint": "robot0_joint7"
+      },
+      "gripper0_gripper_finger_joint1": {
+        "trntype": [
+          0
+        ],
+        "gear": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "ctrlrange": [
+          0.0,
+          0.04
+        ],
+        "ctrllimited": [
+          1
+        ],
+        "forcerange": [
+          -20.0,
+          20.0
+        ],
+        "forcelimited": [
+          1
+        ],
+        "gaintype": [
+          0
+        ],
+        "biastype": [
+          1
+        ],
+        "gainprm": [
+          1000.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "biasprm": [
+          0.0,
+          -1000.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "joint": "gripper0_finger_joint1"
+      },
+      "gripper0_gripper_finger_joint2": {
+        "trntype": [
+          0
+        ],
+        "gear": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "ctrlrange": [
+          -0.04,
+          0.0
+        ],
+        "ctrllimited": [
+          1
+        ],
+        "forcerange": [
+          -20.0,
+          20.0
+        ],
+        "forcelimited": [
+          1
+        ],
+        "gaintype": [
+          0
+        ],
+        "biastype": [
+          1
+        ],
+        "gainprm": [
+          1000.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "biasprm": [
+          0.0,
+          -1000.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "joint": "gripper0_finger_joint2"
+      }
+    },
+    "geom": {
+      "wall_leftcorner_visual": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "wall_rightcorner_visual": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "wall_left_visual": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "wall_right_visual": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "wall_rear_visual": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "wall_front_visual": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "floor": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g0_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g1_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g2_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g3_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g4_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g5_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g6_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g7_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g8_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g9_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g10_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g11_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_link0_collision": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g12_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_link1_collision": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g13_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_link2_collision": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g14_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g15_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g16_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g17_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_link3_collision": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g18_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g19_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g20_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g21_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_link4_collision": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g22_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g23_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g24_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_link5_collision": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g25_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g26_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g27_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g28_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g29_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g30_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g31_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g32_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g33_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g34_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g35_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g36_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g37_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g38_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g39_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g40_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g41_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_link6_collision": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g42_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g43_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g44_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g45_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g46_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g47_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g48_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_g49_vis": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "robot0_link7_collision": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "gripper0_hand_visual": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "gripper0_hand_collision": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "gripper0_finger1_visual": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "gripper0_finger1_collision": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          4
+        ]
+      },
+      "gripper0_finger1_pad_collision": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "gripper0_finger2_visual": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "gripper0_finger2_collision": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          4
+        ]
+      },
+      "gripper0_finger2_pad_collision": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "alphabet_soup_1_g0": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "alphabet_soup_1_g1": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "alphabet_soup_1_g2": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "alphabet_soup_1_g3": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "alphabet_soup_1_g4": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "alphabet_soup_1_g5": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "alphabet_soup_1_g6": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "alphabet_soup_1_g7": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "alphabet_soup_1_g8": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "alphabet_soup_1_g9": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "alphabet_soup_1_g10": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "alphabet_soup_1_g11": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "alphabet_soup_1_g12": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "alphabet_soup_1_g13": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "alphabet_soup_1_g14": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "alphabet_soup_1_g15": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "alphabet_soup_1_g16": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "alphabet_soup_1_g17": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "alphabet_soup_1_g18": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "alphabet_soup_1_g19": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "alphabet_soup_1_g20": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "alphabet_soup_1_g21": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "basket_1_g0": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "basket_1_g1": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "basket_1_g2": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "basket_1_g3": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "basket_1_g4": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "basket_1_g5": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "salad_dressing_1_g0": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "salad_dressing_1_g1": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "salad_dressing_1_g2": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "salad_dressing_1_g3": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "salad_dressing_1_g4": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "salad_dressing_1_g5": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "salad_dressing_1_g6": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "salad_dressing_1_g7": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "salad_dressing_1_g8": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "salad_dressing_1_g9": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "salad_dressing_1_g10": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "salad_dressing_1_g11": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "salad_dressing_1_g12": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "salad_dressing_1_g13": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "salad_dressing_1_g14": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "salad_dressing_1_g15": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "cream_cheese_1_g0": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "cream_cheese_1_g1": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "milk_1_g0": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "milk_1_g1": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "milk_1_g2": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "milk_1_g3": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "milk_1_g4": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "tomato_sauce_1_g0": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "tomato_sauce_1_g1": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "tomato_sauce_1_g2": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "tomato_sauce_1_g3": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "tomato_sauce_1_g4": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "tomato_sauce_1_g5": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "tomato_sauce_1_g6": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "tomato_sauce_1_g7": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "tomato_sauce_1_g8": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "tomato_sauce_1_g9": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "tomato_sauce_1_g10": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "tomato_sauce_1_g11": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "tomato_sauce_1_g12": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "tomato_sauce_1_g13": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "tomato_sauce_1_g14": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "tomato_sauce_1_g15": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "tomato_sauce_1_g16": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "tomato_sauce_1_g17": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "tomato_sauce_1_g18": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "tomato_sauce_1_g19": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "tomato_sauce_1_g20": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "tomato_sauce_1_g21": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "tomato_sauce_1_g22": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "tomato_sauce_1_g23": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "tomato_sauce_1_g24": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "butter_1_g0": {
+        "contype": [
+          0
+        ],
+        "conaffinity": [
+          0
+        ],
+        "condim": [
+          3
+        ]
+      },
+      "butter_1_g1": {
+        "contype": [
+          1
+        ],
+        "conaffinity": [
+          1
+        ],
+        "condim": [
+          3
+        ]
+      }
+    },
+    "site": {
+      "gripper0_grip_site": {
+        "pos": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quat": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    }
+  },
+  "joints": [
+    "robot0_joint1",
+    "robot0_joint2",
+    "robot0_joint3",
+    "robot0_joint4",
+    "robot0_joint5",
+    "robot0_joint6",
+    "robot0_joint7",
+    "gripper0_finger_joint1",
+    "gripper0_finger_joint2",
+    "alphabet_soup_1_joint0",
+    "basket_1_joint0",
+    "salad_dressing_1_joint0",
+    "cream_cheese_1_joint0",
+    "milk_1_joint0",
+    "tomato_sauce_1_joint0",
+    "butter_1_joint0"
+  ],
+  "bodies": {
+    "floor": {
+      "mass": 0.0,
+      "inertia": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "ipos": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "iquat": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "robot0_base": {
+      "mass": 0.0,
+      "inertia": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "ipos": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "iquat": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "robot0_link0": {
+      "mass": 4.0,
+      "inertia": [
+        0.4,
+        0.4,
+        0.4
+      ],
+      "ipos": [
+        0.0,
+        0.0,
+        0.05
+      ],
+      "iquat": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "robot0_link1": {
+      "mass": 3.0,
+      "inertia": [
+        0.3,
+        0.3,
+        0.3
+      ],
+      "ipos": [
+        0.0,
+        0.0,
+        -0.07
+      ],
+      "iquat": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "robot0_link2": {
+      "mass": 3.0,
+      "inertia": [
+        0.3,
+        0.3,
+        0.3
+      ],
+      "ipos": [
+        0.0,
+        -0.1,
+        0.0
+      ],
+      "iquat": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "robot0_link3": {
+      "mass": 2.0,
+      "inertia": [
+        0.2,
+        0.2,
+        0.2
+      ],
+      "ipos": [
+        0.04,
+        0.0,
+        -0.05
+      ],
+      "iquat": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "robot0_link4": {
+      "mass": 2.0,
+      "inertia": [
+        0.2,
+        0.2,
+        0.2
+      ],
+      "ipos": [
+        -0.04,
+        0.05,
+        0.0
+      ],
+      "iquat": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "robot0_link5": {
+      "mass": 2.0,
+      "inertia": [
+        0.2,
+        0.2,
+        0.2
+      ],
+      "ipos": [
+        0.0,
+        0.0,
+        -0.15
+      ],
+      "iquat": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "robot0_link6": {
+      "mass": 1.5,
+      "inertia": [
+        0.1,
+        0.1,
+        0.1
+      ],
+      "ipos": [
+        0.06,
+        0.0,
+        0.0
+      ],
+      "iquat": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "robot0_link7": {
+      "mass": 0.5,
+      "inertia": [
+        0.05,
+        0.05,
+        0.05
+      ],
+      "ipos": [
+        0.0,
+        0.0,
+        0.08
+      ],
+      "iquat": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "robot0_right_hand": {
+      "mass": 0.5,
+      "inertia": [
+        0.05,
+        0.05,
+        0.05
+      ],
+      "ipos": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "iquat": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "gripper0_right_gripper": {
+      "mass": 0.3,
+      "inertia": [
+        0.09,
+        0.07,
+        0.05
+      ],
+      "ipos": [
+        0.0,
+        0.0,
+        0.17
+      ],
+      "iquat": [
+        0.7071067811865475,
+        0.7071067811865475,
+        0.0,
+        0.0
+      ]
+    },
+    "gripper0_eef": {
+      "mass": 0.0,
+      "inertia": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "ipos": [
+        0.0,
+        0.0,
+        0.097
+      ],
+      "iquat": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "gripper0_leftfinger": {
+      "mass": 0.1,
+      "inertia": [
+        0.01,
+        0.01,
+        0.005
+      ],
+      "ipos": [
+        0.0,
+        0.0,
+        0.05
+      ],
+      "iquat": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "gripper0_finger_joint1_tip": {
+      "mass": 0.01,
+      "inertia": [
+        0.01,
+        0.01,
+        0.01
+      ],
+      "ipos": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "iquat": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    },
+    "gripper0_rightfinger": {
+      "mass": 0.1,
+      "inertia": [
+        0.01,
+        0.01,
+        0.005
+      ],
+      "ipos": [
+        0.0,
+        0.0,
+        0.05
+      ],
+      "iquat": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "gripper0_finger_joint2_tip": {
+      "mass": 0.01,
+      "inertia": [
+        0.01,
+        0.01,
+        0.01
+      ],
+      "ipos": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "iquat": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    },
+    "mount0_base": {
+      "mass": 0.0,
+      "inertia": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "ipos": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "iquat": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "alphabet_soup_1_main": {
+      "mass": 0.025851445888000014,
+      "inertia": [
+        1.8681309426509866e-05,
+        1.819685111834618e-05,
+        1.3358794712024762e-05
+      ],
+      "ipos": [
+        2.8425292393455808e-05,
+        -0.0007999216617960636,
+        -0.002674203775005498
+      ],
+      "iquat": [
+        0.5004269457935554,
+        0.499184966431167,
+        -0.5007975075532324,
+        0.49958892866167665
+      ]
+    },
+    "basket_1_main": {
+      "mass": 0.13610692620800002,
+      "inertia": [
+        0.0008168511359201928,
+        0.000684291351140847,
+        0.0006389013965876584
+      ],
+      "ipos": [
+        0.0012718656082669286,
+        9.760475496873871e-05,
+        0.06086295004358458
+      ],
+      "iquat": [
+        0.005376328691002574,
+        0.7144733415806206,
+        -0.0066472931856002004,
+        0.6996104292774208
+      ]
+    },
+    "salad_dressing_1_main": {
+      "mass": 0.0217845334248,
+      "inertia": [
+        3.518858815537441e-05,
+        3.397277858782418e-05,
+        5.1878159166281506e-06
+      ],
+      "ipos": [
+        -0.0004573497382271097,
+        -0.005628000972798143,
+        0.00021219135040283465
+      ],
+      "iquat": [
+        0.5033129123458882,
+        0.4963922380200678,
+        -0.5031978020243807,
+        0.4970541523186014
+      ]
+    },
+    "cream_cheese_1_main": {
+      "mass": 0.006193808164454399,
+      "inertia": [
+        4.34440839921837e-06,
+        3.569412694767001e-06,
+        1.1047214138871006e-06
+      ],
+      "ipos": [
+        0.0,
+        0.0,
+        -0.0
+      ],
+      "iquat": [
+        0.7071067811865476,
+        0.0,
+        0.7071067811865476,
+        0.0
+      ]
+    },
+    "milk_1_main": {
+      "mass": 0.0316659104568,
+      "inertia": [
+        4.3360095285431094e-05,
+        4.3294134999261284e-05,
+        1.4485375989273195e-05
+      ],
+      "ipos": [
+        0.0003549935991316505,
+        -0.011979920782136378,
+        1.9445299182540096e-06
+      ],
+      "iquat": [
+        0.49977241838716574,
+        0.5003418161756752,
+        -0.4997212089990666,
+        0.5001642830930498
+      ]
+    },
+    "tomato_sauce_1_main": {
+      "mass": 0.026632782592000012,
+      "inertia": [
+        1.9390130574457614e-05,
+        1.878877700043791e-05,
+        1.3924950900796984e-05
+      ],
+      "ipos": [
+        0.0005742618670012384,
+        -0.0007904998399710579,
+        -0.0023472687685851526
+      ],
+      "iquat": [
+        0.4806086560431649,
+        0.4791149010278371,
+        -0.5203398504080414,
+        0.5183731006011101
+      ]
+    },
+    "butter_1_main": {
+      "mass": 0.005247177842399999,
+      "inertia": [
+        3.22124422650864e-06,
+        2.6703101425205846e-06,
+        8.163157003571335e-07
+      ],
+      "ipos": [
+        0.0,
+        0.0,
+        -0.0
+      ],
+      "iquat": [
+        0.7071067811865476,
+        0.0,
+        0.7071067811865476,
+        0.0
+      ]
+    }
+  },
+  "source_revisions": {
+    "openpi": "215abfb217dbac7d5f1273282331b9b1866c0479",
+    "libero": "f78abd68ee283de9f9be3c8f7e2a9ad60246e95c"
+  }
+}

@@ -222,7 +222,8 @@ class AuthoringService:
         for name in self.list_scenarios():
             scenario = self.load_scenario(name)
             out[name] = {"name": name, "task": scenario["task"], "mission": scenario.get("mission"),
-                         "robots": scenario_embodiments(scenario), "built": True}
+                         "robots": scenario_embodiments(scenario), "built": True,
+                         **({"fixedLayout": True} if "liberoInitialState" in scenario else {})}
         for name, builtin in BUILTIN_SCENARIOS.items():
             if name in out:
                 continue
@@ -243,14 +244,19 @@ class AuthoringService:
         for key in ("name", "scene", "robots", "task"):
             if key not in scenario:
                 raise AuthoringError(f"scenario needs {key!r}")
-        from steward.scene.libero import SCENARIO_NAMES, scenario_name
+        from steward.scene.libero import PANDA_ID, SCENARIO_NAMES, scenario_name
 
-        if scenario["scene"] in SCENARIO_NAMES or scenario["name"] in SCENARIO_NAMES or "liberoInitialState" in scenario:
+        if (scenario["scene"] in SCENARIO_NAMES or scenario["name"] in SCENARIO_NAMES
+                or "liberoInitialState" in scenario or "liberoPanda" in scenario):
             try:
-                valid = scenario_name(scenario.get("liberoInitialState")) == scenario["scene"] == scenario["name"]
+                panda = scenario.get("liberoPanda", False)
+                valid = (type(panda) is bool
+                         and scenario_name(scenario.get("liberoInitialState"), panda=panda)
+                         == scenario["scene"] == scenario["name"]
+                         and scenario["robots"] == ([PANDA_ID] if panda else []))
             except ValueError:
                 valid = False
-            if not valid or scenario["robots"]:
+            if not valid:
                 raise AuthoringError("Prepared LIBERO scenarios require the matching fixed scene and initial state")
         scene = self.load_scene(scenario["scene"])
         ids = {e["id"] for e in scene["entities"]}

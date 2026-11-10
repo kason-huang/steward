@@ -229,6 +229,7 @@ class WorldSim:
         self._render_requests: queue.Queue[_RenderRequest] = queue.Queue()
         self._realsegs: dict = {}  # robot id -> world.realseg.RealSegmenter, when enabled
         self._step_listeners = []
+        self.panda = None
         self._load(self._initial_scene)
 
     # ------------------------------------------------------------------ setup
@@ -251,6 +252,13 @@ class WorldSim:
         self._renderers: dict[tuple[int, int], mujoco.Renderer] = {}
         self._index_bodies()
         self.step_count = 0
+        if self.panda is not None and self.panda.fault is not None:
+            self.paused = False
+        self.panda = None
+        if self.build.panda_initial is not None:
+            from steward.world.panda_control import PandaControl
+
+            self.panda = PandaControl(self.model, self.data, self.build.panda_initial, self.episode)
 
     def _index_bodies(self) -> None:
         self._body_entity: dict[int, str] = {}
@@ -272,6 +280,8 @@ class WorldSim:
 
     def reset(self) -> None:
         with self.lock:
+            if self.panda is not None:
+                self.panda.require_active()
             self._load(copy.deepcopy(self._initial_scene))
             self.events = [{"t": 0.0, "type": "episode/reset"}]
 
@@ -466,11 +476,26 @@ class WorldSim:
 
     def step(self, n: int = 1) -> None:
         with self.lock:
+            if self.panda is not None:
+                self.panda.require_active()
             for _ in range(n):
                 self._drive_handles()
+                if self.panda is not None:
+                    if self.panda.fault is not None:
+                        break
+                    try:
+                        self.panda.before_step(self.step_count)
+                    except (FloatingPointError, np.linalg.LinAlgError) as exc:
+                        self.panda.revoke("controller-fault")
+                        self.panda.fault = str(exc)
+                        self.paused = True
+                        self.events.append({"t": self.time, "type": "panda/controller-fault", "error": str(exc)})
+                        break
                 mujoco.mj_step(self.model, self.data)
                 self._follow_attached()
                 self.step_count += 1
+                if self.panda is not None:
+                    self.panda.after_step(self.step_count)
                 for listener in tuple(self._step_listeners):
                     listener()
 
@@ -505,7 +530,11 @@ class WorldSim:
         self._thread.start()
 
     def stop(self) -> None:
-        self._running = False
+        with self._clock:
+            self._running = False
+            if self.panda is not None and not self.panda.retired:
+                self.panda.retire()
+            self._clock.notify_all()
         for segmenter in self._realsegs.values():
             segmenter.stop()
         if self._thread is not None:
@@ -523,6 +552,8 @@ class WorldSim:
         wall0, sim0, speed0, epoch0 = time.perf_counter(), self.time, self.speed, self._epoch
         while self._running:
             with self._clock:
+                if not self._running:
+                    break
                 now, epoch = self.time, self._epoch
                 idle = self.freeze_idle and not self._pulled()
                 if self.paused or idle or self.speed != speed0 or epoch != epoch0:
@@ -559,6 +590,8 @@ class WorldSim:
         world itself."""
         end = None if timeout is None else time.monotonic() + timeout
         with self._clock:
+            if self.panda is not None:
+                self.panda.require_active()
             epoch = self._epoch
             step = max(self._step_now(), self._step_index(self.time + seconds if t is None else t))
             if self._thread is None and step > self._step_now():
@@ -637,11 +670,22 @@ class WorldSim:
         return min((h.step for h in live), default=math.inf)
 
     # --------------------------------------------------------------- commands
+    def panda_request(self, robot_id: str, operation: str, body: dict) -> dict:
+        from steward.scene.libero import PANDA_ID
+        from steward.world.panda_control import ControlConflict
+
+        with self.lock:
+            if robot_id != PANDA_ID or self.panda is None:
+                raise ControlConflict("Panda control is unavailable in this episode")
+            return self.panda.request(operation, body, self.step_count)
+
     def command(self, robot_id: str, cmd: dict) -> dict:
         """Apply a robot actuator command: base [x, y, yaw], lift, reach, wrist_yaw, wrist_roll,
         gripper "open"/"close", or generic ``joints`` {joint id: target} for any actuated joint of
         any embodiment, and ``gripper`` {grasp-point link id: "open"/"close"} for multi-gripper robots."""
         with self.lock:
+            if self.panda is not None:
+                raise ValueError("Use the dedicated Panda control port")
             rs = self._robot(robot_id)
             names = self.build.names[robot_id]
             if "base" in cmd:
@@ -1335,6 +1379,14 @@ class WorldSim:
             except queue.Empty:
                 return
 
+    def render_options(self):
+        """Match LIBERO's visual mesh selection for the prepared Panda."""
+        if self.panda is None:
+            return None
+        options = mujoco.MjvOption()
+        options.geomgroup[0] = 0
+        return options
+
     def _render_now(self, camera: str | dict, width: int, height: int, fmt: str = "png") -> bytes:
         with self.lock:
             key = (width, height)
@@ -1347,13 +1399,13 @@ class WorldSim:
                 try:
                     for gid in hidden:
                         self.model.geom_group[gid] = HIDDEN_GROUP
-                    renderer.update_scene(self.data, camera=free_camera(camera))
+                    renderer.update_scene(self.data, camera=free_camera(camera), scene_option=self.render_options())
                     self._shade(renderer)
                 finally:
                     for gid, group in saved.items():
                         self.model.geom_group[gid] = group
             else:
-                renderer.update_scene(self.data, camera=camera)
+                renderer.update_scene(self.data, camera=camera, scene_option=self.render_options())
                 self._shade(renderer)
         return encode_image(renderer.render(), fmt)
 
@@ -1385,7 +1437,10 @@ class WorldSim:
 
     def robot_camera_name(self, robot_id: str, sensor_id: str | None = None) -> str:
         """MuJoCo camera name of a robot camera (``sensor_id`` None: the primary one)."""
-        return self.build.names[robot_id].cameras[sensor_id or self.robot_cameras(robot_id)[0]["id"]]
+        cameras = self.build.names[robot_id].cameras
+        if not cameras:
+            raise KeyError(f"robot {robot_id} has no camera")
+        return cameras[sensor_id or next(iter(cameras))]
 
     def status(self) -> dict:
         with self.lock:

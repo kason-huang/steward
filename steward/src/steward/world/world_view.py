@@ -45,6 +45,7 @@ class WorldViewRenderer:
                 self._source = sim.model
             mujoco.mj_copyData(self._data, self._model, sim.data)
             hidden = sim.cutaway_walls(settings.camera)
+            scene_option = sim.render_options()
             t = sim.time
         key = (settings.width, settings.height)
         if key not in self._renderers:
@@ -53,7 +54,8 @@ class WorldViewRenderer:
         try:
             for gid in hidden:
                 self._model.geom_group[gid] = HIDDEN_GROUP
-            self._renderers[key].update_scene(self._data, camera=free_camera(settings.camera))
+            self._renderers[key].update_scene(self._data, camera=free_camera(settings.camera),
+                                              scene_option=scene_option)
         finally:
             for gid, group in saved.items():
                 self._model.geom_group[gid] = group

@@ -17,6 +17,14 @@ from __future__ import annotations
 import copy
 
 EMBODIMENTS: dict[str, dict] = {
+    "libero-panda": {
+        "label": "LIBERO Franka Panda",
+        "description": "固定底座、七轴 Panda、双指夹爪，使用独立 OSC 控制端口",
+        "profile": "libero-panda.yaml",
+        "ego": None,
+        "runs_mission": False,
+        "skills": False,
+    },
     "steward-bot": {
         "label": "Steward 移动厨房机器人",
         "description": "平面移动底盘 + 升降柱 + 直线伸出臂 + 平行爪；1.5 m 固定头部 RGB-D 相机（俯视 30°）",

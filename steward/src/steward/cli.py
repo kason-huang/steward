@@ -328,7 +328,7 @@ class EgoSupervisor:
 
         wanted: dict[str, tuple[str, str | None, dict]] = {}
         for rid, body in scenario_embodiments(scenario).items():
-            if not body["registered"]:
+            if not body["registered"] or not EMBODIMENTS[body["id"]]["ego"]:
                 continue
             runs_mission = EMBODIMENTS[body["id"]]["runs_mission"]
             wanted[rid] = (body["id"],
@@ -372,9 +372,9 @@ class EgoSupervisor:
             for rid, body in host.embodiments.items():
                 if rid in self.procs:
                     continue
-                if not body["registered"]:
-                    print(f"steward up: {rid} is a {body['id']}, which is not a registered embodiment; "
-                          f"no Ego Runtime drives it", file=sys.stderr, flush=True)
+                if not body["registered"] or not EMBODIMENTS[body["id"]]["ego"]:
+                    print(f"steward up: {rid} is a {body['id']}, which has no configured Ego Runtime; "
+                          f"leaving its robot port available", file=sys.stderr, flush=True)
                     continue
                 _, task, mission_config = wanted[rid]
                 proc = _EgoProcess(self.args, host.robot_servers[rid].url, self.run_dir / f"ego-{rid.removeprefix('w:')}",
