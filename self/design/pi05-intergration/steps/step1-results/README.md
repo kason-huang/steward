@@ -92,3 +92,7 @@ bash client.sh examples/libero/main.py --args.host 127.0.0.1 --args.port 18005 \
 - [正式批次初态 2](runs/20261110T021656Z-batch/attempt-02-init-002/episode.mp4)
 - [正式批次初态 3](runs/20261110T021656Z-batch/attempt-03-init-003/episode.mp4)
 - [正式批次初态 4](runs/20261110T021656Z-batch/attempt-04-init-004/episode.mp4)
+
+## 全量评测
+
+四个官方套件全量评测已完成，合计 **1,929/2,000（96.45%）**。见[对比报告](full-benchmark/20261110T040128Z/README.md)和[复跑入口](full-benchmark/README.md)。全量评测与本页的 Step 1 固定批次分别统计。
