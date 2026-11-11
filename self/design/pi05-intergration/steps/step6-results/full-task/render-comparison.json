@@ -1,0 +1,58 @@
+{
+  "LIBERO pinned baseline": {
+    "observation/image": {
+      "mean_absolute_pixel_error": 0.0,
+      "mean_rgb": [
+        144.19096779336735,
+        137.91121253188774,
+        131.68941326530611
+      ]
+    },
+    "observation/wrist_image": {
+      "mean_absolute_pixel_error": 0.0,
+      "mean_rgb": [
+        146.0231784119898,
+        139.45141103316325,
+        133.3155891262755
+      ]
+    }
+  },
+  "WSim before rendering correction": {
+    "observation/image": {
+      "mean_absolute_pixel_error": 36.58911298894558,
+      "mean_rgb": [
+        110.57188695790816,
+        101.1854472257653,
+        92.41635443239795
+      ]
+    },
+    "observation/wrist_image": {
+      "mean_absolute_pixel_error": 40.751288796768705,
+      "mean_rgb": [
+        108.7094427614796,
+        98.34929049744898,
+        89.56036750637755
+      ]
+    },
+    "state_max_absolute_difference": 0.00014487297323671766
+  },
+  "WSim after rendering correction": {
+    "observation/image": {
+      "mean_absolute_pixel_error": 0.07350127551020408,
+      "mean_rgb": [
+        144.17219387755102,
+        137.8876953125,
+        131.673828125
+      ]
+    },
+    "observation/wrist_image": {
+      "mean_absolute_pixel_error": 0.06384194302721088,
+      "mean_rgb": [
+        146.01590401785714,
+        139.4459303252551,
+        133.30857382015307
+      ]
+    },
+    "state_max_absolute_difference": 0.00014487297323671766
+  }
+}

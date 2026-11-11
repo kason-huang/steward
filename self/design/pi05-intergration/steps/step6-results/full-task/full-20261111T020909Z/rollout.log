@@ -1,0 +1,20 @@
+Real policy returned (10, 7) in 0.080 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.075 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.075 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.075 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+prefixes=10 actions=50 step=1250 gripped_lift=0.000 bottom_steps=0
+Real policy returned (10, 7) in 0.075 s
+Real policy returned (10, 7) in 0.075 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.075 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.075 s
+Real policy returned (10, 7) in 0.076 s
+{"success": false, "reason": "execution_error", "error": "<HTTPError 400: 'Bad Request'>", "actions_applied": 88, "inferences": 18}

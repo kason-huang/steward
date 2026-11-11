@@ -1,0 +1,16 @@
+checkpoints/pi05_libero/assets/physical-intelligence/libero/norm_stats.json: 成功
+checkpoints/pi05_libero/params/_METADATA: 成功
+checkpoints/pi05_libero/params/_sharding: 成功
+checkpoints/pi05_libero/params/array_metadatas/process_0: 成功
+checkpoints/pi05_libero/params/d/98a77a52a8eb845ae4830eb7fe983979: 成功
+checkpoints/pi05_libero/params/manifest.ocdbt: 成功
+checkpoints/pi05_libero/params/ocdbt.process_0/d/0eaaecefaa9720d30a32cc56e65fd345: 成功
+checkpoints/pi05_libero/params/ocdbt.process_0/d/155391c1cbf93a1be16266de052e5b48: 成功
+checkpoints/pi05_libero/params/ocdbt.process_0/d/2b6985f48e9da86f68627a7608c5bc25: 成功
+checkpoints/pi05_libero/params/ocdbt.process_0/d/475fab3ee8821662585a8cde3eb32e22: 成功
+checkpoints/pi05_libero/params/ocdbt.process_0/d/6c54da5a6f62c20a09c0f3f8c3329e00: 成功
+checkpoints/pi05_libero/params/ocdbt.process_0/d/896bf93c5cf2e8ddd274a6ea0a2feec0: 成功
+checkpoints/pi05_libero/params/ocdbt.process_0/d/bc613ff288a162563e622d01bb60622a: 成功
+checkpoints/pi05_libero/params/ocdbt.process_0/d/bda87d9791f23df771cd2d15293780cc: 成功
+checkpoints/pi05_libero/params/ocdbt.process_0/d/efbb46173882cb35ed41ffe0c2db8a5e: 成功
+checkpoints/pi05_libero/params/ocdbt.process_0/manifest.ocdbt: 成功

@@ -1,0 +1,1 @@
+{"pass": true, "base_gates": 4, "additional_gates": ["nan", "wrong_dimension", "out_of_range", "out_of_workspace", "late_inference_reply", "stop_during_action", "inference_process_timeout"]}

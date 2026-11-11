@@ -1,0 +1,35 @@
+{
+  "limits": {
+    "pad_force_n": 0.1,
+    "support_force_n": 0.05,
+    "lift_m": 0.1,
+    "slip_m": 0.01,
+    "rotation_slip_rad": 0.2,
+    "settle_steps": 125,
+    "linear_speed_m_s": 0.005,
+    "angular_speed_rad_s": 0.05
+  },
+  "metrics": {
+    "lift_m": 0.19855677279924386,
+    "minimum_pad_force_n": {
+      "gripper0_finger1_pad_collision": 18.998228633658822,
+      "gripper0_finger2_pad_collision": 18.971966488402657
+    },
+    "maximum_slip_m": 0.0003936661810792698,
+    "maximum_rotation_slip_rad": 0.0014369226754859246,
+    "minimum_bottom_force_n": 0.25360268308801404,
+    "maximum_settled_linear_speed_m_s": 2.777649705952474e-10,
+    "maximum_settled_angular_speed_rad_s": 1.9656340457535332e-08,
+    "minimum_withdrawal_clearance_m": 0.19506003323444082,
+    "other_settled_support_contacts": [],
+    "predicate_after_withdrawal": true,
+    "final_can_position": [
+      0.015982872057036787,
+      0.25621401544705286,
+      0.05539296012208108
+    ]
+  },
+  "grip": true,
+  "placement": true,
+  "pass": true
+}

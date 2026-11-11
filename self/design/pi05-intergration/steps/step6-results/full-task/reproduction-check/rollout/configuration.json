@@ -1,0 +1,16 @@
+{
+  "scenario": "libero-object-alphabet-soup-panda",
+  "initial_state_index": 0,
+  "root": "/home/huawei/hqk/workspace/steward/steward/var/step4/wsim-root",
+  "policy_port": 18066,
+  "prefix_size": 5,
+  "max_actions": 280,
+  "max_wall_seconds": 420,
+  "minimum_stop_monitor_steps": 500,
+  "maximum_stop_monitor_steps": 2500,
+  "mujoco": "3.17.0",
+  "control_period_s": 0.05,
+  "physics_period_s": 0.002,
+  "inference_clock": "frozen",
+  "prefix_translation_command_limit_m": 0.25
+}

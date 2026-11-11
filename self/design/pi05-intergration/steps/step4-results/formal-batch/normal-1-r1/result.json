@@ -1,0 +1,92 @@
+{
+  "trial": "normal-1-r1",
+  "protocol_sha256": "401dc585f26cf6d9dff0fe1f4915e1ea1ea0a31c4f0e2a35f5cc66183fba948d",
+  "libero_exit": 0,
+  "wsim_exit": 0,
+  "libero": {
+    "case": "normal",
+    "limits": {
+      "pad_force_n": 0.1,
+      "support_force_n": 0.05,
+      "lift_m": 0.1,
+      "slip_m": 0.01,
+      "rotation_slip_rad": 0.2,
+      "settle_steps": 125,
+      "linear_speed_m_s": 0.005,
+      "angular_speed_rad_s": 0.05
+    },
+    "metrics": {
+      "lift_m": 0.19845463743957034,
+      "minimum_pad_force_n": {
+        "gripper0_finger1_pad_collision": 19.992405802646587,
+        "gripper0_finger2_pad_collision": 19.912642341799536
+      },
+      "maximum_slip_m": 0.0004011349627100003,
+      "maximum_rotation_slip_rad": 0.0016876104633965225,
+      "minimum_bottom_force_n": 0.25360268415871723,
+      "maximum_settled_linear_speed_m_s": 3.734106290523661e-12,
+      "maximum_settled_angular_speed_rad_s": 3.2719848981277886e-11,
+      "minimum_withdrawal_clearance_m": 0.19502047807049636,
+      "other_settled_support_contacts": [],
+      "predicate_after_withdrawal": true,
+      "final_can_position": [
+        0.017664738551493385,
+        0.25872091804356984,
+        0.05539278350513996
+      ]
+    },
+    "grip": true,
+    "placement": true,
+    "task_success": true,
+    "checks": {
+      "grip": true,
+      "placement": true,
+      "basket_predicate": true
+    },
+    "failure_reasons": [],
+    "pass": true
+  },
+  "wsim": {
+    "case": "normal",
+    "limits": {
+      "pad_force_n": 0.1,
+      "support_force_n": 0.05,
+      "lift_m": 0.1,
+      "slip_m": 0.01,
+      "rotation_slip_rad": 0.2,
+      "settle_steps": 125,
+      "linear_speed_m_s": 0.005,
+      "angular_speed_rad_s": 0.05
+    },
+    "metrics": {
+      "lift_m": 0.1985471122027376,
+      "minimum_pad_force_n": {
+        "gripper0_finger1_pad_collision": 18.997651315203825,
+        "gripper0_finger2_pad_collision": 18.971375900778376
+      },
+      "maximum_slip_m": 0.0003970452534044089,
+      "maximum_rotation_slip_rad": 0.0014506433083659846,
+      "minimum_bottom_force_n": 0.25360268313586304,
+      "maximum_settled_linear_speed_m_s": 2.6874953972187204e-10,
+      "maximum_settled_angular_speed_rad_s": 1.906753703542758e-08,
+      "minimum_withdrawal_clearance_m": 0.1950514038060098,
+      "other_settled_support_contacts": [],
+      "predicate_after_withdrawal": true,
+      "final_can_position": [
+        0.01562850929150403,
+        0.2613352742520785,
+        0.05539296012861485
+      ]
+    },
+    "grip": true,
+    "placement": true,
+    "task_success": true,
+    "checks": {
+      "grip": true,
+      "placement": true,
+      "basket_predicate": true
+    },
+    "failure_reasons": [],
+    "pass": true
+  }
+}

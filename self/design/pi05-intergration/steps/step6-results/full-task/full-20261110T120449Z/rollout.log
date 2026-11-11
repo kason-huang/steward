@@ -1,0 +1,33 @@
+Real policy returned (10, 7) in 0.080 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+prefixes=10 actions=30 step=750 gripped_lift=0.000 bottom_steps=0
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+prefixes=20 actions=60 step=1500 gripped_lift=0.000 bottom_steps=0
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.077 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+{"success": false, "reason": "execution_error", "error": "ValueError('LIBERO policy action outside trial volume')", "actions_applied": 87, "inferences": 30}

@@ -1,0 +1,36 @@
+Real policy returned (10, 7) in 0.080 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+prefixes=10 actions=50 step=1250 gripped_lift=0.000 bottom_steps=0
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+prefixes=20 actions=100 step=2500 gripped_lift=0.238 bottom_steps=0
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.077 s
+Real policy returned (10, 7) in 0.076 s
+prefixes=30 actions=150 step=3750 gripped_lift=0.238 bottom_steps=1
+Real policy returned (10, 7) in 0.076 s
+Real policy returned (10, 7) in 0.076 s
+{"success": true, "reason": "stable_basket_bottom", "error": null, "actions_applied": 160, "inferences": 32}

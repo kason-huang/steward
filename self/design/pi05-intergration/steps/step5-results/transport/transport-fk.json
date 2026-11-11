@@ -1,0 +1,181 @@
+{
+  "frames": [
+    {
+      "episodeId": 1,
+      "step": 0,
+      "stamp": 0.0,
+      "calibrationId": "da1697ac0d8003e9889536599eace322c98e69560256186e39e0cd2c1b2fb15e",
+      "encoders": {
+        "robot0_joint1": {
+          "position": -0.010455465055773711,
+          "velocity": 0.010048790916111388
+        },
+        "robot0_joint2": {
+          "position": -0.15085802062450737,
+          "velocity": -0.015839454380155615
+        },
+        "robot0_joint3": {
+          "position": -0.0034093369714298235,
+          "velocity": -0.007429902833835992
+        },
+        "robot0_joint4": {
+          "position": -2.4708202229048126,
+          "velocity": -0.02857853423678268
+        },
+        "robot0_joint5": {
+          "position": -0.0012838999540242498,
+          "velocity": -0.003521017373057299
+        },
+        "robot0_joint6": {
+          "position": 2.261866446144037,
+          "velocity": 0.03563883233124652
+        },
+        "robot0_joint7": {
+          "position": 0.7738904432831809,
+          "velocity": -0.00010730897897259092
+        },
+        "gripper0_finger_joint1": {
+          "position": 0.03872975618959219,
+          "velocity": 0.003181573121969664
+        },
+        "gripper0_finger_joint2": {
+          "position": -0.038728564031870555,
+          "velocity": -0.0031947744021591767
+        }
+      },
+      "errors": {
+        "external": {
+          "position_m": 0.0,
+          "rotation_matrix": 1.1102230246251565e-16
+        },
+        "wrist": {
+          "position_m": 4.996003610813204e-16,
+          "rotation_matrix": 1.5543122344752192e-15
+        },
+        "tool": {
+          "position_m": 4.440892098500626e-16,
+          "rotation_matrix": 1.6653345369377348e-15
+        }
+      }
+    },
+    {
+      "episodeId": 1,
+      "step": 25,
+      "stamp": 0.05000000000000003,
+      "calibrationId": "da1697ac0d8003e9889536599eace322c98e69560256186e39e0cd2c1b2fb15e",
+      "encoders": {
+        "robot0_joint1": {
+          "position": -0.01099957319653641,
+          "velocity": -0.025291830544113977
+        },
+        "robot0_joint2": {
+          "position": -0.15055433315178543,
+          "velocity": 0.023765108386270224
+        },
+        "robot0_joint3": {
+          "position": -0.009436720165661095,
+          "velocity": -0.19556954485776096
+        },
+        "robot0_joint4": {
+          "position": -2.4689133846382,
+          "velocity": 0.07833519031508197
+        },
+        "robot0_joint5": {
+          "position": 0.01288738008528404,
+          "velocity": 0.44228878834175295
+        },
+        "robot0_joint6": {
+          "position": 2.2649793905446414,
+          "velocity": 0.053440901862482515
+        },
+        "robot0_joint7": {
+          "position": 0.7720558123049579,
+          "velocity": -0.09399994632105561
+        },
+        "gripper0_finger_joint1": {
+          "position": 0.03853434434305818,
+          "velocity": -0.017523715320274264
+        },
+        "gripper0_finger_joint2": {
+          "position": -0.038573669013869424,
+          "velocity": 0.016056672192206058
+        }
+      },
+      "errors": {
+        "external": {
+          "position_m": 0.0,
+          "rotation_matrix": 1.1102230246251565e-16
+        },
+        "wrist": {
+          "position_m": 2.914335439641036e-16,
+          "rotation_matrix": 9.992007221626409e-16
+        },
+        "tool": {
+          "position_m": 3.3306690738754696e-16,
+          "rotation_matrix": 1.1102230246251565e-15
+        }
+      }
+    },
+    {
+      "episodeId": 1,
+      "step": 50,
+      "stamp": 0.10000000000000007,
+      "calibrationId": "da1697ac0d8003e9889536599eace322c98e69560256186e39e0cd2c1b2fb15e",
+      "encoders": {
+        "robot0_joint1": {
+          "position": -0.012713082409852663,
+          "velocity": -0.03940076735538921
+        },
+        "robot0_joint2": {
+          "position": -0.14857604928159443,
+          "velocity": 0.052756590538994924
+        },
+        "robot0_joint3": {
+          "position": -0.02145523174700868,
+          "velocity": -0.2642793677470029
+        },
+        "robot0_joint4": {
+          "position": -2.463485984152925,
+          "velocity": 0.12847194311472643
+        },
+        "robot0_joint5": {
+          "position": 0.038608719813652013,
+          "velocity": 0.5355921990783232
+        },
+        "robot0_joint6": {
+          "position": 2.2665122576483565,
+          "velocity": 0.002503314375869041
+        },
+        "robot0_joint7": {
+          "position": 0.764244601681191,
+          "velocity": -0.20700723221506165
+        },
+        "gripper0_finger_joint1": {
+          "position": 0.036699375125529086,
+          "velocity": -0.052023969152534856
+        },
+        "gripper0_finger_joint2": {
+          "position": -0.036779619119005784,
+          "velocity": 0.051902699917726114
+        }
+      },
+      "errors": {
+        "external": {
+          "position_m": 0.0,
+          "rotation_matrix": 1.1102230246251565e-16
+        },
+        "wrist": {
+          "position_m": 3.469446951953614e-16,
+          "rotation_matrix": 1.2212453270876722e-15
+        },
+        "tool": {
+          "position_m": 2.7755575615628914e-16,
+          "rotation_matrix": 1.2212453270876722e-15
+        }
+      }
+    }
+  ],
+  "duplicatesRejected": 3,
+  "resetEpisode": 2,
+  "resetStep": 0
+}

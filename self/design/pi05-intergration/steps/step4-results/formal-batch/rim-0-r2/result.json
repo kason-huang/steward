@@ -1,0 +1,120 @@
+{
+  "trial": "rim-0-r2",
+  "protocol_sha256": "0cc09dcf1d29ba9337627dd46f485d680d8d77a4f4d5c962bd1c65620a58b420",
+  "libero_exit": 0,
+  "wsim_exit": 0,
+  "libero": {
+    "case": "rim",
+    "limits": {
+      "pad_force_n": 0.1,
+      "support_force_n": 0.05,
+      "lift_m": 0.1,
+      "slip_m": 0.01,
+      "rotation_slip_rad": 0.2,
+      "settle_steps": 125,
+      "linear_speed_m_s": 0.005,
+      "angular_speed_rad_s": 0.05
+    },
+    "metrics": {
+      "lift_m": 0.1984545301657566,
+      "minimum_pad_force_n": {
+        "gripper0_finger1_pad_collision": 19.992272076127733,
+        "gripper0_finger2_pad_collision": 19.912642360534562
+      },
+      "maximum_slip_m": 0.00034298608232216697,
+      "maximum_rotation_slip_rad": 0.0016821493518153724,
+      "minimum_bottom_force_n": 0,
+      "maximum_settled_linear_speed_m_s": 0.0008451091122662627,
+      "maximum_settled_angular_speed_rad_s": 0.021334850394719496,
+      "minimum_withdrawal_clearance_m": 0.07518181589357108,
+      "other_settled_support_contacts": [
+        "basket_1_g2"
+      ],
+      "predicate_after_withdrawal": false,
+      "final_can_position": [
+        0.018706794976188375,
+        0.17968877950170073,
+        0.17466965494573433
+      ],
+      "max_lift_before_release_m": 0.20598484303831457,
+      "max_closure_pad_force_n": {
+        "gripper0_finger1_pad_collision": 20.429637715866956,
+        "gripper0_finger2_pad_collision": 21.172869477026325
+      },
+      "maximum_rim_force_n": 219.43973284244078,
+      "maximum_rim_penetration_m": 0.00015714420529056754,
+      "maximum_basket_motion_during_lower_m": 0.0027589223996564317,
+      "tool_height_after_lower_m": 0.18117104345681598,
+      "rim_contact_while_gripped": true,
+      "minimum_floor_force_n": 0,
+      "maximum_can_contact_force_n": 332.8336474845358
+    },
+    "grip": true,
+    "placement": false,
+    "task_success": false,
+    "checks": {
+      "carried": true,
+      "rim_contact_while_gripped": true,
+      "physical_response": true,
+      "limited_penetration": true
+    },
+    "failure_reasons": [],
+    "pass": true
+  },
+  "wsim": {
+    "case": "rim",
+    "limits": {
+      "pad_force_n": 0.1,
+      "support_force_n": 0.05,
+      "lift_m": 0.1,
+      "slip_m": 0.01,
+      "rotation_slip_rad": 0.2,
+      "settle_steps": 125,
+      "linear_speed_m_s": 0.005,
+      "angular_speed_rad_s": 0.05
+    },
+    "metrics": {
+      "lift_m": 0.19855677279924386,
+      "minimum_pad_force_n": {
+        "gripper0_finger1_pad_collision": 18.998748957220336,
+        "gripper0_finger2_pad_collision": 18.97261524405267
+      },
+      "maximum_slip_m": 0.0003389093693565197,
+      "maximum_rotation_slip_rad": 0.0014440512647407805,
+      "minimum_bottom_force_n": 0.2536026841251663,
+      "maximum_settled_linear_speed_m_s": 2.752326386903898e-10,
+      "maximum_settled_angular_speed_rad_s": 2.4390730501827e-08,
+      "minimum_withdrawal_clearance_m": 0.21803513052958293,
+      "other_settled_support_contacts": [],
+      "predicate_after_withdrawal": true,
+      "final_can_position": [
+        0.014353250643912671,
+        0.2515785446450985,
+        0.04450261192542517
+      ],
+      "max_lift_before_release_m": 0.20609356033835013,
+      "max_closure_pad_force_n": {
+        "gripper0_finger1_pad_collision": 20.285742580009725,
+        "gripper0_finger2_pad_collision": 22.708520374453652
+      },
+      "maximum_rim_force_n": 147.11637637334042,
+      "maximum_rim_penetration_m": 0.0003276920633662053,
+      "maximum_basket_motion_during_lower_m": 0.002495176698659891,
+      "tool_height_after_lower_m": 0.18155915514984647,
+      "rim_contact_while_gripped": true,
+      "minimum_floor_force_n": 0,
+      "maximum_can_contact_force_n": 236.694728617083
+    },
+    "grip": true,
+    "placement": true,
+    "task_success": true,
+    "checks": {
+      "carried": true,
+      "rim_contact_while_gripped": true,
+      "physical_response": true,
+      "limited_penetration": true
+    },
+    "failure_reasons": [],
+    "pass": true
+  }
+}

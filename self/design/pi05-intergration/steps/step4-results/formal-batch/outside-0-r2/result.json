@@ -1,0 +1,122 @@
+{
+  "trial": "outside-0-r2",
+  "protocol_sha256": "27d3fdf44bf3f8e27120daa24cc535b4ea1e496e5a822d8203321cc7f83ba594",
+  "libero_exit": 0,
+  "wsim_exit": 0,
+  "libero": {
+    "case": "outside",
+    "limits": {
+      "pad_force_n": 0.1,
+      "support_force_n": 0.05,
+      "lift_m": 0.1,
+      "slip_m": 0.01,
+      "rotation_slip_rad": 0.2,
+      "settle_steps": 125,
+      "linear_speed_m_s": 0.005,
+      "angular_speed_rad_s": 0.05
+    },
+    "metrics": {
+      "lift_m": 0.19648171278685556,
+      "minimum_pad_force_n": {
+        "gripper0_finger1_pad_collision": 19.991880025804235,
+        "gripper0_finger2_pad_collision": 19.9211760718491
+      },
+      "maximum_slip_m": 0.00045305515114615804,
+      "maximum_rotation_slip_rad": 0.0017207738097181125,
+      "minimum_bottom_force_n": 0,
+      "maximum_settled_linear_speed_m_s": 2.0651448559152725e-15,
+      "maximum_settled_angular_speed_rad_s": 4.42163301931652e-14,
+      "minimum_withdrawal_clearance_m": 0.21171385911769702,
+      "other_settled_support_contacts": [
+        "floor"
+      ],
+      "predicate_after_withdrawal": false,
+      "final_can_position": [
+        -0.19187992227472772,
+        0.25370611970012963,
+        0.038392910372443925
+      ],
+      "max_lift_before_release_m": 0.2085583081175791,
+      "max_closure_pad_force_n": {
+        "gripper0_finger1_pad_collision": 20.429637715866956,
+        "gripper0_finger2_pad_collision": 21.172869477026325
+      },
+      "maximum_rim_force_n": 0,
+      "maximum_rim_penetration_m": 0.0,
+      "maximum_basket_motion_during_lower_m": 0.0,
+      "tool_height_after_lower_m": 0.11468747316367242,
+      "rim_contact_while_gripped": false,
+      "minimum_floor_force_n": 0.2536026841612793,
+      "maximum_can_contact_force_n": 42.65710760105273
+    },
+    "grip": true,
+    "placement": false,
+    "task_success": false,
+    "checks": {
+      "carried": true,
+      "basket_predicate_false": true,
+      "floor_support": true,
+      "no_basket_support": true
+    },
+    "failure_reasons": [],
+    "pass": true
+  },
+  "wsim": {
+    "case": "outside",
+    "limits": {
+      "pad_force_n": 0.1,
+      "support_force_n": 0.05,
+      "lift_m": 0.1,
+      "slip_m": 0.01,
+      "rotation_slip_rad": 0.2,
+      "settle_steps": 125,
+      "linear_speed_m_s": 0.005,
+      "angular_speed_rad_s": 0.05
+    },
+    "metrics": {
+      "lift_m": 0.19659137867456755,
+      "minimum_pad_force_n": {
+        "gripper0_finger1_pad_collision": 18.992972652171577,
+        "gripper0_finger2_pad_collision": 18.972991814180613
+      },
+      "maximum_slip_m": 0.00045193722820374753,
+      "maximum_rotation_slip_rad": 0.0014947852756534536,
+      "minimum_bottom_force_n": 0,
+      "maximum_settled_linear_speed_m_s": 7.022945711470439e-11,
+      "maximum_settled_angular_speed_rad_s": 3.7177619561413698e-09,
+      "minimum_withdrawal_clearance_m": 0.21176452826834008,
+      "other_settled_support_contacts": [
+        "floor"
+      ],
+      "predicate_after_withdrawal": false,
+      "final_can_position": [
+        -0.1913976835729854,
+        0.25363168218922144,
+        0.03839291037676548
+      ],
+      "max_lift_before_release_m": 0.208680862124423,
+      "max_closure_pad_force_n": {
+        "gripper0_finger1_pad_collision": 20.285742580009725,
+        "gripper0_finger2_pad_collision": 22.708520374453652
+      },
+      "maximum_rim_force_n": 0,
+      "maximum_rim_penetration_m": 0.0,
+      "maximum_basket_motion_during_lower_m": 1.0369234678822541e-11,
+      "tool_height_after_lower_m": 0.11472963215903785,
+      "rim_contact_while_gripped": false,
+      "minimum_floor_force_n": 0.25360268415995196,
+      "maximum_can_contact_force_n": 48.49138743135445
+    },
+    "grip": true,
+    "placement": false,
+    "task_success": false,
+    "checks": {
+      "carried": true,
+      "basket_predicate_false": true,
+      "floor_support": true,
+      "no_basket_support": true
+    },
+    "failure_reasons": [],
+    "pass": true
+  }
+}

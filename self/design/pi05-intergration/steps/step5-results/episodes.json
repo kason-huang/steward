@@ -1,0 +1,302 @@
+[
+  {
+    "case": "empty",
+    "initial_index": 0,
+    "samples": 112,
+    "final": {
+      "grasp": "failed",
+      "placement": "failed",
+      "reason": "can_remained_outside_basket",
+      "target": "e:can",
+      "basket": "e:basket",
+      "evidenceStep": 12750
+    },
+    "run": "empty-0-r1",
+    "raw_path": "steward/var/step5/official-1/empty-0-r1"
+  },
+  {
+    "case": "empty",
+    "initial_index": 0,
+    "samples": 112,
+    "final": {
+      "grasp": "failed",
+      "placement": "failed",
+      "reason": "can_remained_outside_basket",
+      "target": "e:can",
+      "basket": "e:basket",
+      "evidenceStep": 12750
+    },
+    "run": "empty-0-r2",
+    "raw_path": "steward/var/step5/official-1/empty-0-r2"
+  },
+  {
+    "case": "normal",
+    "initial_index": 0,
+    "samples": 112,
+    "final": {
+      "grasp": "confirmed",
+      "placement": "confirmed",
+      "reason": "stable_visible_can_below_rim",
+      "target": "e:can",
+      "basket": "e:basket",
+      "evidenceStep": 12750
+    },
+    "run": "normal-0-r1",
+    "raw_path": "steward/var/step5/official-1/normal-0-r1"
+  },
+  {
+    "case": "normal",
+    "initial_index": 0,
+    "samples": 112,
+    "final": {
+      "grasp": "confirmed",
+      "placement": "confirmed",
+      "reason": "stable_visible_can_below_rim",
+      "target": "e:can",
+      "basket": "e:basket",
+      "evidenceStep": 12750
+    },
+    "run": "normal-0-r2",
+    "raw_path": "steward/var/step5/official-1/normal-0-r2"
+  },
+  {
+    "case": "normal",
+    "initial_index": 1,
+    "samples": 112,
+    "final": {
+      "grasp": "confirmed",
+      "placement": "confirmed",
+      "reason": "stable_visible_can_below_rim",
+      "target": "e:can",
+      "basket": "e:basket",
+      "evidenceStep": 12750
+    },
+    "run": "normal-1-r1",
+    "raw_path": "steward/var/step5/official-1/normal-1-r1"
+  },
+  {
+    "case": "normal",
+    "initial_index": 1,
+    "samples": 112,
+    "final": {
+      "grasp": "confirmed",
+      "placement": "confirmed",
+      "reason": "stable_visible_can_below_rim",
+      "target": "e:can",
+      "basket": "e:basket",
+      "evidenceStep": 12750
+    },
+    "run": "normal-1-r2",
+    "raw_path": "steward/var/step5/official-1/normal-1-r2"
+  },
+  {
+    "case": "normal",
+    "initial_index": 2,
+    "samples": 112,
+    "final": {
+      "grasp": "confirmed",
+      "placement": "confirmed",
+      "reason": "stable_visible_can_below_rim",
+      "target": "e:can",
+      "basket": "e:basket",
+      "evidenceStep": 12750
+    },
+    "run": "normal-2-r1",
+    "raw_path": "steward/var/step5/official-1/normal-2-r1"
+  },
+  {
+    "case": "normal",
+    "initial_index": 2,
+    "samples": 112,
+    "final": {
+      "grasp": "confirmed",
+      "placement": "confirmed",
+      "reason": "stable_visible_can_below_rim",
+      "target": "e:can",
+      "basket": "e:basket",
+      "evidenceStep": 12750
+    },
+    "run": "normal-2-r2",
+    "raw_path": "steward/var/step5/official-1/normal-2-r2"
+  },
+  {
+    "case": "normal",
+    "initial_index": 3,
+    "samples": 112,
+    "final": {
+      "grasp": "confirmed",
+      "placement": "confirmed",
+      "reason": "stable_visible_can_below_rim",
+      "target": "e:can",
+      "basket": "e:basket",
+      "evidenceStep": 12750
+    },
+    "run": "normal-3-r1",
+    "raw_path": "steward/var/step5/official-1/normal-3-r1"
+  },
+  {
+    "case": "normal",
+    "initial_index": 3,
+    "samples": 112,
+    "final": {
+      "grasp": "confirmed",
+      "placement": "confirmed",
+      "reason": "stable_visible_can_below_rim",
+      "target": "e:can",
+      "basket": "e:basket",
+      "evidenceStep": 12750
+    },
+    "run": "normal-3-r2",
+    "raw_path": "steward/var/step5/official-1/normal-3-r2"
+  },
+  {
+    "case": "normal",
+    "initial_index": 4,
+    "samples": 112,
+    "final": {
+      "grasp": "confirmed",
+      "placement": "confirmed",
+      "reason": "stable_visible_can_below_rim",
+      "target": "e:can",
+      "basket": "e:basket",
+      "evidenceStep": 12750
+    },
+    "run": "normal-4-r1",
+    "raw_path": "steward/var/step5/official-1/normal-4-r1"
+  },
+  {
+    "case": "normal",
+    "initial_index": 4,
+    "samples": 112,
+    "final": {
+      "grasp": "confirmed",
+      "placement": "confirmed",
+      "reason": "stable_visible_can_below_rim",
+      "target": "e:can",
+      "basket": "e:basket",
+      "evidenceStep": 12750
+    },
+    "run": "normal-4-r2",
+    "raw_path": "steward/var/step5/official-1/normal-4-r2"
+  },
+  {
+    "case": "offset",
+    "initial_index": 0,
+    "samples": 112,
+    "final": {
+      "grasp": "failed",
+      "placement": "failed",
+      "reason": "can_remained_outside_basket",
+      "target": "e:can",
+      "basket": "e:basket",
+      "evidenceStep": 12750
+    },
+    "run": "offset-0-r1",
+    "raw_path": "steward/var/step5/official-1/offset-0-r1"
+  },
+  {
+    "case": "offset",
+    "initial_index": 0,
+    "samples": 112,
+    "final": {
+      "grasp": "failed",
+      "placement": "failed",
+      "reason": "can_remained_outside_basket",
+      "target": "e:can",
+      "basket": "e:basket",
+      "evidenceStep": 12750
+    },
+    "run": "offset-0-r2",
+    "raw_path": "steward/var/step5/official-1/offset-0-r2"
+  },
+  {
+    "case": "outside",
+    "initial_index": 0,
+    "samples": 112,
+    "final": {
+      "grasp": "confirmed",
+      "placement": "failed",
+      "reason": "stable_visible_can_outside_basket",
+      "target": "e:can",
+      "basket": "e:basket",
+      "evidenceStep": 12750
+    },
+    "run": "outside-0-r1",
+    "raw_path": "steward/var/step5/official-1/outside-0-r1"
+  },
+  {
+    "case": "outside",
+    "initial_index": 0,
+    "samples": 112,
+    "final": {
+      "grasp": "confirmed",
+      "placement": "failed",
+      "reason": "stable_visible_can_outside_basket",
+      "target": "e:can",
+      "basket": "e:basket",
+      "evidenceStep": 12750
+    },
+    "run": "outside-0-r2",
+    "raw_path": "steward/var/step5/official-1/outside-0-r2"
+  },
+  {
+    "case": "rim",
+    "initial_index": 0,
+    "samples": 112,
+    "final": {
+      "grasp": "confirmed",
+      "placement": "unconfirmed",
+      "reason": "awaiting_visible_post_release_evidence",
+      "target": null,
+      "basket": "e:basket",
+      "evidenceStep": 12750
+    },
+    "run": "rim-0-r1",
+    "raw_path": "steward/var/step5/official-1/rim-0-r1"
+  },
+  {
+    "case": "rim",
+    "initial_index": 0,
+    "samples": 112,
+    "final": {
+      "grasp": "confirmed",
+      "placement": "unconfirmed",
+      "reason": "awaiting_visible_post_release_evidence",
+      "target": null,
+      "basket": "e:basket",
+      "evidenceStep": 12750
+    },
+    "run": "rim-0-r2",
+    "raw_path": "steward/var/step5/official-1/rim-0-r2"
+  },
+  {
+    "case": "weak",
+    "initial_index": 0,
+    "samples": 104,
+    "final": {
+      "grasp": "failed",
+      "placement": "failed",
+      "reason": "can_remained_outside_basket",
+      "target": "e:can",
+      "basket": "e:basket",
+      "evidenceStep": 12275
+    },
+    "run": "weak-0-r1",
+    "raw_path": "steward/var/step5/official-1/weak-0-r1"
+  },
+  {
+    "case": "weak",
+    "initial_index": 0,
+    "samples": 104,
+    "final": {
+      "grasp": "failed",
+      "placement": "failed",
+      "reason": "can_remained_outside_basket",
+      "target": "e:can",
+      "basket": "e:basket",
+      "evidenceStep": 12275
+    },
+    "run": "weak-0-r2",
+    "raw_path": "steward/var/step5/official-1/weak-0-r2"
+  }
+]

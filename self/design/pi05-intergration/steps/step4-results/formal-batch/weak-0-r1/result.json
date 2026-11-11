@@ -1,0 +1,116 @@
+{
+  "trial": "weak-0-r1",
+  "protocol_sha256": "efca650e43e520ccc801a9c5d6654e2c59ac0664ea72fc33f3726ec3e507b024",
+  "libero_exit": 0,
+  "wsim_exit": 0,
+  "libero": {
+    "case": "weak",
+    "limits": {
+      "pad_force_n": 0.1,
+      "support_force_n": 0.05,
+      "lift_m": 0.1,
+      "slip_m": 0.01,
+      "rotation_slip_rad": 0.2,
+      "settle_steps": 125,
+      "linear_speed_m_s": 0.005,
+      "angular_speed_rad_s": 0.05
+    },
+    "metrics": {
+      "lift_m": 2.1775428682424547e-12,
+      "minimum_pad_force_n": {
+        "gripper0_finger1_pad_collision": 0,
+        "gripper0_finger2_pad_collision": 0
+      },
+      "maximum_slip_m": 0.5105239710898064,
+      "maximum_rotation_slip_rad": 0.019705777719272285,
+      "minimum_bottom_force_n": 0,
+      "maximum_settled_linear_speed_m_s": 1.8975332591998395e-15,
+      "maximum_settled_angular_speed_rad_s": 4.164640354149797e-14,
+      "minimum_withdrawal_clearance_m": 0.5525432750592502,
+      "other_settled_support_contacts": [
+        "floor"
+      ],
+      "predicate_after_withdrawal": false,
+      "final_can_position": [
+        -0.11909425574484636,
+        -0.2397812173510874,
+        0.03839291037244387
+      ],
+      "max_lift_before_release_m": 2.1775428682424547e-12,
+      "max_closure_pad_force_n": {
+        "gripper0_finger1_pad_collision": 0,
+        "gripper0_finger2_pad_collision": 0
+      },
+      "maximum_rim_force_n": 0,
+      "maximum_rim_penetration_m": 0.0,
+      "maximum_basket_motion_during_lower_m": 0.0,
+      "tool_height_after_lower_m": 0.11478780391719555,
+      "rim_contact_while_gripped": false,
+      "minimum_floor_force_n": 0.2536026841612798,
+      "maximum_can_contact_force_n": 0.2536026841612811
+    },
+    "grip": false,
+    "placement": false,
+    "task_success": false,
+    "checks": {
+      "missed": true
+    },
+    "failure_reasons": [],
+    "pass": true
+  },
+  "wsim": {
+    "case": "weak",
+    "limits": {
+      "pad_force_n": 0.1,
+      "support_force_n": 0.05,
+      "lift_m": 0.1,
+      "slip_m": 0.01,
+      "rotation_slip_rad": 0.2,
+      "settle_steps": 125,
+      "linear_speed_m_s": 0.005,
+      "angular_speed_rad_s": 0.05
+    },
+    "metrics": {
+      "lift_m": 6.528215468204479e-12,
+      "minimum_pad_force_n": {
+        "gripper0_finger1_pad_collision": 0,
+        "gripper0_finger2_pad_collision": 0
+      },
+      "maximum_slip_m": 0.5105239763181241,
+      "maximum_rotation_slip_rad": 0.019705779219443685,
+      "minimum_bottom_force_n": 0,
+      "maximum_settled_linear_speed_m_s": 7.066274511347441e-11,
+      "maximum_settled_angular_speed_rad_s": 3.741382976446689e-09,
+      "minimum_withdrawal_clearance_m": 0.5525432643121936,
+      "other_settled_support_contacts": [
+        "floor"
+      ],
+      "predicate_after_withdrawal": false,
+      "final_can_position": [
+        -0.1190942559529141,
+        -0.23978121689946646,
+        0.038392910376819134
+      ],
+      "max_lift_before_release_m": 6.557386578176505e-12,
+      "max_closure_pad_force_n": {
+        "gripper0_finger1_pad_collision": 0,
+        "gripper0_finger2_pad_collision": 0
+      },
+      "maximum_rim_force_n": 0,
+      "maximum_rim_penetration_m": 0.0,
+      "maximum_basket_motion_during_lower_m": 1.0298941754051997e-11,
+      "tool_height_after_lower_m": 0.11478780332578498,
+      "rim_contact_while_gripped": false,
+      "minimum_floor_force_n": 0.25360268415869736,
+      "maximum_can_contact_force_n": 0.2536026841716457
+    },
+    "grip": false,
+    "placement": false,
+    "task_success": false,
+    "checks": {
+      "missed": true
+    },
+    "failure_reasons": [],
+    "pass": true
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "pass": true,
+  "actions": 155,
+  "physical_steps": 4375,
+  "inferences": 31,
+  "windows": {
+    "before_stop_hold": {
+      "first_step": 3751,
+      "last_step": 3875,
+      "minimum_bottom_force_n": 0.2536026833247718,
+      "minimum_clearance_m": 0.13592700537339084,
+      "maximum_linear_speed_m_s": 2.903451077189887e-10,
+      "maximum_angular_speed_rad_s": 1.627340193656327e-08
+    },
+    "after_stop_hold": {
+      "first_step": 4251,
+      "last_step": 4375,
+      "minimum_bottom_force_n": 0.25360268315001366,
+      "minimum_clearance_m": 0.1405451077953344,
+      "maximum_linear_speed_m_s": 2.7888894825995437e-10,
+      "maximum_angular_speed_rad_s": 1.9320578288098894e-08
+    }
+  }
+}

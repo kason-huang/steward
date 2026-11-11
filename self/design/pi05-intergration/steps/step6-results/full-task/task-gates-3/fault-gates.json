@@ -1,0 +1,46 @@
+{
+  "missing_wrist": {
+    "client_rejection": "Panda policy preview requires both RGB views",
+    "wsim_rejection": "Policy action requires a synchronized observation",
+    "step": 25,
+    "episodeId": 1,
+    "controlGeneration": 1,
+    "lastApplied": null,
+    "lastCompleted": null,
+    "pending": false,
+    "reason": "leased"
+  },
+  "stale_step": {
+    "source_step": 0,
+    "wsim_rejection": "Panda policy observation expired",
+    "step": 175,
+    "episodeId": 2,
+    "controlGeneration": 1,
+    "lastApplied": null,
+    "lastCompleted": null,
+    "pending": false,
+    "reason": "leased"
+  },
+  "episode_reset": {
+    "old_episode": 3,
+    "queued_before_reset": true,
+    "wsim_rejection": "Stale Panda episode",
+    "step": 25,
+    "episodeId": 4,
+    "controlGeneration": 0,
+    "lastApplied": null,
+    "lastCompleted": null,
+    "pending": false,
+    "reason": "reset"
+  },
+  "queued_wall_expiration": {
+    "queued_before_expiry": true,
+    "step": 25,
+    "episodeId": 5,
+    "controlGeneration": 2,
+    "lastApplied": null,
+    "lastCompleted": null,
+    "pending": false,
+    "reason": "observation_expired"
+  }
+}

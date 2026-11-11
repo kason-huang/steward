@@ -1,0 +1,37 @@
+Real policy returned (10, 7) in 0.081 s
+Real policy returned (10, 7) in 0.081 s
+Traceback (most recent call last):
+  File "/home/huawei/hqk/workspace/steward/steward/scripts/verify_libero_step6.py", line 214, in <module>
+    main()
+  File "/home/huawei/hqk/workspace/steward/steward/scripts/verify_libero_step6.py", line 203, in main
+    short_prefix(robot, args.port, args.out)
+  File "/home/huawei/hqk/workspace/steward/steward/scripts/verify_libero_step6.py", line 143, in short_prefix
+    accepted = submit(robot, lease, sequence, action, frame["observationId"])
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/huawei/hqk/workspace/steward/steward/scripts/verify_libero_step6.py", line 56, in submit
+    return call(robot.url, "/control/action", lease | {
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/huawei/hqk/workspace/steward/steward/scripts/verify_libero_step2.py", line 41, in call
+    return json.loads(request(base, path, body))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/huawei/hqk/workspace/steward/steward/scripts/verify_libero_step2.py", line 36, in request
+    with urlopen(req, timeout=20) as response:
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/huawei/.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/urllib/request.py", line 215, in urlopen
+    return opener.open(url, data, timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/huawei/.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/urllib/request.py", line 521, in open
+    response = meth(req, response)
+               ^^^^^^^^^^^^^^^^^^^
+  File "/home/huawei/.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/urllib/request.py", line 630, in http_response
+    response = self.parent.error(
+               ^^^^^^^^^^^^^^^^^^
+  File "/home/huawei/.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/urllib/request.py", line 559, in error
+    return self._call_chain(*args)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/huawei/.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/urllib/request.py", line 492, in _call_chain
+    result = func(*args)
+             ^^^^^^^^^^^
+  File "/home/huawei/.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/urllib/request.py", line 639, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 400: Bad Request

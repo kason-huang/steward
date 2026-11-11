@@ -1,0 +1,5 @@
+# Preserve exact raw experiment logs.
+*.log binary
+*.patch binary
+# Keep the recorded CSV bytes and its historical checksum unchanged.
+formal-batch/episodes.csv binary
