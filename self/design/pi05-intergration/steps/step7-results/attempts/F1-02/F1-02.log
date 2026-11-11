@@ -1,0 +1,6 @@
+[0.03148076314997661, -0.13608711232447623, -0.01370911769032479, -0.004216225173420157, -0.000701388083985427, -0.004075859733896792, -1.0029553238389493]
+F1 starting 0 unconfirmed
+F1 executing_actions 25 unconfirmed
+F1 executing_actions 50 unconfirmed
+agent: 同一个 Job 已进入终态 failed，三项终态不满足（succeeded/achieved/confirmed 未同时成立）。按操作员指令不自动重试，已结束依赖步骤。需要操作员决定：确认策略推理服务是否可达/超时上限，或授权重新提交一次 libero_pick_place。当前 ES 中 can 与 basket 均未被移动或误标注。
+{"pass": true, "case": "F1", "mode": "chat"}

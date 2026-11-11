@@ -1,0 +1,28 @@
+{
+  "scenario": "libero-object-alphabet-soup-panda",
+  "initial_state": 0,
+  "model": "pi05_libero@215abfb217dbac7d5f1273282331b9b1866c0479",
+  "cases": [
+    {
+      "id": "N1",
+      "purpose": "console task and saved capability"
+    },
+    {
+      "id": "N2",
+      "purpose": "nested run_code reuses the saved capability"
+    },
+    {
+      "id": "C1",
+      "purpose": "operator stop during an applied action"
+    },
+    {
+      "id": "F1",
+      "purpose": "disconnect dedicated policy during a running Job"
+    }
+  ],
+  "normal_actions_budget": 280,
+  "wall_budget_s": 420,
+  "prefix_size": 5,
+  "clock": "frozen during inference",
+  "retry_rule": "retain each attempt in a new directory"
+}

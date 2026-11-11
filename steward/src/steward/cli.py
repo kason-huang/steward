@@ -188,6 +188,24 @@ def cmd_ego(args) -> int:
     return 0
 
 
+def cmd_panda_ego(args) -> int:
+    from steward.ego.panda_runtime import PandaEgoRuntime, panda_ego_api
+    from steward.ego.runtime import RobotLink
+
+    from steward.ego.panda_policy import PandaPolicyConfig
+
+    config = PandaPolicyConfig.load(args.policy_config) if args.policy_config else None
+    out_dir = Path(args.out_dir) if args.out_dir else Path(args.root) / "ego" / "panda"
+    runtime = PandaEgoRuntime(RobotLink(args.robot_url), config, out_dir)
+    api = panda_ego_api(runtime, args.api_port, args.bind_wait).start()
+    print(json.dumps({"egoApi": api.url, "robot": args.robot_url, "skills": config is not None}), flush=True)
+    runtime.start()
+    if args.parent_pid:
+        _exit_with_parent(args.parent_pid)
+    _wait_forever([runtime.stop, api.stop])
+    return 0
+
+
 def cmd_cobot_ego(args) -> int:
     """The Cobot Magic twin's Ego Runtime behind a robot port, as `steward up` runs it."""
     from steward.ego.cobot_runtime import CobotEgoRuntime
@@ -261,6 +279,8 @@ class _EgoProcess:
             cmd += ["--mission-config", json.dumps(self.mission_config, ensure_ascii=False)]
         if body["ego"] == "ego":  # the shared runtime segments by itself and drives the named body
             cmd += ["--segmentation-config", args.segmentation_config, "--body", embodiment]
+        if body["ego"] == "panda-ego" and getattr(args, "panda_policy_config", None):
+            cmd += ["--policy-config", str(Path(args.panda_policy_config).resolve())]
         # The child writes its piped stdout in the locale encoding (GBK on Chinese Windows) unless told
         # otherwise; the reader decodes UTF-8, so a locale decode error cannot kill it and backpressure the child.
         self.proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True, encoding="utf-8",
@@ -270,7 +290,9 @@ class _EgoProcess:
         if not first:
             raise SystemExit(f"the Ego Runtime process for {robot_url} ({body['ego']}) exited with status "
                              f"{self.proc.wait()} before starting")
-        self.url = json.loads(first)["egoApi"]
+        ready = json.loads(first)
+        self.url = ready["egoApi"]
+        self.skills = ready.get("skills", body["skills"])
         self._stopping = False
         self._reported = False
         threading.Thread(target=self._relay, name="ego-output", daemon=True).start()
@@ -381,7 +403,7 @@ class EgoSupervisor:
                                    embodiment=body["id"], api_port=self.args.api_port if not self.procs else 0,
                                    task=task, mission_config=mission_config)
                 self.procs[rid] = proc
-                host.attach_ego_api(rid, proc.url, skills=EMBODIMENTS[body["id"]]["skills"])
+                host.attach_ego_api(rid, proc.url, skills=proc.skills)
             if host.chat.config is not None:
                 host.chat.config.ego_api = self.primary_url()
             return {rid: proc.url for rid, proc in self.procs.items()}
@@ -892,6 +914,7 @@ def main(argv: list[str] | None = None) -> int:
                            help="Ego API of the robot, for robot tasks from the console chat")
         if name == "up":
             p.add_argument("--api-port", type=int, default=7420)
+            p.add_argument("--panda-policy-config", help="validated Panda policy TOML; omitted: observation-only Panda")
             p.add_argument("--dispatch-task", action=argparse.BooleanOptionalAction, default=True,
                            help="start the robot's Ego Harness on the scenario's task, in a new conversation, "
                                 "at start and whenever the console loads or resets an episode")
@@ -915,7 +938,7 @@ def main(argv: list[str] | None = None) -> int:
             p.add_argument("--api", help="Ego API of a running `steward up`; omit to run in-process")
             p.add_argument("--wca", default="http://127.0.0.1:7400", help="WCA of the running world (with --api)")
         p.set_defaults(fn=fn)
-    for name, fn in (("ego", cmd_ego), ("cobot-ego", cmd_cobot_ego)):
+    for name, fn in (("ego", cmd_ego), ("cobot-ego", cmd_cobot_ego), ("panda-ego", cmd_panda_ego)):
         p = sub.add_parser(name)
         p.add_argument("--robot-url", default="http://127.0.0.1:7410")
         p.add_argument("--api-port", type=int, default=7420)
@@ -928,6 +951,8 @@ def main(argv: list[str] | None = None) -> int:
                            help="robot-side segmenter settings, used at phase levels without world masks; '' disables it")
             p.add_argument("--body", choices=list(EMBODIMENTS), default="steward-bot",
                            help="the registered embodiment the runtime drives (its model, arm and motion settings)")
+        if name == "panda-ego":
+            p.add_argument("--policy-config", help="validated Panda policy TOML; omitted: observations only")
         if name == "cobot-ego":
             p.add_argument("--task", choices=COBOT_MISSIONS, default=None,
                            help="scripted mission the twin runs in its scene, round after round, each new "

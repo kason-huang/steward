@@ -1,0 +1,24 @@
+{
+  "id": "panda-job-189816064f0e4cc2affc6fefd37cc7b1",
+  "skill": "libero_pick_place",
+  "receipt": "panda-receipt-2137de1ccab549b3b0bba7c7a69665d3",
+  "state": "succeeded",
+  "message": "goal_achieved",
+  "started": 0.0,
+  "finished": 8.549999999999525,
+  "log": [],
+  "episodeId": 1,
+  "phase": "finished",
+  "goalStatus": "achieved",
+  "stopStatus": "confirmed",
+  "reasonCode": "goal_achieved",
+  "evidence": {
+    "grasp": "confirmed",
+    "placement": "confirmed",
+    "reason": "stable_visible_can_below_rim",
+    "target": "e:1:can",
+    "basket": "e:1:basket",
+    "evidenceStep": 3750
+  },
+  "actionsApplied": 150
+}

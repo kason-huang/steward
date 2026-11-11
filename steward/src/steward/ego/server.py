@@ -25,7 +25,7 @@ UNRECORDED = frozenset({
 })
 
 
-def ego_api(runtime: EgoRuntime, port: int = 0, bind_wait_s: float = 0.0) -> JsonServer:
+def ego_api(runtime: EgoRuntime, port: int = 0, bind_wait_s: float = 0.0, *, routes=None) -> JsonServer:
     def guarded(route, fn):
         def wrapped(q, b):
             try:
@@ -47,7 +47,7 @@ def ego_api(runtime: EgoRuntime, port: int = 0, bind_wait_s: float = 0.0) -> Jso
         method, path = route
         return lambda q, b: runtime.apply({"method": method, "path": path, "query": q, "body": b}, lambda: fn(q, b))
 
-    routes = _routes(runtime)
+    routes = _routes(runtime) if routes is None else routes
     return JsonServer({k: guarded(k, recorded(k, v)) for k, v in routes.items()}, port=port, name="ego-api",
                       bind_wait_s=bind_wait_s)
 

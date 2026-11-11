@@ -50,13 +50,29 @@ class CameraRenderer:
         self.source = self.model = self.data = None
         self.renderers = {}
 
+    def snapshot_model(self, model):
+        self.close()
+        self.model = copy.deepcopy(model)
+        self.data = mujoco.MjData(self.model)
+        self.source = model
+
+    def renderer_for(self, width, height, *, samples=None):
+        """Reuse a renderer; explicit samples owns a separate context and leaves RGB settings intact."""
+        key = (width, height) if samples is None else (width, height, samples)
+        if key not in self.renderers:
+            previous = self.model.vis.quality.offsamples
+            try:
+                if samples is not None:
+                    self.model.vis.quality.offsamples = samples
+                self.renderers[key] = mujoco.Renderer(self.model, height, width)
+            finally:
+                self.model.vis.quality.offsamples = previous
+        return self.renderers[key]
+
     def render(self, sim, robot):
         with sim.lock:
             if self.source is not sim.model:
-                self.close()
-                self.source = sim.model
-                self.model = copy.deepcopy(sim.model)
-                self.data = mujoco.MjData(self.model)
+                self.snapshot_model(sim.model)
             mujoco.mj_copyData(self.data, self.model, sim.data)
             calibration = {s["id"]: dict(s["intrinsics"]) for s in sim.robot_cameras(robot)}
             packet = _sensor_kinematics(sim, robot)
@@ -68,10 +84,7 @@ class CameraRenderer:
         views = {}
         for camera in ids:
             intrinsic = _intrinsics(calibration[camera])
-            key = (intrinsic["width"], intrinsic["height"])
-            if key not in self.renderers:
-                self.renderers[key] = mujoco.Renderer(self.model, key[1], key[0])
-            renderer = self.renderers[key]
+            renderer = self.renderer_for(intrinsic["width"], intrinsic["height"])
             renderer.update_scene(self.data, camera=f"{robot}::{camera}")
             views[camera] = intrinsic | {"rgb": renderer.render().copy()}
         return {"stamp": float(self.data.time), "views": views}
@@ -93,6 +106,24 @@ class SensorCameras:
         self.renderer = CameraRenderer()
         self.closed = False
         self.recordings = SensorRecordings(sim)
+
+    def panda_observation(self, after=None):
+        from steward.world.panda_sensors import read_panda
+        from steward.world.panda_control import ControlConflict
+
+        with self.lock:
+            if self.closed:
+                raise HttpError(503, "Camera evidence service is closed")
+            sim = self.sim()
+            if sim.panda is None:
+                raise HttpError(409, "Panda observation is unavailable")
+            try:
+                packet = self.worker.submit(read_panda, self.renderer, sim, after).result()
+            except ControlConflict as exc:
+                raise HttpError(409, str(exc)) from exc
+            if self.sim() is not sim or sim.episode != packet["episodeId"]:
+                raise HttpError(409, "Panda observation belongs to an ended episode")
+            return packet
 
     def sensor_snapshot(self, robot):
         with self.lock:

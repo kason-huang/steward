@@ -144,6 +144,10 @@ class RobotLink:
     def sensors(self) -> dict:
         return call("GET", f"{self.url}/sensors")
 
+    def panda_observation(self, after: tuple[int, int] | None = None) -> dict:
+        query = "" if after is None else f"?episode={after[0]}&after={after[1]}"
+        return call("GET", f"{self.url}/sensors/panda/observation{query}")
+
     def proprioception(self) -> dict:
         """Joint encoders and gripper states only, without drawing a perception sample."""
         return call("GET", f"{self.url}/sensors/proprioception")

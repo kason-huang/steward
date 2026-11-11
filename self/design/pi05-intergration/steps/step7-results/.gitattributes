@@ -1,0 +1,3 @@
+# Preserve exact experiment outputs, including traceback spacing and patch context.
+*.log binary
+*.patch binary

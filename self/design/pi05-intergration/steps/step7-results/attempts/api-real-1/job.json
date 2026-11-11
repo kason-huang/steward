@@ -1,0 +1,17 @@
+{
+  "id": "panda-job-a28cbe7635414b1f9b327b03783b35ce",
+  "skill": "libero_pick_place",
+  "receipt": "panda-receipt-b2185adfc5d24c2abd0866a82907d771",
+  "state": "failed",
+  "message": "execution_limit",
+  "started": 0.0,
+  "finished": 15.000000000001679,
+  "log": [],
+  "episodeId": 1,
+  "phase": "finished",
+  "goalStatus": "unconfirmed",
+  "stopStatus": "confirmed",
+  "reasonCode": "execution_limit",
+  "evidence": {},
+  "actionsApplied": 280
+}

@@ -95,7 +95,11 @@ export function apply(ctx: Context, config: Config): void {
       description: 'Stop all robot motion immediately',
       handler: async () => {
         const result = await ctx.ego.stop()
-        return { kind: 'success', text: `Robot motion stopped${result.stopped ? ` (interrupted ${String(result.stopped)})` : ''}.` }
+        if (result.stopStatus === 'unknown') {
+          return { kind: 'success', text: 'Stop requested. Robot stationary state is unconfirmed and further policy control is blocked.' }
+        }
+        const status = result.stopStatus === 'confirmed' ? 'Robot motion stopped' : 'Robot stop requested'
+        return { kind: 'success', text: `${status}${result.stopped ? ` (interrupted ${String(result.stopped)})` : ''}.` }
       },
     })
   })

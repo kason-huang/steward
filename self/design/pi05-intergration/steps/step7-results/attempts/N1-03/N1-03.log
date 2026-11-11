@@ -1,0 +1,5 @@
+[0.029835742642164154, -0.13527870119166374, -0.013137027236223231, -0.004216225173420157, -0.0007441695964473527, -0.0043229539350832236, -1.004786013231039]
+N1 starting 0 unconfirmed
+N1 executing_actions 25 unconfirmed
+agent: 字母汤罐抓放未完成，Job 已失败停止。请操作员清除该扫掠路径上的障碍（或重新放置罐/篮子）后再下达任务。完整结果：{"job":"panda-job-1501b434a2644b18afbcf3c3e17e7432","skill":"libero_pick_place","receipt":"panda-receipt-0ac230da2b084473a1bb09374f0be0cd","state":"failed","goalStatus":"unconfirmed","stopStatus":"confirmed","phase":"finished","actionsApplied":32,"reasonCode":"prediction_rejected","message":"Observed obstacle intersects predicted arm sweep: segment=6, clearance=0.028402, point=[-0.08492959940207462, -0.2593516109032921, 0.1659079708865348]","target":"e:1:can","on":"e:1:basket"}
+{"pass": false, "case": "N1", "mode": "chat"}

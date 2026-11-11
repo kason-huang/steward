@@ -42,7 +42,11 @@ function receiptView(r: PredictionReceipt): JsonObject {
 }
 
 function jobView(job: SkillJob): JsonObject {
-  return { job: job.id, skill: job.skill, state: job.state, message: job.message, log: job.log.slice(-8) }
+  const view: JsonObject = { job: job.id, skill: job.skill, state: job.state, message: job.message, log: job.log.slice(-8) }
+  for (const key of ['goalStatus', 'stopStatus', 'reasonCode', 'evidence', 'phase', 'actionsApplied'] as const) {
+    if (job[key] !== undefined) view[key] = job[key]
+  }
+  return view
 }
 
 /**
@@ -190,9 +194,10 @@ export function egoTools(ego: EgoService): ToolDefinition[] {
         + 'observe, or choose another spot) and predict again. An infeasible receipt lists blockers: entities in the '
         + 'way, whether they can be moved, and parking spots (parkAt) out of the way; clear a movable blocker first '
         + '(pick it, place it at a parking spot), then predict the original skill again. A receipt can be run once '
-        + 'and expires.',
+        + 'and expires. A configured LIBERO Panda supports "libero_pick_place", one complete alphabet-soup-to-basket '
+        + 'task with target and on from ego_state. Check the body\'s supported skills before predicting.',
       parameters: {
-        skill: { type: 'string', enum: ['navigate', 'pick', 'place', 'pour', 'open', 'close'], required: true, description: 'Skill to predict.' },
+        skill: { type: 'string', enum: ['navigate', 'pick', 'place', 'pour', 'open', 'close', 'libero_pick_place'], required: true, description: 'Skill to predict.' },
         target: { type: 'string', description: 'pick: id of the object to grasp; open/close: id of the drawer.' },
         on: { type: 'string', description: 'place: id of the surface, open drawer or larger bowl to put the held object on or in; pour: id of the surface.' },
         offset: { type: 'array', items: { type: 'number' }, description: 'place, pour: [dx, dy] of the spot from the surface centre in the surface frame, metres; without it the free spot nearest you. If something already lies at the requested spot, the free spot nearest it is used instead and the issues say where (the receipt plan.spot holds the spot used).' },

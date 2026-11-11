@@ -1,0 +1,10 @@
+{
+  "owner": {
+    "owner": null,
+    "blocked": false
+  },
+  "clockHolds": [],
+  "terminalImmutable": true,
+  "pass": true,
+  "noLateActions": true
+}

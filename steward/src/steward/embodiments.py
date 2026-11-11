@@ -21,9 +21,9 @@ EMBODIMENTS: dict[str, dict] = {
         "label": "LIBERO Franka Panda",
         "description": "固定底座、七轴 Panda、双指夹爪，使用独立 OSC 控制端口",
         "profile": "libero-panda.yaml",
-        "ego": None,
+        "ego": "panda-ego",
         "runs_mission": False,
-        "skills": False,
+        "skills": True,
     },
     "steward-bot": {
         "label": "Steward 移动厨房机器人",

@@ -1,0 +1,17 @@
+{
+  "id": "panda-job-9c1ed56603dd469bb7640d6b9b3caf21",
+  "skill": "libero_pick_place",
+  "receipt": "panda-receipt-1c65e71339374bc9befb51703c6ebc4f",
+  "state": "stopped",
+  "message": "Action completion receipt was interrupted",
+  "started": 0.0,
+  "finished": 3.5499999999998306,
+  "log": [],
+  "episodeId": 1,
+  "phase": "finished",
+  "goalStatus": "unconfirmed",
+  "stopStatus": "confirmed",
+  "reasonCode": "cancelled",
+  "evidence": {},
+  "actionsApplied": 50
+}

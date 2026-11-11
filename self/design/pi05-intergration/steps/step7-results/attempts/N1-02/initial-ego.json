@@ -1,0 +1,91 @@
+{
+  "episodeId": 1,
+  "stamp": 0.0,
+  "version": 0,
+  "body": "libero-panda",
+  "self": {
+    "toolPose": {
+      "p": [
+        -0.152564205990392,
+        -0.006272675972043295,
+        0.2484394383626053
+      ],
+      "q": [
+        -0.020642699359338965,
+        0.7071489059162857,
+        0.7064678430551257,
+        -0.020432585582803354
+      ]
+    },
+    "grasp": "unconfirmed",
+    "holding": null
+  },
+  "objects": [
+    {
+      "id": "e:1:can",
+      "category": "alphabet_soup",
+      "role": "alphabet_soup",
+      "position": [
+        -0.11098250267326734,
+        -0.2402425375495595,
+        0.05664424094149123
+      ],
+      "sizeM": [
+        0.062,
+        0.062,
+        0.075
+      ],
+      "extentM": [
+        0.062,
+        0.062,
+        0.075
+      ],
+      "existence": 1.0,
+      "lastSeenAgoS": 0.0,
+      "on": null,
+      "categories": {
+        "alphabet_soup": 1.0
+      },
+      "uncertaintyM": 0.015
+    },
+    {
+      "id": "e:1:basket",
+      "category": "basket",
+      "role": "basket",
+      "position": [
+        0.01900334907032249,
+        0.2513506680214769,
+        0.07119592820266324
+      ],
+      "sizeM": [
+        0.15,
+        0.16,
+        0.13
+      ],
+      "extentM": [
+        0.15,
+        0.16,
+        0.13
+      ],
+      "existence": 1.0,
+      "lastSeenAgoS": 0.0,
+      "on": null,
+      "categories": {
+        "basket": 1.0
+      },
+      "uncertaintyM": 0.015
+    }
+  ],
+  "judgment": {
+    "grasp": "unconfirmed",
+    "placement": "unconfirmed",
+    "reason": "awaiting_visible_post_release_evidence",
+    "target": "e:1:can",
+    "basket": "e:1:basket",
+    "evidenceStep": 0
+  },
+  "job": null,
+  "skills": [
+    "libero_pick_place"
+  ]
+}

@@ -1,0 +1,9 @@
+[0.03230327340388284, -0.13527870119166374, -0.013480281508684189, -0.004216225173420157, -0.000701388083985427, -0.004075859733896792, -1.0033824846971036]
+N1 starting 0 unconfirmed
+N1 executing_actions 25 unconfirmed
+agent: 失败的 Job：panda-job-a4415ac2c7ab4002968519d86bd1dddc
+state=failed, goalStatus=unconfirmed, stopStatus=confirmed, reasonCode=prediction_rejected
+message=Observed obstacle intersects predicted arm sweep, actionsApplied=35
+目标发 e:1:can，目标篮子 e:1:basket。
+按指令未自动重试，任务未完成。请在清除罐到篮子之间扫掠路径上的障碍、并恢复物体支撑面关系后重新指派；能力 libero_soup_to_basket 未保存。
+{"pass": false, "case": "N1", "mode": "chat"}

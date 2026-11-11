@@ -313,6 +313,11 @@ class StewardHost:
         only publishes its belief is shown in the console, but an Ego Harness task addressed to it
         is refused up front instead of failing on every tool call."""
         self.ego_apis[robot] = url
+        if "robot" in self.chat.agents:
+            from steward.world.chat import PANDA_BRIEF, ROBOT_BRIEF
+
+            body = self.embodiments[robot]["id"]
+            self.chat.agents["robot"].brief = PANDA_BRIEF if body == "libero-panda" else ROBOT_BRIEF
         self.chat.robot_reason = None if skills else (
             f"this robot's body publishes its Ego-State but takes no work: its Ego API has no "
             f"skill endpoints, so an Ego Harness task has nothing to call")
@@ -685,6 +690,13 @@ class StewardHost:
             except ControlConflict as exc:
                 raise HttpError(409, str(exc)) from exc
 
+        def panda_observation(q, b):
+            try:
+                after = (int(q["episode"]), int(q["after"])) if "after" in q else None
+            except (KeyError, ValueError) as exc:
+                raise HttpError(400, "Expected integer episode and after step") from exc
+            return self.sensor_cameras.panda_observation(after)
+
         def panda(operation, body):
             if body is not None and not isinstance(body, dict):
                 raise HttpError(400, "Panda control body must be an object")
@@ -714,8 +726,17 @@ class StewardHost:
             ("POST", "/clock/release"): lambda q, b: self._require_sim().release(f"{rid}/{b['hold']}") or {},
             ("POST", "/clock/renew"): lambda q, b: self._require_sim().renew(f"{rid}/{b['hold']}") or {},
         }
+        def panda_telemetry(q, b):
+            sim = self._require_sim()
+            with sim.lock:
+                if sim.panda is None or not isinstance(b, dict) or b.get("episodeId") != sim.episode:
+                    raise HttpError(409, "Panda telemetry belongs to an ended episode")
+                return telemetry(q, b)
+
         if rid == PANDA_ID:
             return shared | {
+                ("GET", "/sensors/panda/observation"): panda_observation,
+                ("POST", "/telemetry"): panda_telemetry,
                 ("GET", "/control/status"): lambda q, b: panda("status", b),
                 ("POST", "/control/acquire"): lambda q, b: panda("acquire", b),
                 ("POST", "/control/renew"): lambda q, b: panda("renew", b),

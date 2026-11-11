@@ -1,0 +1,17 @@
+{
+  "id": "panda-job-a4415ac2c7ab4002968519d86bd1dddc",
+  "skill": "libero_pick_place",
+  "receipt": "panda-receipt-7a6477a79a21498da124a027ff7210d8",
+  "state": "failed",
+  "message": "Observed obstacle intersects predicted arm sweep",
+  "started": 0.0,
+  "finished": 2.7499999999999187,
+  "log": [],
+  "episodeId": 1,
+  "phase": "finished",
+  "goalStatus": "unconfirmed",
+  "stopStatus": "confirmed",
+  "reasonCode": "prediction_rejected",
+  "evidence": {},
+  "actionsApplied": 35
+}

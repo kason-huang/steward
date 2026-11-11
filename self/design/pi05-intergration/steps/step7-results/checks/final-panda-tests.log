@@ -1,0 +1,58 @@
+...........F......                                                       [100%]
+=================================== FAILURES ===================================
+_________ test_real_ego_process_exit_revokes_policy_and_releases_clock _________
+
+panda = (<steward.world.server.StewardHost object at 0x73bc302de5a0>, <steward.ego.panda_runtime.PandaEgoRuntime object at 0x7...8a0>, 'http://127.0.0.1:35201', PosixPath('/tmp/pytest-of-huawei/pytest-30/test_real_ego_process_exit_rev0/policy.py'))
+tmp_path = PosixPath('/tmp/pytest-of-huawei/pytest-30/test_real_ego_process_exit_rev0')
+
+    def test_real_ego_process_exit_revokes_policy_and_releases_clock(panda, tmp_path):
+        from steward.cli import _EgoProcess
+        host, runtime, _, client = panda
+        client.write_text(client.read_text().replace("time.sleep(0.05)", "time.sleep(8)"))
+        config = tmp_path / "policy.toml"
+        config.write_text("[policy]\nclient_command = " + json.dumps([sys.executable, str(client)]) +
+                          "\nport = 18067\nmodel_id = 'test-policy'\nmax_actions = 5\n")
+    
+        def check():
+            process = _EgoProcess(SimpleNamespace(root=host.root, bind_wait=0, panda_policy_config=config),
+                                  host.robot_servers["w:panda"].url, tmp_path / "child-runtime",
+                                  embodiment="libero-panda", api_port=0)
+            try:
+                assert process.skills
+                call("POST", process.url + "/skill/run", {"receipt": receipt(process.url)["id"]})
+                process.stop()
+                assert process.proc.poll() is not None
+                status = runtime.executor.status()
+                assert not status["leased"] and status["stopState"] == "stopped"
+                assert status["lastApplied"] is None and not host.sim._holds
+            finally:
+                process.stop()
+    
+>       off_main(host, check)
+
+tests/test_panda_jobs.py:296: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_panda_jobs.py:29: in off_main
+    return work.result()
+           ^^^^^^^^^^^^^
+../../../../.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/concurrent/futures/_base.py:449: in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+../../../../.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/concurrent/futures/_base.py:401: in __get_result
+    raise self._exception
+../../../../.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/concurrent/futures/thread.py:59: in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def check():
+>       process = _EgoProcess(SimpleNamespace(root=host.root, bind_wait=0, panda_policy_config=config),
+                                                   ^^^^^^^^^
+                              host.robot_servers["w:panda"].url, tmp_path / "child-runtime",
+                              embodiment="libero-panda", api_port=0)
+E       AttributeError: 'StewardHost' object has no attribute 'root'
+
+tests/test_panda_jobs.py:282: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_panda_jobs.py::test_real_ego_process_exit_revokes_policy_and_releases_clock
+1 failed, 17 passed in 45.23s

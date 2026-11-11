@@ -1,0 +1,8 @@
+{
+  "frames": 71,
+  "fps": 20,
+  "durationS": 3.55,
+  "clock": "simulation time; frozen inference waits are omitted",
+  "sourceFrames": "/home/huawei/hqk/workspace/steward/steward/var/step7/F1-01/runtime/ego-panda/policy-jobs/panda-job-876dbaa3ca2d4af0b5f682891c530f06",
+  "observationTimestamps": "/home/huawei/hqk/workspace/steward/steward/var/step7/F1-01/runtime/ego-panda/policy-jobs/panda-job-876dbaa3ca2d4af0b5f682891c530f06/observations.jsonl"
+}

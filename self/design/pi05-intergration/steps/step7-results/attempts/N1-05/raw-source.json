@@ -1,0 +1,9 @@
+{
+  "directory": "/home/huawei/hqk/workspace/steward/steward/var/step7/N1-05",
+  "jobDirectory": "/home/huawei/hqk/workspace/steward/steward/var/step7/N1-05/runtime/ego-panda/policy-jobs/panda-job-687d04aeb4f147bc855e11e5c21a897c",
+  "rawRgb": [
+    "/home/huawei/hqk/workspace/steward/steward/var/step7/N1-05/runtime/ego-panda/policy-jobs/panda-job-687d04aeb4f147bc855e11e5c21a897c/external",
+    "/home/huawei/hqk/workspace/steward/steward/var/step7/N1-05/runtime/ego-panda/policy-jobs/panda-job-687d04aeb4f147bc855e11e5c21a897c/wrist"
+  ],
+  "rawRgbd": "/home/huawei/hqk/workspace/steward/steward/var/step7/N1-05/runtime/ego-panda/policy-jobs/panda-job-687d04aeb4f147bc855e11e5c21a897c/sensors"
+}

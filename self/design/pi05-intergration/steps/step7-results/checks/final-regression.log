@@ -1,0 +1,74 @@
+........................................F.......................         [100%]
+=================================== FAILURES ===================================
+_____ test_the_runtime_keeper_runs_one_process_of_the_right_kind_per_robot _____
+
+kitchen_root = '/tmp/pytest-of-huawei/pytest-28/steward0'
+tmp_path = PosixPath('/tmp/pytest-of-huawei/pytest-28/test_the_runtime_keeper_runs_o0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x70e32ec769f0>
+
+    def test_the_runtime_keeper_runs_one_process_of_the_right_kind_per_robot(kitchen_root, tmp_path, monkeypatch) -> None:
+        from steward import cli
+    
+        started: list = []
+        stopped: list = []
+    
+        class FakeProcess:
+            def __init__(self, args, robot_url, out_dir, *, embodiment, api_port, task=None,
+                         mission_config=None):
+                self.embodiment, self.api_port, self.task = embodiment, api_port, task
+                self.mission_config = dict(mission_config or {})
+                self.url = f"http://ego/{embodiment}/{api_port}"
+                started.append(self)
+    
+            def stop(self) -> None:
+                stopped.append(self)
+    
+            def check(self) -> None:
+                pass
+    
+        monkeypatch.setattr(cli, "_EgoProcess", FakeProcess)
+        root = tmp_path / "root"
+        shutil.copytree(kitchen_root, root)
+        host = StewardHost(root, scenario="phase0-chores", run_dir=tmp_path / "run").start()
+        keeper = cli.EgoSupervisor(types.SimpleNamespace(root=str(root), api_port=7420, bind_wait=0.0), tmp_path / "run")
+        order: list[str] = []
+    
+        def switch(name: str) -> None:
+            _pump_while(host, lambda: call("POST", f"{host.wca.url}/wca/episode",
+                                           {"action": "load", "scenario": name}, timeout=180))
+    
+        try:
+>           keeper.reconcile(host)
+
+tests/test_embodiments.py:150: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <steward.cli.EgoSupervisor object at 0x70e3220061e0>
+host = <steward.world.server.StewardHost object at 0x70e32ec2bf20>
+
+    def reconcile(self, host) -> dict[str, str]:
+        with self._lock:
+            wanted = self._wanted(host.scenario)
+            for rid in self._departing(wanted, self.procs):
+                self.procs.pop(rid).stop()
+                host.detach_ego_api(rid)
+            for rid, body in host.embodiments.items():
+                if rid in self.procs:
+                    continue
+                if not body["registered"] or not EMBODIMENTS[body["id"]]["ego"]:
+                    print(f"steward up: {rid} is a {body['id']}, which has no configured Ego Runtime; "
+                          f"leaving its robot port available", file=sys.stderr, flush=True)
+                    continue
+                _, task, mission_config = wanted[rid]
+                proc = _EgoProcess(self.args, host.robot_servers[rid].url, self.run_dir / f"ego-{rid.removeprefix('w:')}",
+                                   embodiment=body["id"], api_port=self.args.api_port if not self.procs else 0,
+                                   task=task, mission_config=mission_config)
+                self.procs[rid] = proc
+>               host.attach_ego_api(rid, proc.url, skills=proc.skills)
+                                                          ^^^^^^^^^^^
+E               AttributeError: 'FakeProcess' object has no attribute 'skills'
+
+src/steward/cli.py:406: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_embodiments.py::test_the_runtime_keeper_runs_one_process_of_the_right_kind_per_robot
+1 failed, 63 passed in 90.03s (0:01:30)

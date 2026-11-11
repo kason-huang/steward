@@ -9,6 +9,8 @@ import math
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
+import mujoco
+
 from steward.scene.mjcf import EntityNames, MjcfBuild
 from steward.scene.schema import Entity, Link, RigidTree, SceneState, exact, pose
 
@@ -56,6 +58,15 @@ def load_scene(bundle: Path, index: int, *, minimal: bool = False, panda: bool =
     # Match the standard WSim framebuffer for console views; this changes no physics option.
     for key, minimum in (("offwidth", 1280), ("offheight", 960)):
         framebuffer.set(key, str(max(int(framebuffer.get(key, "0")), minimum)))
+    if panda:
+        for name in ("gripper0_ft_frame", "gripper0_grip_site", "gripper0_grip_site_cylinder"):
+            site = xml.find(f".//site[@name='{name}']")
+            rgba = site.get("rgba").split()
+            site.set("rgba", " ".join([*rgba[:3], "0"]))
+    # The pinned LIBERO renderer predates PNG color-space detection in MuJoCo.
+    if mujoco.mj_version() >= 333:
+        for texture in xml.findall("asset/texture"):
+            texture.set("colorspace", "linear")
     assets = {}
     for element in xml.iter():
         relative = element.get("file")

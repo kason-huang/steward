@@ -10,7 +10,8 @@ mechanical:
     sim: contact
 sensors:
   cameras:
-    - {id: wrist, kind: rgb, model_camera: robot0_eye_in_hand}
+    - {id: external, kind: rgbd, model_camera: overview, fixed: true}
+    - {id: wrist, kind: rgbd, model_camera: robot0_eye_in_hand}
   proprioception: [arm position, arm velocity, finger position, finger velocity, tool pose]
 self_model:
   kinematics: {format: mjcf, site: gripper0_grip_site}
@@ -20,7 +21,8 @@ control_face:
   rates_hz: {goal: 20, physics: 500}
   port: /control
 execution_stack:
-  ego_runtime: null
+  ego_runtime: steward.ego.panda_runtime.PandaEgoRuntime
+  policy_skill: libero_pick_place
   controller: steward.world.panda_osc.PandaOsc
 sim2real:
   real_backend: none

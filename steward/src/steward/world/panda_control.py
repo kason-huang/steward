@@ -13,6 +13,37 @@ ARM_SPEED_LIMIT = 0.02
 FINGER_SPEED_LIMIT = 0.005
 SITE_SPEED_LIMIT = 0.01
 SITE_ANGULAR_LIMIT = 0.05
+POLICY_OBSERVATION_WALL_S = 20.0
+POLICY_PREFIX_STEPS = 3 * SUBSTEPS
+POLICY_LINEAR_LIMIT = 0.20
+POLICY_ANGULAR_LIMIT = 0.06
+
+
+def policy_hover_target(values, position):
+    """Constrain the initial trial to small free-space motion and normal finger limits."""
+    if (max(map(abs, values[:3])) > POLICY_LINEAR_LIMIT or max(map(abs, values[3:6])) > POLICY_ANGULAR_LIMIT
+            or abs(values[6]) > 1):
+        raise ValueError("Action outside initial hover trial limits")
+    target = position + 0.05 * np.asarray(values[:3])
+    if np.any(target < [-.20, -.05, .20]) or np.any(target > [-.10, .05, .30]):
+        raise ValueError("Action outside initial hover trial volume")
+    return target
+
+
+LIBERO_TASK_POLICY = "libero-task"
+LIBERO_TASK_PREFIX_STEPS = 5 * SUBSTEPS
+LIBERO_TASK_MIN = np.array([-.32, -.32, .025])
+LIBERO_TASK_MAX = np.array([.32, .32, .43])
+
+
+def policy_libero_target(values, position):
+    """Limit the initial-state-0 simulation trial to the LIBERO operation area."""
+    if max(map(abs, values)) > 1.0:
+        raise ValueError("LIBERO policy action outside normalized range")
+    target = np.asarray(position) + 0.05 * np.asarray(values[:3])
+    if np.any(target < LIBERO_TASK_MIN) or np.any(target > LIBERO_TASK_MAX):
+        raise ValueError(f"LIBERO policy action outside trial volume at target {target.tolist()}")
+    return target
 
 
 class ControlConflict(ValueError):
@@ -34,6 +65,8 @@ class PandaControl:
         self.lease_id = None
         self.sequence = -1
         self.pending = None
+        self.policy_mode = False
+        self.policy_observations = {}
         self.running = None
         self.last_applied = None
         self.last_completed = None
@@ -56,6 +89,8 @@ class PandaControl:
         self.deadline = None
         self.lease_id = None
         self.pending = self.running = None
+        self.policy_mode = False
+        self.policy_observations.clear()
         self.capture_hold = True
         self.still_steps = 0
         self.reason = reason
@@ -67,6 +102,35 @@ class PandaControl:
     def require_active(self):
         if self.retired:
             raise ControlConflict("Panda episode has ended")
+
+    def issue_policy_observation(self, generation, step, captured_at):
+        self._expire()
+        if not self.policy_mode or generation != self.generation:
+            return None
+        token = secrets.token_urlsafe(24)
+        self.policy_observations[token] = (step, captured_at + POLICY_OBSERVATION_WALL_S)
+        if len(self.policy_observations) > 32:
+            del self.policy_observations[next(iter(self.policy_observations))]
+        return token
+
+    def _check_policy_freshness(self, observation, step, remaining):
+        if observation is None:
+            raise ControlConflict("Policy action requires a synchronized observation")
+        source_step, deadline = observation
+        horizon = LIBERO_TASK_PREFIX_STEPS if self.policy_mode == LIBERO_TASK_POLICY else POLICY_PREFIX_STEPS
+        if (time.monotonic() >= deadline or step < source_step
+                or step + remaining > source_step + horizon):
+            raise ControlConflict("Panda policy observation expired")
+
+    def _check_policy_action(self, values, body, step):
+        token = body.get("observationId")
+        observation = self.policy_observations.get(token) if isinstance(token, str) else None
+        self._check_policy_freshness(observation, step, SUBSTEPS)
+        if self.running is not None:
+            raise ControlConflict("Policy actions require the prior completion receipt")
+        check_target = policy_libero_target if self.policy_mode == LIBERO_TASK_POLICY else policy_hover_target
+        check_target(values, self.data.site_xpos[self.osc.site])
+        return observation
 
     def request(self, operation, body, step):
         self.require_active()
@@ -82,7 +146,11 @@ class PandaControl:
         if operation == "acquire":
             if self.deadline is not None:
                 raise ControlConflict("Panda already has an active lease")
+            policy_mode = body.get("policy", False)
+            if type(policy_mode) is not bool and policy_mode != LIBERO_TASK_POLICY:
+                raise ValueError("Unknown Panda policy trial profile")
             self.deadline = time.monotonic() + self._ttl(body)
+            self.policy_mode = policy_mode
             self.lease_id = secrets.token_urlsafe(24)
             self.generation += 1
             self.sequence = -1
@@ -108,7 +176,9 @@ class PandaControl:
                 raise ValueError("action must contain seven finite numbers")
             if sequence <= self.sequence or self.pending is not None:
                 raise ControlConflict("Panda action is stale or the pending slot is full")
-            self.pending = (sequence, np.array([min(1, max(-1, value)) for value in values], dtype=float), self.generation)
+            observation = self._check_policy_action(values, body, step) if self.policy_mode else None
+            self.pending = (sequence, np.array([min(1, max(-1, value)) for value in values], dtype=float),
+                            self.generation, observation)
             self.sequence = sequence
         return self.status(step)
 
@@ -149,6 +219,21 @@ class PandaControl:
 
     def before_step(self, step):
         self._expire()
+        if self.policy_mode:
+            if self.running is not None:
+                observation = self.running[2]
+                remaining = self.running[1] - step
+            elif self.pending is not None:
+                observation = self.pending[3]
+                remaining = SUBSTEPS
+            else:
+                observation = None
+                remaining = 0
+            if remaining:
+                try:
+                    self._check_policy_freshness(observation, step, remaining)
+                except ControlConflict:
+                    self.revoke("observation_expired")
         mujoco.mj_forward(self.model, self.data)
         if self.capture_hold:
             self.osc.hold()
@@ -156,9 +241,9 @@ class PandaControl:
         update_goal = self.running is None and self.pending is not None
         applied = None
         if update_goal:
-            sequence, action, generation = self.pending
+            sequence, action, generation, observation = self.pending
             self.pending = None
-            self.running = (action, step + SUBSTEPS)
+            self.running = (action, step + SUBSTEPS, observation)
             applied = {"sequence": sequence, "controlGeneration": generation,
                        "startStep": step, "plannedEndStep": step + SUBSTEPS}
         self.osc.apply(self.running[0] if self.running is not None else None, update_goal=update_goal)

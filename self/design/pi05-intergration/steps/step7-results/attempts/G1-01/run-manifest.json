@@ -1,0 +1,22 @@
+{
+  "startedUtc": "2026-11-11T04:54:45.962143+00:00",
+  "argv": [
+    "scripts/verify_libero_step7.py",
+    "var/step4/wsim-root",
+    "var/step7/G1-01",
+    "--policy-config",
+    "var/step7/policy.toml",
+    "--mode",
+    "chat",
+    "--case",
+    "G1",
+    "--harness-home",
+    "var/step7/dsh/robot-1"
+  ],
+  "scenario": "libero-object-alphabet-soup-panda",
+  "initialState": 0,
+  "profile": "ego",
+  "credentials": "loaded by HarnessChat from steward/.env; value is not archived",
+  "gitHead": "dc46b19e907d2bfbbdfbd4ac6391f220ed6ffaf1",
+  "policyConfig": "[policy]\nclient_command = [\"bash\", \"/home/huawei/hqk/workspace/pi05-step1/client.sh\", \"/home/huawei/hqk/workspace/steward/steward/scripts/openpi_step6_infer.py\"]\nport = 18067\nmodel_id = \"pi05_libero@215abfb217dbac7d5f1273282331b9b1866c0479\"\nrequest_timeout_s = 15.0\nmax_actions = 280\nmax_wall_s = 420.0\nprefix_size = 5\nreceipt_wall_s = 30.0\nstop_wall_s = 20.0\n"
+}

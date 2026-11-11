@@ -1,0 +1,214 @@
+$ tsc -b && node --test test/*.test.mjs
+✖ robot tools complete the cup-to-table mission through the Ego API provider (23997.195063ms)
+﹣ live NovelAnything sample produces downloadable RGB/depth arrays (0.68197ms) # SKIP
+✖ robot profile loads NovelAnything skill and replays RGB-only upload, inference and download (849.758023ms)
+✖ robot NovelAnything skill rejects side-camera contexts before upload or inference (808.778093ms)
+✖ robot NovelAnything skill rejects depth inputs even from the supported middle camera (799.457958ms)
+✖ robot agent composes independent recording, navigation and NovelAnything tools without model substitution (1199.002815ms)
+✔ uploads archive exact bytes and accepted request keys recover without duplicate POSTs (122.92833ms)
+✔ recording preparation saves a bounded local ZIP and strips image bytes from model output (36.287852ms)
+✔ submission associates archived input, sends frame selection and recovers acceptance across restart (124.717205ms)
+✔ ambiguous POSTs are never repeated even after restart or concurrent calls (23.89579ms)
+✔ invalid sources, indices, readiness, paths and wait bounds send no POST (3.960643ms)
+✔ only succeeded jobs expose results; interrupted is terminal and wrong identities fail (7.149087ms)
+✔ downloads preserve directories, metadata and partial selections with optional server checksums (123.580165ms)
+✔ untrusted artifact URLs, paths, duplicates and directory links cannot escape output root (17.157993ms)
+✔ disposal waits for held downloads and removes incomplete files without remote cancellation (13.597839ms)
+✔ failures are read from errors, infeasible receipts, failed skills and empty lookups (0.951013ms)
+✔ a running policy is pending while unconfirmed terminal and stop outcomes block dependencies (0.132177ms)
+✔ the instruction is the text after the last marker, keeping the end of a long one (0.087048ms)
+✔ a candidate line shows its naming evidence, doubts and fit (0.14485ms)
+✔ the scene digest groups objects by the name the robot uses, largest group first (3.909662ms)
+✔ a shallow reflection lists the facts, then asks a few questions (0.368761ms)
+✔ a deep reflection says why, digests the scene and asks macro, micro and strategy questions (0.132797ms)
+✔ without Ego evidence the reflection still quotes the failure and the instruction (0.138859ms)
+✔ a checkpoint reviews progress with the scene (0.11001ms)
+✔ a failed robot step gets one reflection message carrying the operator instruction (4.657197ms)
+✔ a failed skill_run is reported with the parameters of the receipt it ran (3.654579ms)
+✔ a recurring failure and a failure after several shallow reflections are reflected on deeply (0.922443ms)
+✔ reflections beyond the budgets pass, and a new operator message resets them but keeps the earlier one (0.52043ms)
+✔ tools outside the configured set and successful steps are left alone (0.23256ms)
+✔ a failed program is reflected on only when none of its nested failures was (0.372324ms)
+✔ a program language error gets a short reflection and never escalates to a deep one (0.359795ms)
+✔ the reflect tool answers a reported difficulty deeply unless a shallow check is asked for (1.26954ms)
+✔ a run of programs without reflection ends with a checkpoint; a failing program defers it (0.373932ms)
+✔ a run of programs in which the robot does not act ends with a review of what they wait for (0.328402ms)
+✔ each request thinks as long as the kind of step it follows (0.542312ms)
+✔ recording preparation retains every frame and sends chronological evidence spanning the entire route (120.070045ms)
+✔ default sampling uses every frame up to eight and preserves both endpoints above the boundary (73.514416ms)
+✔ all short-recording frames are used by default; explicit batches collectively retain every frame (84.038114ms)
+✔ invalid explicit selections and malformed exports never publish a prepared scene (18.714335ms)
+✔ recording preparation cannot write through an input directory link or publish a cancelled scene (5.248433ms)
+✔ default preparation reads only middle RGB even when side images are unavailable (137.73112ms)
+✔ general reference targets accept look-at and exact matrices without a gripper pose (25.625555ms)
+✔ invalid evidence selection and target descriptions never publish a scene (11.838479ms)
+✔ saved camera captures become four inline frames with a gripper-forward OpenCV target (85.212216ms)
+✔ invalid or unsynchronized capture geometry never publishes a prepared scene (16.085327ms)
+✔ preparation rejects image paths outside inputRoot, oversized evidence and cancelled operations (15.910628ms)
+﹣ live rgbd_video_gen demo completes and downloads verified RGB/depth artifacts (0.402101ms) # SKIP
+✖ robot Ego profile discovers the skill and submits novel-view synthesis without a key (873.673687ms)
+✖ robot uses temporal evidence spanning a completed motion recording instead of a final snapshot (815.541144ms)
+✔ JSON submission preserves the proxy prefix, content type and resolved defaults (192.748658ms)
+▶ flexible evidence counts submit exact frames and explicit source counts without padding
+  ✔ 1 evidence views plus one target (67.796719ms)
+  ✔ 3 evidence views plus one target (60.824601ms)
+  ✔ 6 evidence views plus one target (68.498365ms)
+  ✔ 8 evidence views plus one target (55.170029ms)
+✔ flexible evidence counts submit exact frames and explicit source counts without padding (253.010684ms)
+✔ short scenes require a valid evidence count, source images and at least one target (10.682333ms)
+✔ lost responses retry the same durable key; demo BEV options reach the server (69.681517ms)
+✔ bare JPEG base64 is sent as a data URI and server-local paths are refused (37.472815ms)
+✔ ZIP upload uses multipart archive and rejects changed input on replay (45.603353ms)
+✔ invalid input and generation settings make no POST (22.795226ms)
+✔ progress cannot imply success and remote failures retain their code (6.520649ms)
+✔ only verified artifacts are published, reused and represented by the saved manifest (158.20053ms)
+✔ output metadata cannot be overwritten by a different endpoint sharing a job id (23.017311ms)
+✔ local manifest associates archived evidence with target RGB, depth and camera across partial selections (130.175552ms)
+✔ cancellation requires ownership and sends a stable idempotency header (50.812669ms)
+✔ disposal aborts an in-flight download, removes partial files and sends no remote cancel (19.129408ms)
+✔ local frame names distinguish source reconstructions and zero-based target predictions, reusing verified legacy bytes (88.305403ms)
+✔ ambiguous local names and prediction indices without cameras are rejected before publication (7.323112ms)
+✔ ego tools expose the robot vocabulary without World State concepts (3.714685ms)
+✔ ego_predict forwards only the given parameters and hides the raw path (1.152311ms)
+✔ skill_run waits for completion by default (0.529573ms)
+✔ policy job outcomes survive both synchronous and asynchronous tool projections (0.545298ms)
+✔ world_edit maps floor and support placements to World Control API edits (1.169536ms)
+✔ report_problem forwards the goal, step, diagnosis and message to the operator alert (0.520959ms)
+✔ safety policy denies skill_run without a receipt, with an unknown one, or above the risk limit (0.250736ms)
+✔ ego_predict passes a placing heading, a flip and a clearance; pour is a skill (0.623994ms)
+✔ ego_inspect and ego_annotate reach the Ego service (0.854683ms)
+✔ ego_forget passes the object and the reason to the Ego service (0.548649ms)
+✔ ego_candidates forwards the sought name and size to the Ego service (0.55023ms)
+✔ a saved capability is listed without its code, fetched with it, and survives a new store (4.820451ms)
+✔ code naming objects of one task or holding many decimal constants is not saved (0.288481ms)
+✔ runs of a fetched capability are counted from the program that fetched it (1.604811ms)
+✔ a forgotten capability leaves the list and keeps its reason (1.235935ms)
+ℹ tests 83
+ℹ suites 0
+ℹ pass 74
+ℹ fail 7
+ℹ cancelled 0
+ℹ skipped 2
+ℹ todo 0
+ℹ duration_ms 27312.244131
+
+✖ failing tests:
+
+test at test/integration.test.mjs:39:1
+✖ robot tools complete the cup-to-table mission through the Ego API provider (23997.195063ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'failed'
+  - 'succeeded'
+  
+      at TestContext.<anonymous> (file:///home/huawei/hqk/workspace/steward/steward/dsh/test/integration.test.mjs:48:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'failed',
+    expected: 'succeeded',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/novelanything-snapshot.test.mjs:19:63
+✖ robot profile loads NovelAnything skill and replays RGB-only upload, inference and download (849.758023ms)
+  Error: Cannot find module '@deepseek-ai/dsh-llm-replay'
+  Require stack:
+  - /home/huawei/hqk/workspace/steward/steward/dsh/node_modules/.pnpm/@deepseek-ai+dsh@0.2.1-rc.3_4cdd21f3d4c5a7de1315fe7776a7afb9/node_modules/@deepseek-ai/dsh/package.json
+      at Module._resolveFilename (node:internal/modules/cjs/loader:1564:15)
+      at wrapResolveFilename (node:internal/modules/cjs/loader:1118:27)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1169:12)
+      at require.resolve (node:internal/modules/helpers:175:31)
+      at TestContext.<anonymous> (file:///home/huawei/hqk/workspace/steward/steward/dsh/test/novelanything-snapshot.test.mjs:53:82)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [ '/home/huawei/hqk/workspace/steward/steward/dsh/node_modules/.pnpm/@deepseek-ai+dsh@0.2.1-rc.3_4cdd21f3d4c5a7de1315fe7776a7afb9/node_modules/@deepseek-ai/dsh/package.json' ]
+  }
+
+test at test/novelanything-snapshot.test.mjs:19:63
+✖ robot NovelAnything skill rejects side-camera contexts before upload or inference (808.778093ms)
+  Error: Cannot find module '@deepseek-ai/dsh-llm-replay'
+  Require stack:
+  - /home/huawei/hqk/workspace/steward/steward/dsh/node_modules/.pnpm/@deepseek-ai+dsh@0.2.1-rc.3_4cdd21f3d4c5a7de1315fe7776a7afb9/node_modules/@deepseek-ai/dsh/package.json
+      at Module._resolveFilename (node:internal/modules/cjs/loader:1564:15)
+      at wrapResolveFilename (node:internal/modules/cjs/loader:1118:27)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1169:12)
+      at require.resolve (node:internal/modules/helpers:175:31)
+      at TestContext.<anonymous> (file:///home/huawei/hqk/workspace/steward/steward/dsh/test/novelanything-snapshot.test.mjs:53:82)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [ '/home/huawei/hqk/workspace/steward/steward/dsh/node_modules/.pnpm/@deepseek-ai+dsh@0.2.1-rc.3_4cdd21f3d4c5a7de1315fe7776a7afb9/node_modules/@deepseek-ai/dsh/package.json' ]
+  }
+
+test at test/novelanything-snapshot.test.mjs:19:63
+✖ robot NovelAnything skill rejects depth inputs even from the supported middle camera (799.457958ms)
+  Error: Cannot find module '@deepseek-ai/dsh-llm-replay'
+  Require stack:
+  - /home/huawei/hqk/workspace/steward/steward/dsh/node_modules/.pnpm/@deepseek-ai+dsh@0.2.1-rc.3_4cdd21f3d4c5a7de1315fe7776a7afb9/node_modules/@deepseek-ai/dsh/package.json
+      at Module._resolveFilename (node:internal/modules/cjs/loader:1564:15)
+      at wrapResolveFilename (node:internal/modules/cjs/loader:1118:27)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1169:12)
+      at require.resolve (node:internal/modules/helpers:175:31)
+      at TestContext.<anonymous> (file:///home/huawei/hqk/workspace/steward/steward/dsh/test/novelanything-snapshot.test.mjs:53:82)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [ '/home/huawei/hqk/workspace/steward/steward/dsh/node_modules/.pnpm/@deepseek-ai+dsh@0.2.1-rc.3_4cdd21f3d4c5a7de1315fe7776a7afb9/node_modules/@deepseek-ai/dsh/package.json' ]
+  }
+
+test at test/novelanything-snapshot.test.mjs:19:63
+✖ robot agent composes independent recording, navigation and NovelAnything tools without model substitution (1199.002815ms)
+  Error: Cannot find module '@deepseek-ai/dsh-llm-replay'
+  Require stack:
+  - /home/huawei/hqk/workspace/steward/steward/dsh/node_modules/.pnpm/@deepseek-ai+dsh@0.2.1-rc.3_4cdd21f3d4c5a7de1315fe7776a7afb9/node_modules/@deepseek-ai/dsh/package.json
+      at Module._resolveFilename (node:internal/modules/cjs/loader:1564:15)
+      at wrapResolveFilename (node:internal/modules/cjs/loader:1118:27)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1169:12)
+      at require.resolve (node:internal/modules/helpers:175:31)
+      at TestContext.<anonymous> (file:///home/huawei/hqk/workspace/steward/steward/dsh/test/novelanything-snapshot.test.mjs:53:82)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [ '/home/huawei/hqk/workspace/steward/steward/dsh/node_modules/.pnpm/@deepseek-ai+dsh@0.2.1-rc.3_4cdd21f3d4c5a7de1315fe7776a7afb9/node_modules/@deepseek-ai/dsh/package.json' ]
+  }
+
+test at test/rgbd-video-gen-snapshot.test.mjs:20:39
+✖ robot Ego profile discovers the skill and submits novel-view synthesis without a key (873.673687ms)
+  Error: Cannot find module '@deepseek-ai/dsh-llm-replay'
+  Require stack:
+  - /home/huawei/hqk/workspace/steward/steward/dsh/node_modules/.pnpm/@deepseek-ai+dsh@0.2.1-rc.3_4cdd21f3d4c5a7de1315fe7776a7afb9/node_modules/@deepseek-ai/dsh/package.json
+      at Module._resolveFilename (node:internal/modules/cjs/loader:1564:15)
+      at wrapResolveFilename (node:internal/modules/cjs/loader:1118:27)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1169:12)
+      at require.resolve (node:internal/modules/helpers:175:31)
+      at TestContext.<anonymous> (file:///home/huawei/hqk/workspace/steward/steward/dsh/test/rgbd-video-gen-snapshot.test.mjs:46:82)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [ '/home/huawei/hqk/workspace/steward/steward/dsh/node_modules/.pnpm/@deepseek-ai+dsh@0.2.1-rc.3_4cdd21f3d4c5a7de1315fe7776a7afb9/node_modules/@deepseek-ai/dsh/package.json' ]
+  }
+
+test at test/rgbd-video-gen-snapshot.test.mjs:20:39
+✖ robot uses temporal evidence spanning a completed motion recording instead of a final snapshot (815.541144ms)
+  Error: Cannot find module '@deepseek-ai/dsh-llm-replay'
+  Require stack:
+  - /home/huawei/hqk/workspace/steward/steward/dsh/node_modules/.pnpm/@deepseek-ai+dsh@0.2.1-rc.3_4cdd21f3d4c5a7de1315fe7776a7afb9/node_modules/@deepseek-ai/dsh/package.json
+      at Module._resolveFilename (node:internal/modules/cjs/loader:1564:15)
+      at wrapResolveFilename (node:internal/modules/cjs/loader:1118:27)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1169:12)
+      at require.resolve (node:internal/modules/helpers:175:31)
+      at TestContext.<anonymous> (file:///home/huawei/hqk/workspace/steward/steward/dsh/test/rgbd-video-gen-snapshot.test.mjs:46:82)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [ '/home/huawei/hqk/workspace/steward/steward/dsh/node_modules/.pnpm/@deepseek-ai+dsh@0.2.1-rc.3_4cdd21f3d4c5a7de1315fe7776a7afb9/node_modules/@deepseek-ai/dsh/package.json' ]
+  }
+[ELIFECYCLE] Test failed. See above for more details.

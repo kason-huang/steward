@@ -38,6 +38,10 @@ echo 'DEEPSEEK_API_KEY=sk-...' > .env     # 已被 Git 忽略，运行脚本自�
 .venv/bin/steward services                # 检查远程感知服务（SAM 3.1、NovelAnything、NVS、SLARM）是否可达
 ```
 
+## LIBERO Panda 试验
+
+固定 LIBERO Panda 试验通过 `up --scenario libero-object-alphabet-soup-panda --panda-policy-config var/step7/policy.toml --freeze-idle --no-dispatch-task` 启动。独立 Panda Ego Runtime 加载策略配置后才发布 `libero_pick_place`，参数为本轮 Ego-State 的 `target` 与 `on` 引用。成功必须同时满足 `state=succeeded`、`goalStatus=achieved`、`stopStatus=confirmed`；停止未知时锁住后续运动，明确复核停止后才恢复。已验证的 Linux 部署、隔离 profile、专用模型服务、复现命令及适用限制见 [Step 7 实测报告](../self/design/pi05-intergration/steps/step7-results/README.md)。
+
 ## Windows
 
 Windows 上使用同样的命令：`uv sync` 把 `steward` 可执行文件装在 `.venv\Scripts` 下，每个 `.sh` 脚本都有同名、同参数的 PowerShell 版本。如果 PowerShell 拒绝运行未签名脚本，先执行一次 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`。

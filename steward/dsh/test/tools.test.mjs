@@ -71,6 +71,28 @@ test('skill_run waits for completion by default', async () => {
   assert.equal(result.state, 'succeeded')
 })
 
+test('policy job outcomes survive both synchronous and asynchronous tool projections', async () => {
+  const ego = fakeEgo()
+  const running = { id: 'policy-1', skill: 'libero_pick_place', receipt: 'r1', state: 'running',
+    message: '', log: [], phase: 'waiting_inference', goalStatus: 'unconfirmed', stopStatus: 'unknown', actionsApplied: 0 }
+  const finished = { ...running, state: 'failed', phase: 'finished', reasonCode: 'inference_timeout',
+    evidence: { sourceStep: 75 }, actionsApplied: 3 }
+  ego.run = async () => running
+  ego.wait = async () => finished
+  ego.job = async () => finished
+  const tools = egoTools(ego)
+  const start = await tool(tools, 'skill_run').execute({ receipt: 'r1', wait: false }, exec('skill_run'))
+  assert.equal(start.phase, 'waiting_inference')
+  assert.equal(start.actionsApplied, 0)
+  const sync = await tool(tools, 'skill_run').execute({ receipt: 'r1' }, exec('skill_run'))
+  const queried = await tool(tools, 'skill_status').execute({ job: 'policy-1' }, exec('skill_status'))
+  assert.deepEqual(sync, queried)
+  assert.equal(sync.goalStatus, 'unconfirmed')
+  assert.equal(sync.stopStatus, 'unknown')
+  assert.equal(sync.reasonCode, 'inference_timeout')
+  assert.deepEqual(sync.evidence, { sourceStep: 75 })
+})
+
 test('world_edit maps floor and support placements to World Control API edits', async () => {
   const edits = []
   const world = { edit: async (request) => { edits.push(request); return { ok: true, ...request } } }

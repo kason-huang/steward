@@ -46,6 +46,15 @@ test('failures are read from errors, infeasible receipts, failed skills and empt
   assert.equal(failureOf('ego_query', { category: 'cup' }, ok({ objects: [{ id: 'e:1' }] })), undefined)
 })
 
+test('a running policy is pending while unconfirmed terminal and stop outcomes block dependencies', () => {
+  const pending = { skill: 'libero_pick_place', state: 'running', goalStatus: 'unconfirmed', stopStatus: 'unknown' }
+  assert.equal(failureOf('skill_run', {}, ok(pending)), undefined)
+  assert.ok(failureOf('skill_status', {}, ok({ ...pending, state: 'stopped' })))
+  assert.ok(failureOf('skill_status', {}, ok({ ...pending, state: 'succeeded' })))
+  assert.equal(failureOf('skill_status', {}, ok({ ...pending, state: 'succeeded', goalStatus: 'achieved', stopStatus: 'confirmed' })), undefined)
+  assert.ok(failureOf('body_stop', {}, ok({ stopStatus: 'unknown' })))
+})
+
 test('the instruction is the text after the last marker, keeping the end of a long one', () => {
   assert.equal(instructionOf('说明……\n\n操作员任务：把拼图倒在桌上', '操作员任务：', 100), '把拼图倒在桌上')
   assert.equal(instructionOf('把盒子拿来', '操作员任务：', 100), '把盒子拿来')

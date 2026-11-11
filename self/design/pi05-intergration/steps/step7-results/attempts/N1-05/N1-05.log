@@ -1,0 +1,6 @@
+[0.03230327340388284, -0.13527870119166374, -0.013251445327043587, -0.004231852005095793, -0.0006158250590615755, -0.004075859733896792, -1.003260438737631]
+N1 starting 0 unconfirmed
+N1 executing_actions 25 unconfirmed
+N1 executing_actions 50 unconfirmed
+agent: 任务失败，已按要求结束依赖步骤且未自动重试。罐头 e:1:can（约 [-0.112, -0.241, 0.060]）在授权试验体积边缘，policy 第 50 步左右下探越界被拒。请操作员确认/扩大 trial volume 授权，或调整罐头与底座相对位置后重新指示；就绪后可再运行 libero_soup_to_basket(target, on)。本次未保存新能力（能力已存在且本轮未成功）。
+{"pass": false, "case": "N1", "mode": "chat"}

@@ -1,0 +1,15 @@
+{
+  "observedPoints": 3251,
+  "minimumObservedClearanceM": 0.18607254814658475,
+  "maximumPredictedJointDeltaRad": 0.0961934952070983,
+  "translationCommandM": 0.14728100895377486,
+  "coverage": [
+    "encoder_fk",
+    "joint_limits",
+    "arm_and_tool_sweep",
+    "observed_rgbd_obstacles",
+    "task_contact_regions",
+    "operating_volume_visibility"
+  ],
+  "scope": "calibrated self geometry and observed operating volume"
+}

@@ -35,7 +35,7 @@ export interface JsonObject {
 }
 
 /** Skills the Ego Runtime can predict and run. */
-export type EgoSkill = 'navigate' | 'pick' | 'place' | 'pour' | 'open' | 'close'
+export type EgoSkill = 'navigate' | 'pick' | 'place' | 'pour' | 'open' | 'close' | 'libero_pick_place'
 
 /** The top face of an Ego-State object as the robot camera that sees most of it shows it now. */
 export interface InspectResult {
@@ -230,6 +230,8 @@ export interface PredictionReceipt {
   /** Entities that made an infeasible prediction fail; movable ones come with parking spots. */
   blockers?: ReceiptBlocker[]
   used?: boolean
+  /** Accepted Job associated with this receipt, when execution already started. */
+  job?: string
 }
 
 /** One skill execution. */
@@ -252,6 +254,18 @@ export interface SkillJob {
   state: 'running' | 'succeeded' | 'failed' | 'stopped'
   message: string
   log: string[]
+  /** Robot-side target judgment, present for a policy Job. */
+  goalStatus?: 'achieved' | 'not_achieved' | 'unconfirmed'
+  /** Confirmed control revocation and stationary telemetry, present for a policy Job. */
+  stopStatus?: 'confirmed' | 'unknown'
+  /** Stable cause of completion, cancellation or failure. */
+  reasonCode?: string
+  /** Observation-derived goal and stopping evidence. */
+  evidence?: JsonObject
+  /** Current policy execution phase. */
+  phase?: string
+  /** Policy actions confirmed applied by the controller. */
+  actionsApplied?: number
 }
 
 /** Failure reported by an Ego provider, carrying the runtime status when one exists. */

@@ -1,0 +1,34 @@
+{
+  "name": "libero_soup_to_basket",
+  "layer": "recipe",
+  "description": "Place the alphabet soup can into the basket with the body's libero_pick_place skill: predicts a fresh receipt, runs it, polls the same job to a terminal state, and returns only when state=succeeded, goalStatus=achieved and stopStatus=confirmed.",
+  "requires": "A LIBERO Panda body whose skills include libero_pick_place; the soup can and basket are perceived in ego_state and their ids are passed as args.target and args.on.",
+  "ensures": "The can rests in the basket (grasp and placement confirmed by the skill's evidence) and the returned object reports state=succeeded, goalStatus=achieved, stopStatus=confirmed; otherwise throws an Error carrying the job status instead of retrying.",
+  "parameters": {
+    "target": "ES reference of the alphabet soup can to pick (for example e:1:can)",
+    "on": "ES reference of the basket to place it in (for example e:1:basket)"
+  },
+  "code": "\nconst target = args.target;\nconst on = args.on;\nif (!target || !on) throw new Error(\"libero_soup_to_basket requires args.target and args.on\");\n\nconst pred = await tools.ego_predict({ skill: \"libero_pick_place\", target, on });\nif (pred.feasible !== true || pred.withinRiskLimit !== true) {\n  throw new Error(\"libero_pick_place not feasible: \" + JSON.stringify({ feasible: pred.feasible, withinRiskLimit: pred.withinRiskLimit, issues: pred.issues, risk: pred.risk }));\n}\n\nconst run = await tools.skill_run({ receipt: pred.receipt, wait: true, timeoutS: 240 });\nconst jobId = run.job ?? run.jobId ?? run.id;\nif (!jobId) throw new Error(\"skill_run returned no job: \" + JSON.stringify(run));\n\nlet last = run;\nconst deadline = Date.now() + 300000;\nlet polls = 0;\nwhile (last.state === \"running\" || last.state === \"queued\") {\n  if (polls >= 60 || Date.now() > deadline) break;\n  await new Promise((r) => setTimeout(r, 5000));\n  last = await tools.skill_status({ job: jobId });\n  polls += 1;\n}\n\nconst ok = last.state === \"succeeded\" && last.goalStatus === \"achieved\" && last.stopStatus === \"confirmed\";\nif (!ok) {\n  throw new Error(\"libero_pick_place did not reach success: \" + JSON.stringify({ job: jobId, state: last.state, goalStatus: last.goalStatus, stopStatus: last.stopStatus, message: last.message, reasonCode: last.reasonCode, evidence: last.evidence }));\n}\nreturn { job: jobId, state: last.state, goalStatus: last.goalStatus, stopStatus: last.stopStatus, evidence: last.evidence };\n",
+  "version": 1,
+  "status": "verified",
+  "runs": {
+    "succeeded": 5,
+    "failed": 2,
+    "failedInARow": 1,
+    "succeededIn": [
+      "64da0d0f-1b1c-4f5f-a7c7-791e1f3c5530/call_00_ET_rblhEsIRkPS8wNFreIBD3801",
+      "64da0d0f-1b1c-4f5f-a7c7-791e1f3c5530/call_00_d9KWMAqgJwiUkLI3m7PN8570",
+      "3dbbb40e-262d-44ce-8c0c-cad13c13157a/call_00_ET_IGfgB0Zql3HhxaDlkXtw8879",
+      "fea27db3-74c7-4949-87c4-78dfd7e55705/call_00_gnNx3KN3jWPz1NmEoQob1787",
+      "74570b29-b8a0-49d6-8096-b8dc4f7a1485/call_00_hNGeqvrCKhUcwkvaNl4i0790"
+    ],
+    "last": {
+      "at": "2026-11-11T04:43:15.263Z",
+      "ok": false,
+      "error": "code run failed (exception): Uncaught:\nError: libero_pick_place did not reach success: {\"job\":\"panda-job-687d04aeb4f147bc855e11e5c21a897c\",\"state\":\"failed\",\"goalStatus\":\"unconfirmed\",\"stopStatus\":\"confirmed\",\"message\":\"LIBERO policy action outside trial volume at target [-0.14228965214651043, -0.251"
+    }
+  },
+  "createdAt": "2026-11-11T04:27:48.575Z",
+  "updatedAt": "2026-11-11T04:27:48.575Z",
+  "uses": 8
+}

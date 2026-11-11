@@ -1,0 +1,17 @@
+{
+  "id": "panda-job-d55c56dbb90848f8935b4251cc2651c5",
+  "skill": "libero_pick_place",
+  "receipt": "panda-receipt-51d0c0ac0b0a467daa2668b383e919ad",
+  "state": "failed",
+  "message": "Policy request exceeded its wall deadline",
+  "started": 0.0,
+  "finished": 3.499999999999836,
+  "log": [],
+  "episodeId": 1,
+  "phase": "finished",
+  "goalStatus": "unconfirmed",
+  "stopStatus": "confirmed",
+  "reasonCode": "inference_timeout",
+  "evidence": {},
+  "actionsApplied": 50
+}

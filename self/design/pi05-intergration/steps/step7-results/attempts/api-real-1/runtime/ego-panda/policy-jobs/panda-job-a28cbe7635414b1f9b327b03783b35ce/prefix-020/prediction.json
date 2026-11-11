@@ -1,0 +1,14 @@
+{
+  "observedPoints": 4425,
+  "minimumObservedClearanceM": 0.2026079937368274,
+  "maximumPredictedJointDeltaRad": 0.10729336862942646,
+  "translationCommandM": 0.21078703031375667,
+  "coverage": [
+    "encoder_fk",
+    "joint_limits",
+    "arm_and_tool_sweep",
+    "observed_rgbd_obstacles",
+    "task_contact_regions"
+  ],
+  "unobservedSpace": "not certified"
+}

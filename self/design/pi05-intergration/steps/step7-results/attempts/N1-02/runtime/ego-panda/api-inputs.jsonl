@@ -1,0 +1,106 @@
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158219.1097337}
+{"method": "POST", "path": "/ego/control", "query": {}, "body": {"action": "acquire", "owner": "operator"}, "episodeId": 1, "wallMonotonic": 158219.112639757}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158219.113838165}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158219.215651473}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158219.317767292}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158219.419841261}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158219.522116076}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158219.623883124}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158219.726058982}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158219.83017949}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158219.934987279}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158220.037233119}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158220.141763725}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158220.24693349}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158220.351744682}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158220.456486949}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158220.561317889}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158220.666527389}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158220.771334256}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158220.876355558}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158220.980586712}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158221.084712781}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158221.189281715}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158221.293872955}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158221.398451601}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158221.503222011}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158221.607819045}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158221.712548282}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158221.815093586}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158221.917162116}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158221.984331964}
+{"method": "GET", "path": "/ego/query", "query": {"category": "soup"}, "body": {}, "episodeId": 1, "wallMonotonic": 158221.994402954}
+{"method": "POST", "path": "/ego/reflect", "query": {}, "body": {"tool": "ego_query", "arguments": {"category": "soup"}, "message": "no soup in the ego state"}, "episodeId": 1, "wallMonotonic": 158221.997503896}
+{"method": "GET", "path": "/ego/query", "query": {"category": "basket"}, "body": {}, "episodeId": 1, "wallMonotonic": 158222.001252421}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158222.01880041}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158222.122886242}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158222.227707679}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158222.332364122}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158222.436692883}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158222.541500502}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158222.64638309}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158222.75086356}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158222.855642281}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158222.960077778}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158223.064680385}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158223.169280669}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158223.273884839}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158223.378275381}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158223.482812097}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158223.587351215}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158223.691904772}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158223.796631074}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158223.901206432}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158224.005623393}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158224.110021897}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158224.214707814}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158224.319225116}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158224.423634063}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158224.525623616}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158224.629472677}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158224.734325039}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158224.838939431}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158224.941317235}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158225.043268557}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158225.14548831}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158225.247222282}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158225.348780166}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158225.450441212}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158225.552088808}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158225.653609406}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158225.755118442}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158225.856643404}
+{"method": "POST", "path": "/ego/observe", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158225.950695063}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158225.959893343}
+{"method": "POST", "path": "/ego/predict", "query": {}, "body": {"skill": "libero_pick_place", "params": {"target": "e:1:can", "on": "e:1:basket"}}, "episodeId": 1, "wallMonotonic": 158225.97732322}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158226.061260201}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158226.162813021}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158226.264298042}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158226.365794724}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158226.467344063}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158226.568894025}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158226.670134502}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158226.771823751}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158226.873436408}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158226.975141819}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158227.076602087}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158227.178185697}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158227.279792057}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158227.381416286}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158227.483053302}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158227.584420961}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158227.685815636}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158227.787179228}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158227.88851476}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158227.990153041}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158228.092117269}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158228.193664999}
+{"method": "POST", "path": "/skill/run", "query": {}, "body": {"receipt": "panda-receipt-7a6477a79a21498da124a027ff7210d8", "owner": "operator"}, "episodeId": 1, "wallMonotonic": 158228.25443113}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158228.318685329}
+{"method": "POST", "path": "/ego/reflect", "query": {}, "body": {"tool": "skill_run", "arguments": {"receipt": "panda-receipt-7a6477a79a21498da124a027ff7210d8", "wait": true, "timeoutS": 180, "params": {"skill": "libero_pick_place", "target": "e:1:can", "on": "e:1:basket"}}, "message": "libero_pick_place failed: Observed obstacle intersects predicted arm sweep"}, "episodeId": 1, "wallMonotonic": 158237.22430556}
+{"method": "POST", "path": "/ego/reflect", "query": {}, "body": {"tool": "skill_status", "arguments": {"job": "panda-job-a4415ac2c7ab4002968519d86bd1dddc"}, "message": "libero_pick_place failed: Observed obstacle intersects predicted arm sweep"}, "episodeId": 1, "wallMonotonic": 158240.899580062}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158240.901565096}
+{"method": "GET", "path": "/ego/summary", "query": {}, "body": {}, "episodeId": 1, "wallMonotonic": 158240.905141186}
+{"method": "POST", "path": "/ego/alert", "query": {}, "body": {"goal": "\u7528\u672c\u4f53\u652f\u6301\u7684 libero_pick_place \u628a\u5b57\u6bcd\u6c64\u7f50 e:1:can \u653e\u8fdb\u7bee\u5b50 e:1:basket", "step": "skill_run \u6267\u884c libero_pick_place\uff08receipt panda-receipt-7a6477a79a21498da124a027ff7210d8\uff09", "diagnosis": "ego_predict \u5224\u5b9a feasible=true\u3001risk=0.087\uff0c\u4f46 Job \u5728\u6267\u884c 35 \u4e2a\u52a8\u4f5c\u540e\u4ee5 prediction_rejected \u7ec8\u6b62\uff1aObserved obstacle intersects predicted arm sweep\u3002Ego State \u4e2d e:1:can \u4e0e e:1:basket \u7684 on \u5747\u4e3a null\uff08\u652f\u6491\u9762\u5173\u7cfb\u672a\u5efa\u7acb\uff09\uff0c\u8f6c\u8fd0\u8def\u5f84\u53ef\u80fd\u88ab\u684c\u9762\u8fb9\u7f18\u6216\u7bee\u5b50\u4fa7\u58c1\u5224\u4e3a\u969c\u788d\u3002\u4e16\u754c\u72b6\u6001\u672a\u88ab\u6211\u7684\u52a8\u4f5c\u6539\u53d8\uff1a\u7f50\u5b50\u4ecd\u5728 (-0.111, -0.240)\uff0cholding=null\uff0cgrasp=unconfirmed\u3002", "message": "\u5931\u8d25\u7684 Job\uff1apanda-job-a4415ac2c7ab4002968519d86bd1dddc\nstate=failed, goalStatus=unconfirmed, stopStatus=confirmed, reasonCode=prediction_rejected\nmessage=Observed obstacle intersects predicted arm sweep, actionsApplied=35\n\u76ee\u6807\u53d1 e:1:can\uff0c\u76ee\u6807\u7bee\u5b50 e:1:basket\u3002\n\u6309\u6307\u4ee4\u672a\u81ea\u52a8\u91cd\u8bd5\uff0c\u4efb\u52a1\u672a\u5b8c\u6210\u3002\u8bf7\u5728\u6e05\u9664\u7f50\u5230\u7bee\u5b50\u4e4b\u95f4\u626b\u63a0\u8def\u5f84\u4e0a\u7684\u969c\u788d\u3001\u5e76\u6062\u590d\u7269\u4f53\u652f\u6491\u9762\u5173\u7cfb\u540e\u91cd\u65b0\u6307\u6d3e\uff1b\u80fd\u529b libero_soup_to_basket \u672a\u4fdd\u5b58\u3002", "source": "agent", "level": "blocked"}, "episodeId": 1, "wallMonotonic": 158252.02750878}
+{"method": "POST", "path": "/ego/reflect", "query": {}, "body": {"tool": "run_code", "arguments": {}, "message": "Error: code run failed (exception): Uncaught:\nError: libero_pick_place \u672a\u8fbe\u6210\u4efb\u52a1\u7ec8\u6001\uff08\u8981\u6c42 succeeded/achieved/confirmed \u540c\u65f6\u6210\u7acb\uff09\u3002\u7ed3\u679c\uff1a {\"job\":\"panda-job-a4415ac2c7ab4002968519d86bd1dddc\",\"skill\":\"libero_pick_place\",\"receipt\":\"panda-receipt-7a6477a79a21498da124a027ff7210d8\",\"state\":\"failed\",\"goalStatus\":\"unconfirmed\",\"stopStatus\":\"confirmed\",\"reasonCode\":\"prediction_rejected\",\"message\":\"Observed obstacle intersects predicted arm sweep\",\"actionsApplied\":35,\"target\":\"e:1:can\",\"basket\":\"e:1:basket\"}\n    at ptc-repl:24:7\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\nFile sandbox: workspace-write; enforcement: full."}, "episodeId": 1, "wallMonotonic": 158252.041952371}
+{"method": "POST", "path": "/ego/control", "query": {}, "body": {"action": "release", "owner": "operator"}, "episodeId": 1, "wallMonotonic": 158258.213974847}

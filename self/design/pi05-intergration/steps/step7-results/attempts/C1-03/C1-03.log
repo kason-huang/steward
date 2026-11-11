@@ -1,0 +1,27 @@
+[0.03230327340388284, -0.13527870119166374, -0.013251445327043587, -0.004231852005095793, -0.0006158250590615755, -0.004075859733896792, -1.003260438737631]
+C1 starting 0 unconfirmed
+C1 executing_actions 25 unconfirmed
+----------------------------------------
+Exception occurred during processing of request from ('127.0.0.1', 58732)
+Traceback (most recent call last):
+  File "/home/huawei/.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/socketserver.py", line 697, in process_request_thread
+    self.finish_request(request, client_address)
+  File "/home/huawei/.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+  File "/home/huawei/.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/socketserver.py", line 766, in __init__
+    self.handle()
+  File "/home/huawei/.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/http/server.py", line 440, in handle
+    self.handle_one_request()
+  File "/home/huawei/.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/http/server.py", line 428, in handle_one_request
+    method()
+  File "/home/huawei/hqk/workspace/steward/steward/src/steward/net.py", line 129, in do_POST
+    self._dispatch("POST")
+  File "/home/huawei/hqk/workspace/steward/steward/src/steward/net.py", line 111, in _dispatch
+    self._send(200, result if result is not None else {})
+  File "/home/huawei/hqk/workspace/steward/steward/src/steward/net.py", line 123, in _send
+    self.wfile.write(data)
+  File "/home/huawei/.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/socketserver.py", line 845, in write
+    self._sock.sendall(b)
+BrokenPipeError: [Errno 32] Broken pipe
+----------------------------------------
+{"pass": true, "case": "C1", "mode": "chat"}

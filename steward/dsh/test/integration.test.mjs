@@ -17,7 +17,7 @@ const PYTHON = join(STEWARD, '.venv/bin/python')
 
 function startSteward(root) {
   const child = spawn(PYTHON, ['-m', 'steward.cli', '--root', root, 'up', '--scenario', 'phase0-kitchen', '--speed', '6', '--wca-port', '0',
-    '--robot-port', '0', '--api-port', '0'], { cwd: STEWARD, stdio: ['ignore', 'pipe', 'inherit'] })
+    '--robot-port', '0', '--api-port', '0', '--no-dispatch-task'], { cwd: STEWARD, stdio: ['ignore', 'pipe', 'inherit'] })
   return new Promise((resolvePromise, reject) => {
     let buffer = ''
     child.stdout.on('data', (chunk) => {
@@ -45,7 +45,8 @@ test('robot tools complete the cup-to-table mission through the Ego API provider
     const tools = Object.fromEntries(egoTools(ego).map(t => [t.name, t]))
     const run = (name, args = {}) => tools[name].execute(args, { name, arguments: args, signal: AbortSignal.timeout(200_000) })
 
-    assert.equal((await run('ego_explore')).state, 'succeeded')
+    const explored = await run('ego_explore')
+    assert.equal(explored.state, 'succeeded', JSON.stringify(explored))
     let state = await run('ego_state')
     const cup = state.objects.find(o => o.category === 'cup')
     const table = state.objects.find(o => o.category === 'table')

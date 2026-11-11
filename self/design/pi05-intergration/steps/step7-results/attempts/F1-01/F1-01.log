@@ -1,0 +1,6 @@
+[0.03230327340388284, -0.13527870119166374, -0.013022609145402986, -0.004247478836771429, -0.0006158250590615755, -0.004199406834489994, -1.003870668534994]
+F1 starting 0 unconfirmed
+F1 executing_actions 25 unconfirmed
+F1 executing_actions 50 unconfirmed
+agent: Job panda-job-876dbaa3ca2d4af0b5f682891c530f06 状态 failed：goalStatus=unconfirmed（目标未达成），stopStatus=confirmed（已停止），reasonCode=inference_timeout。执行器在应用 50 个动作后中止，机器人可能停在中间姿态，罐子未确认入篮。按操作员指令未自动重试，也未提交新 receipt。请操作员检查策略推理服务/时限配置，并确认机器人当前姿态与罐子位置后再决定是否重新发起任务。
+{"pass": true, "case": "F1", "mode": "chat"}

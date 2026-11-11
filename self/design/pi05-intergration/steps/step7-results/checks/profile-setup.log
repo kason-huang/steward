@@ -1,0 +1,9 @@
+Scope: all 21 workspace projects
+Already up to date
+Done in 246ms using pnpm v11.28.5
+Update available! 11.28.5 → 12.18.0.
+Changelog: https://pnpm.io/v/12.18.0
+To update, run: curl -fsSL https://get.pnpm.io/install.sh | sh -
+$ tsc -b
+dsh: pnpm was not found; install pnpm and make it available on PATH.
+dsh: plugin command failed; diagnostics: /home/huawei/hqk/workspace/steward/steward/var/step7/dsh/robot-1/profiles/ego/.plugin-manager/logs/operation-5AvQJ3/pnpm.log

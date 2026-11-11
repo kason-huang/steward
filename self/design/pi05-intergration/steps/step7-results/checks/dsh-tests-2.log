@@ -1,0 +1,58 @@
+✖ robot tools complete the cup-to-table mission through the Ego API provider (13851.999776ms)
+✔ failures are read from errors, infeasible receipts, failed skills and empty lookups (0.959812ms)
+✔ a running policy is pending while unconfirmed terminal and stop outcomes block dependencies (0.132356ms)
+✔ the instruction is the text after the last marker, keeping the end of a long one (0.083904ms)
+✔ a candidate line shows its naming evidence, doubts and fit (0.156393ms)
+✔ the scene digest groups objects by the name the robot uses, largest group first (4.16854ms)
+✔ a shallow reflection lists the facts, then asks a few questions (0.365204ms)
+✔ a deep reflection says why, digests the scene and asks macro, micro and strategy questions (0.129294ms)
+✔ without Ego evidence the reflection still quotes the failure and the instruction (0.145078ms)
+✔ a checkpoint reviews progress with the scene (0.111725ms)
+✔ a failed robot step gets one reflection message carrying the operator instruction (4.627696ms)
+✔ a failed skill_run is reported with the parameters of the receipt it ran (0.408068ms)
+✔ a recurring failure and a failure after several shallow reflections are reflected on deeply (0.836662ms)
+✔ reflections beyond the budgets pass, and a new operator message resets them but keeps the earlier one (0.489943ms)
+✔ tools outside the configured set and successful steps are left alone (0.228892ms)
+✔ a failed program is reflected on only when none of its nested failures was (0.374251ms)
+✔ a program language error gets a short reflection and never escalates to a deep one (0.339277ms)
+✔ the reflect tool answers a reported difficulty deeply unless a shallow check is asked for (1.149351ms)
+✔ a run of programs without reflection ends with a checkpoint; a failing program defers it (0.365302ms)
+✔ a run of programs in which the robot does not act ends with a review of what they wait for (0.313446ms)
+✔ each request thinks as long as the kind of step it follows (3.759534ms)
+✔ ego tools expose the robot vocabulary without World State concepts (3.0997ms)
+✔ ego_predict forwards only the given parameters and hides the raw path (1.49744ms)
+✔ skill_run waits for completion by default (0.510758ms)
+✔ policy job outcomes survive both synchronous and asynchronous tool projections (0.536438ms)
+✔ world_edit maps floor and support placements to World Control API edits (1.070384ms)
+✔ report_problem forwards the goal, step, diagnosis and message to the operator alert (0.521197ms)
+✔ safety policy denies skill_run without a receipt, with an unknown one, or above the risk limit (0.244398ms)
+✔ ego_predict passes a placing heading, a flip and a clearance; pour is a skill (0.652044ms)
+✔ ego_inspect and ego_annotate reach the Ego service (0.813294ms)
+✔ ego_forget passes the object and the reason to the Ego service (0.57405ms)
+✔ ego_candidates forwards the sought name and size to the Ego service (0.465986ms)
+✔ a saved capability is listed without its code, fetched with it, and survives a new store (4.571769ms)
+✔ code naming objects of one task or holding many decimal constants is not saved (0.274902ms)
+✔ runs of a fetched capability are counted from the program that fetched it (1.4509ms)
+✔ a forgotten capability leaves the list and keeps its reason (1.115776ms)
+ℹ tests 36
+ℹ suites 0
+ℹ pass 35
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 17186.212902
+
+✖ failing tests:
+
+test at test/integration.test.mjs:39:1
+✖ robot tools complete the cup-to-table mission through the Ego API provider (13851.999776ms)
+  Error [EgoError]: the robot is controlled by operator; wait until it releases control
+      at EgoRuntimeClient.call (file:///home/huawei/hqk/workspace/steward/steward/dsh/packages/dsh-ego-runtime-client/lib/index.js:32:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async execute (file:///home/huawei/hqk/workspace/steward/steward/dsh/packages/dsh-tool-ego/lib/index.js:163:29)
+      at async TestContext.<anonymous> (file:///home/huawei/hqk/workspace/steward/steward/dsh/test/integration.test.mjs:48:19)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    status: 409
+  }

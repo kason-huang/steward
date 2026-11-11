@@ -1,0 +1,144 @@
+{
+  "agents": {
+    "world": {
+      "label": "World Harness",
+      "available": false,
+      "reason": "profile 'world-task' missing in None; run steward/scripts/setup-dsh-profiles.sh",
+      "busy": false,
+      "sessionId": null,
+      "wait": null
+    },
+    "robot": {
+      "label": "panda",
+      "available": true,
+      "reason": null,
+      "busy": false,
+      "sessionId": "session-30a98eba-a2e1-40ef-8931-e8e0b4dd9c5e",
+      "wait": null,
+      "control": null,
+      "alerts": [
+        {
+          "id": 1,
+          "t": 2.5999999999999353,
+          "source": "agent",
+          "level": "blocked",
+          "message": "\u5b57\u6bcd\u6c64\u7f50\u6293\u653e\u672a\u5b8c\u6210\uff0cJob \u5df2\u5931\u8d25\u505c\u6b62\u3002\u8bf7\u64cd\u4f5c\u5458\u6e05\u9664\u8be5\u626b\u63a0\u8def\u5f84\u4e0a\u7684\u969c\u788d\uff08\u6216\u91cd\u65b0\u653e\u7f6e\u7f50/\u7bee\u5b50\uff09\u540e\u518d\u4e0b\u8fbe\u4efb\u52a1\u3002\u5b8c\u6574\u7ed3\u679c\uff1a{\"job\":\"panda-job-1501b434a2644b18afbcf3c3e17e7432\",\"skill\":\"libero_pick_place\",\"receipt\":\"panda-receipt-0ac230da2b084473a1bb09374f0be0cd\",\"state\":\"failed\",\"goalStatus\":\"unconfirmed\",\"stopStatus\":\"confirmed\",\"phase\":\"finished\",\"actionsApplied\":32,\"reasonCode\":\"prediction_rejected\",\"message\":\"Observed obstacle intersects predicted arm sweep: segment=6, clearance=0.028402, point=[-0.08492959940207462, -0.2593516109032921, 0.1659079708865348]\",\"target\":\"e:1:can\",\"on\":\"e:1:basket\"}",
+          "count": 1,
+          "acknowledged": false,
+          "goal": "\u7528\u672c\u4f53\u652f\u6301\u7684 libero_pick_place \u628a\u5b57\u6bcd\u6c64\u7f50 e:1:can \u653e\u8fdb\u7bee\u5b50 e:1:basket",
+          "step": "\u5bf9 receipt panda-receipt-0ac230da2b084473a1bb09374f0be0cd \u6267\u884c skill_run\uff0c\u8f6e\u8be2\u540c\u4e00\u4e2a Job panda-job-1501b434a2644b18afbcf3c3e17e7432",
+          "diagnosis": "\u6280\u80fd\u5728 actionsApplied=32 \u65f6\u88ab\u5224\u4e3a prediction_rejected\uff1a\u9884\u6d4b\u7684\u673a\u68b0\u81c2\u626b\u63a0\u4e0e\u4e00\u4e2a\u89c2\u5bdf\u5230\u7684\u969c\u788d\u76f8\u4ea4\uff08segment=6\uff0c\u95f4\u9699 0.028402 m\uff0c\u4f4d\u7f6e [-0.0849,-0.2594,0.1659]\uff09\u3002\u7ec8\u6001\u4e3a state=failed\u3001goalStatus=unconfirmed\u3001stopStatus=confirmed\uff0c\u4e09\u9879\u6761\u4ef6\u4e0d\u540c\u65f6\u6210\u7acb\uff1b\u6309\u6307\u4ee4\u672a\u81ea\u52a8\u91cd\u8bd5\u3002"
+        }
+      ],
+      "plan": {
+        "plan": null,
+        "skill": null,
+        "activity": [],
+        "activityLast": 0,
+        "boot": "133052940247040",
+        "t": 2.5999999999999353
+      }
+    }
+  },
+  "messages": [
+    {
+      "id": 1,
+      "agent": "robot",
+      "role": "user",
+      "text": "\u8bf7\u7528\u672c\u4f53\u652f\u6301\u7684 libero_pick_place \u628a\u5b57\u6bcd\u6c64\u7f50\u653e\u8fdb\u7bee\u5b50\u3002\u4f7f\u7528\u771f\u5b9e\u5de5\u5177\uff0c\u5148\u67e5\u8be2\u5f53\u524d ES \u5bf9\u8c61\uff0c\u5728 run_code \u5185 ego_predict \u540e skill_run\uff0c\u7b49\u5f85\u540c\u4e00\u4e2a Job \u5b8c\u6210\u3002\u53ea\u6709 succeeded\u3001achieved\u3001confirmed \u540c\u65f6\u6210\u7acb\u624d\u6c47\u62a5\u6210\u529f\u3002\u5931\u8d25\u3001\u505c\u6b62\u6216\u672a\u786e\u8ba4\u5c31\u7ed3\u675f\u7a0b\u5e8f\u5e76\u62a5\u544a\uff0c\u7981\u6b62\u81ea\u52a8\u91cd\u8bd5\u3002\u6210\u529f\u540e capability_save \u4fdd\u5b58\u540d\u4e3a libero_soup_to_basket \u7684\u4efb\u52a1\u80fd\u529b\uff0ccode \u4f7f\u7528 args.target \u4e0e args.on\uff0c\u91cd\u65b0\u9884\u6d4b\u5e76\u68c0\u67e5\u4e09\u9879\u7ec8\u6001\uff0c\u4e0d\u80fd\u4fdd\u5b58\u672c\u8f6e\u5bf9\u8c61 ID\u3002",
+      "t": 1794370120.829312
+    },
+    {
+      "id": 2,
+      "agent": "robot",
+      "role": "tool",
+      "text": "{\n  \"episodeId\": 1,\n  \"stamp\": 0,\n  \"version\": 0,\n  \"body\": \"libero-panda\",\n  \"self\": {\n    \"toolPose\": {\n      \"p\": [\n        -0.152564205990392,\n        -0.006272675972043295,\n        0.2484394383626053\n      ],\n      \"q\": [\n        -0.020642699359338965,\n        0.7071489059162857,\n        0.7064678430551257,\n        -0.020432585582803354\n      ]\n    },\n    \"grasp\": \"unconfirmed\",\n    \"holding\": null\n  },\n  \"objects\": [\n    {\n      \"id\": \"e:1:can\",\n      \"category\": \"alphabet_soup\",\n      \"role\": \"alphabet_soup\",\n      \"position\": [\n        -0.11098250267326734,\n        -0.2402425375495595,\n        0.05664424094149123\n      ],\n      \"sizeM\": [\n        0.062,\n        0.062,\n        0.075\n      ],\n      \"extentM\": [\n        0.062,\n        0.062,\n        0.075\n      ],\n      \"existence\": 1,\n      \"lastSeenAgoS\": 0,\n      \"on\": null,\n      \"categories\": {\n        \"alphabet_soup\": 1\n      },\n      \"uncertaintyM\": 0.015\n    },\n    {\n      \"id\": \"e:1:basket\",\n      \"category\": \"basket\",\n      \"role\": \"basket\",\n      \"position\": [\n        0.01900334907032249,\n        0.2513506680214769,\n        0.07119592820266324\n      ],\n      \"sizeM\": [\n        0.15,\n        0.16,\n        0.13\n      ",
+      "t": 1794370123.6515234,
+      "tool": "run_code",
+      "input": {
+        "code": "const state = await tools.ego_state({});\nconsole.log(JSON.stringify(state, null, 2).slice(0, 6000));",
+        "description": "Read current ego state objects"
+      },
+      "status": "completed"
+    },
+    {
+      "id": 3,
+      "agent": "robot",
+      "role": "tool",
+      "text": "CAN: {\"objects\":[{\"id\":\"e:1:can\",\"category\":\"alphabet_soup\",\"role\":\"alphabet_soup\",\"position\":[-0.11098250267326734,-0.2402425375495595,0.05664424094149123],\"sizeM\":[0.062,0.062,0.075],\"extentM\":[0.062,0.062,0.075],\"existence\":1,\"lastSeenAgoS\":0,\"on\":null,\"categories\":{\"alphabet_soup\":1},\"uncertaintyM\":0.015}]}\nBASKET: {\"objects\":[{\"id\":\"e:1:basket\",\"category\":\"basket\",\"role\":\"basket\",\"position\":[0.01900334907032249,0.2513506680214769,0.07119592820266324],\"sizeM\":[0.15,0.16,0.13],\"extentM\":[0.15,0.16,0.13],\"existence\":1,\"lastSeenAgoS\":0,\"on\":null,\"categories\":{\"basket\":1},\"uncertaintyM\":0.015}]}",
+      "t": 1794370125.160189,
+      "tool": "run_code",
+      "input": {
+        "code": "const [canQ, basketQ] = await Promise.all([\n  tools.ego_query({ category: \"alphabet_soup\" }),\n  tools.ego_query({ category: \"basket\" }),\n]);\nconsole.log(\"CAN:\", JSON.stringify(canQ));\nconsole.log(\"BASKET:\", JSON.stringify(basketQ));",
+        "description": "Query can and basket references"
+      },
+      "status": "completed"
+    },
+    {
+      "id": 4,
+      "agent": "robot",
+      "role": "tool",
+      "text": "{\n  \"receipt\": \"panda-receipt-0ac230da2b084473a1bb09374f0be0cd\",\n  \"skill\": \"libero_pick_place\",\n  \"feasible\": true,\n  \"risk\": 0.08670047575581927,\n  \"maxRisk\": 0.35,\n  \"withinRiskLimit\": true,\n  \"issues\": [],\n  \"expiresAt\": 30,\n  \"plan\": {\n    \"target\": \"e:1:can\",\n    \"support\": \"e:1:basket\"\n  }\n}",
+      "t": 1794370126.4521737,
+      "tool": "run_code",
+      "input": {
+        "code": "const target = \"e:1:can\";\nconst on = \"e:1:basket\";\nconst pred = await tools.ego_predict({ skill: \"libero_pick_place\", target, on });\nconsole.log(JSON.stringify(pred, null, 2).slice(0, 5000));",
+        "description": "Predict libero_pick_place receipt"
+      },
+      "status": "completed"
+    },
+    {
+      "id": 5,
+      "agent": "robot",
+      "role": "tool",
+      "text": "{\n  \"job\": \"panda-job-1501b434a2644b18afbcf3c3e17e7432\",\n  \"skill\": \"libero_pick_place\",\n  \"state\": \"running\",\n  \"message\": \"\",\n  \"log\": [],\n  \"goalStatus\": \"unconfirmed\",\n  \"stopStatus\": \"unknown\",\n  \"reasonCode\": \"\",\n  \"evidence\": {},\n  \"phase\": \"starting\",\n  \"actionsApplied\": 0\n}",
+      "t": 1794370128.1507294,
+      "tool": "run_code",
+      "input": {
+        "code": "const run = await tools.skill_run({ receipt: \"panda-receipt-0ac230da2b084473a1bb09374f0be0cd\", wait: false });\nconsole.log(JSON.stringify(run, null, 2).slice(0, 3000));",
+        "description": "Start libero_pick_place skill run"
+      },
+      "status": "completed"
+    },
+    {
+      "id": 6,
+      "agent": "robot",
+      "role": "tool",
+      "text": "0 running unconfirmed unknown executing_actions 9\n1 running unconfirmed unknown executing_actions 20\n2 running unconfirmed unknown executing_actions 30\n3 running unconfirmed unknown stopping 32\n4 failed unconfirmed confirmed finished 32\nFINAL: {\n  \"job\": \"panda-job-1501b434a2644b18afbcf3c3e17e7432\",\n  \"skill\": \"libero_pick_place\",\n  \"state\": \"failed\",\n  \"message\": \"Observed obstacle intersects predicted arm sweep: segment=6, clearance=0.028402, point=[-0.08492959940207462, -0.2593516109032921, 0.1659079708865348]\",\n  \"log\": [],\n  \"goalStatus\": \"unconfirmed\",\n  \"stopStatus\": \"confirmed\",\n  \"reasonCode\": \"prediction_rejected\",\n  \"evidence\": {},\n  \"phase\": \"finished\",\n  \"actionsApplied\": 32\n}",
+      "t": 1794370130.0242217,
+      "tool": "run_code",
+      "input": {
+        "code": "const job = \"panda-job-1501b434a2644b18afbcf3c3e17e7432\";\nlet last = null;\nfor (let i = 0; i < 60; i++) {\n  last = await tools.skill_status({ job });\n  console.log(i, last.state, last.goalStatus, last.stopStatus, last.phase, last.actionsApplied);\n  if (last.state !== \"running\") break;\n  await new Promise((r) => setTimeout(r, 2000));\n}\nconsole.log(\"FINAL:\", JSON.stringify(last, null, 2).slice(0, 3000));",
+        "description": "Poll skill job until terminal"
+      },
+      "status": "completed"
+    },
+    {
+      "id": 7,
+      "agent": "robot",
+      "role": "tool",
+      "text": "Error: code run failed (exception): Uncaught:\nError: libero_pick_place \u672a\u6210\u529f\uff0c\u7981\u6b62\u81ea\u52a8\u91cd\u8bd5\u3002\u7ed3\u679c: {\"job\":\"panda-job-1501b434a2644b18afbcf3c3e17e7432\",\"skill\":\"libero_pick_place\",\"receipt\":\"panda-receipt-0ac230da2b084473a1bb09374f0be0cd\",\"state\":\"failed\",\"goalStatus\":\"unconfirmed\",\"stopStatus\":\"confirmed\",\"phase\":\"finished\",\"actionsApplied\":32,\"reasonCode\":\"prediction_rejected\",\"message\":\"Observed obstacle intersects predicted arm sweep: segment=6, clearance=0.028402, point=[-0.08492959940207462, -0.2593516109032921, 0.1659079708865348]\",\"target\":\"e:1:can\",\"on\":\"e:1:basket\"}\n    at ptc-repl:21:7\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\nFile sandbox: workspace-write; enforcement: full.",
+      "t": 1794370144.998465,
+      "tool": "run_code",
+      "input": {
+        "code": "const result = {\n  job: \"panda-job-1501b434a2644b18afbcf3c3e17e7432\",\n  skill: \"libero_pick_place\",\n  receipt: \"panda-receipt-0ac230da2b084473a1bb09374f0be0cd\",\n  state: \"failed\",\n  goalStatus: \"unconfirmed\",\n  stopStatus: \"confirmed\",\n  phase: \"finished\",\n  actionsApplied: 32,\n  reasonCode: \"prediction_rejected\",\n  message: \"Observed obstacle intersects predicted arm sweep: segment=6, clearance=0.028402, point=[-0.08492959940207462, -0.2593516109032921, 0.1659079708865348]\",\n  target: \"e:1:can\",\n  on: \"e:1:basket\",\n};\nawait tools.report_problem({\n  goal: \"\u7528\u672c\u4f53\u652f\u6301\u7684 libero_pick_place \u628a\u5b57\u6bcd\u6c64\u7f50 e:1:can \u653e\u8fdb\u7bee\u5b50 e:1:basket\",\n  step: \"\u5bf9 receipt panda-receipt-0ac230da2b084473a1bb09374f0be0cd \u6267\u884c skill_run\uff0c\u8f6e\u8be2\u540c\u4e00\u4e2a Job panda-job-1501b434a2644b18afbcf3c3e17e7432\",\n  diagnosis: \"\u6280\u80fd\u5728 actionsApplied=32 \u65f6\u88ab\u5224\u4e3a prediction_rejected\uff1a\u9884\u6d4b\u7684\u673a\u68b0\u81c2\u626b\u63a0\u4e0e\u4e00\u4e2a\u89c2\u5bdf\u5230\u7684\u969c\u788d\u76f8\u4ea4\uff08segment=6\uff0c\u95f4\u9699 0.028402 m\uff0c\u4f4d\u7f6e [-0.0849,-0.2594,0.1659]\uff09\u3002\u7ec8\u6001\u4e3a state=failed\u3001goalStatus=unconfirmed\u3001stopStatus=confirmed\uff0c\u4e09\u9879\u6761\u4ef6\u4e0d\u540c\u65f6\u6210\u7acb\uff1b\u6309\u6307\u4ee4\u672a\u81ea\u52a8\u91cd\u8bd5\u3002\",\n  message: \"\u5b57\u6bcd\u6c64\u7f50\u6293\u653e\u672a\u5b8c\u6210\uff0cJob \u5df2\u5931\u8d25\u505c\u6b62\u3002\u8bf7\u64cd\u4f5c\u5458\u6e05\u9664\u8be5\u626b\u63a0\u8def\u5f84\u4e0a\u7684\u969c\u788d\uff08\u6216\u91cd\u65b0\u653e\u7f6e\u7f50/\u7bee\u5b50\uff09\u540e\u518d\u4e0b\u8fbe\u4efb\u52a1\u3002\u5b8c\u6574\u7ed3\u679c\uff1a\" + JSON.stringify(result),\n});\nthrow new Error(\"libero_pick_place \u672a\u6210\u529f\uff0c\u7981\u6b62\u81ea\u52a8\u91cd\u8bd5\u3002\u7ed3\u679c: \" + JSON.stringify(result));",
+        "description": "Report failure and end with Error"
+      },
+      "status": "error"
+    },
+    {
+      "id": 8,
+      "agent": "robot",
+      "role": "assistant",
+      "text": "\u4e00\u3001\u73b0\u8c61\uff1a\u9884\u671f `libero_pick_place` \u5b8c\u6210\u201c\u6293\u5b57\u6bcd\u6c64\u7f50\u2192\u653e\u5165\u7bee\u5b50\u201d\uff0c\u5b9e\u9645\u64cd\u4f5c\u5728 `actionsApplied=32` \u88ab\u62d2\u7edd\uff0cJob `panda-job-1501b434a2644b18afbcf3c3e17e7432` \u4ee5 `state=failed`\u3001`goalStatus=unconfirmed`\u3001`stopStatus=confirmed` \u7ed3\u675f\uff0c`reasonCode=prediction_rejected`\uff1b\u5dee\u5f02\u662f\u9884\u6d4b\u7684\u673a\u68b0\u81c2\u626b\u63a0 segment=6 \u4e0e\u969c\u788d\u95f4\u9699\u4ec5 0.0284 m\uff08\u4f4e\u4e8e\u5b89\u5168\u95f4\u9699\uff09\u7684\u70b9 `[-0.0849,-0.2594,0.1659]`\u3002\n\n\u4e8c\u3001\u539f\u56e0\uff1a\n- \u611f\u77e5\uff1a\u7f50 `e:1:can` \u4e0e\u7bee\u5b50 `e:1:basket` \u7684\u7c7b\u522b\u548c\u4f4d\u7f6e\u5747\u7531 ES/ego_query \u4e00\u81f4\u7ed9\u51fa\uff08\u7f6e\u4fe1\u5ea6 1.0\u3001uncertainty 0.015 m\uff09\uff0c\u88ab\u8ba4\u9519\u6216\u53eb\u9519\u7684\u53ef\u80fd\u6027\u4f4e\uff0c\u4f46\u7f50\u4e0a\u65b9 0.166 m \u5904\u5b58\u5728\u672a\u88ab\u5173\u6ce8\u7684\u5360\u7528\u70b9\uff0c\u8bf4\u660e\u8def\u5f84\u4e0a\u7684\u7a7a\u95f4\u969c\u788d\u672a\u88ab\u611f\u77e5\u5f52\u5165\u53ef\u79fb\u52a8\u7c7b\u522b\u3002\n- \u7269\u4f53\u72b6\u6001\uff1a\u7f50\u4f4d\u4e8e `[-0.111,-0.240,0.057]`\uff0c\u9760\u8fd1\u5de5\u4f5c\u53f0\u8fb9\u7f18\uff0c\u6293\u53d6\u65f6\u673a\u68b0\u81c2\u9700\u4ece\u4e0a\u65b9/\u4fa7\u65b9\u8fdb\u5165\uff0c\u62ac\u5347\u626b\u63a0\u6070\u597d\u7ecf\u8fc7\u8be5\u969c\u788d\u70b9\uff0c\u8bf4\u660e\u8be5\u9ad8\u5ea6\u6709\u7269\u4f53\u6216\u7ed3\u6784\u906e\u6321\u3002\n- \u52a8\u4f5c\uff1a\u6280\u80fd\u5728\u521d\u59cb\u9884\u6d4b\u4e2d `feasible=true`\u3001risk 0.087\uff0c\u4f46\u6267\u884c\u4e2d\u6309\u771f\u5b9e\u89c2\u6d4b\u7684\u626b\u63a0\u91cd\u65b0\u5224\u5b9a\u4e3a\u4e0d\u53ef\u884c\uff0c\u8bf4\u660e\u521d\u59cb\u89c4\u5212\u672a\u8986\u76d6\u8be5\u969c\u788d\uff0c\u5c5e\u4e8e\u78b0\u649e/\u626b\u63a0\u6821\u9a8c\u5931\u8d25\uff0c\u800c\u975e\u6293\u4e0d\u7a33\u3002\n- \u4efb\u52a1\u7406\u89e3\uff1a\u64cd\u4f5c\u5458\u8981\u6c42\u201c\u7528\u672c\u4f53\u652f\u6301\u7684 libero_pick_place \u628a\u7f50\u653e\u8fdb\u7bee\u5b50\u201d\uff0c\u4e0e\u6267\u884c\u4e00\u81f4\uff1b\u5931\u8d25\u53d1\u751f\u5728\u6280\u80fd\u5185\u90e8\u5b89\u5168\u6821\u9a8c\uff0c\u4e0d\u662f\u4efb\u52a1\u7406\u89e3\u504f\u5dee\u3002\n\n\u4e09\u3001\u6838\u5b9e\uff1a\u6700\u5c0f\u4ee3\u4ef7\u662f\u7528 `ego_observe`/`ego_inspect` \u89c2\u5bdf\u7f50\u6b63\u4e0a\u65b9\u4e0e\u9760\u8fd1\u7f50\u4e00\u4fa7 `[-0.085,-0.259,0.166]` \u9644\u8fd1\u7684\u7269\u4f53\uff0c\u5e76\u5bf9\u7167 `ego_state` \u662f\u5426\u6709\u672a\u5217\u51fa\u7684\u969c\u788d\uff1b\u82e5\u5b58\u5728\u53ef\u79fb\u52a8\u7269\u4f53\uff0c`ego_candidates` \u786e\u8ba4\u540e\u53ef\u5148\u79fb\u5f00\u3002\n\n\u56db\u3001\u4e0b\u4e00\u6b65\uff1a\u6309\u64cd\u4f5c\u5458\u201c\u7981\u6b62\u81ea\u52a8\u91cd\u8bd5\u201d\u7684\u6307\u4ee4\uff0c\u4e0d\u518d\u7528\u540c\u4e00 receipt \u6216\u540c\u4e00\u9884\u6d4b\u91cd\u590d\u6267\u884c\uff1b\u5df2\u7ed3\u675f\u4f9d\u8d56\u6b65\u9aa4\u3002\u9700\u8981\u64cd\u4f5c\u5458\u6e05\u9664\u8be5\u626b\u63a0\u8def\u5f84\u4e0a\u7684\u969c\u788d\u6216\u91cd\u65b0\u6446\u653e\u7f50/\u7bee\u5b50\u540e\uff0c\u4f5c\u4e3a\u65b0\u4efb\u52a1\u91cd\u65b0\u9884\u6d4b\u518d\u6267\u884c\u3002\n\n\u4efb\u52a1\u672a\u80fd\u5b8c\u6210\uff0c\u5b8c\u6574\u7ed3\u679c\u5982\u4e0b\uff1a\n\n```json\n{\"job\":\"panda-job-1501b434a2644b18afbcf3c3e17e7432\",\"skill\":\"libero_pick_place\",\"receipt\":\"panda-receipt-0ac230da2b084473a1bb09374f0be0cd\",\"state\":\"failed\",\"goalStatus\":\"unconfirmed\",\"stopStatus\":\"confirmed\",\"phase\":\"finished\",\"actionsApplied\":32,\"reasonCode\":\"prediction_rejected\",\"message\":\"Observed obstacle intersects predicted arm sweep: segment=6, clearance=0.028402, point=[-0.08492959940207462, -0.2593516109032921, 0.1659079708865348]\",\"target\":\"e:1:can\",\"on\":\"e:1:basket\"}\n```\n\n\u672a\u4fdd\u5b58 `libero_soup_to_basket` \u80fd\u529b\uff0c\u56e0\u4e3a\u4efb\u52a1\u672a\u6210\u529f\uff0c\u4e14\u4e0d\u5f97\u4fdd\u5b58\u672c\u8f6e\u5bf9\u8c61 ID\u3002",
+      "t": 1794370150.0349526
+    },
+    {
+      "id": 9,
+      "agent": "robot",
+      "role": "error",
+      "text": "\u26a0 \u673a\u5668\u4eba\u9047\u5230\u65e0\u6cd5\u81ea\u884c\u5904\u7406\u7684\u60c5\u51b5\uff08\u673a\u5668\u4eba\u667a\u80fd\u4f53\uff09\uff1a\u5b57\u6bcd\u6c64\u7f50\u6293\u653e\u672a\u5b8c\u6210\uff0cJob \u5df2\u5931\u8d25\u505c\u6b62\u3002\u8bf7\u64cd\u4f5c\u5458\u6e05\u9664\u8be5\u626b\u63a0\u8def\u5f84\u4e0a\u7684\u969c\u788d\uff08\u6216\u91cd\u65b0\u653e\u7f6e\u7f50/\u7bee\u5b50\uff09\u540e\u518d\u4e0b\u8fbe\u4efb\u52a1\u3002\u5b8c\u6574\u7ed3\u679c\uff1a{\"job\":\"panda-job-1501b434a2644b18afbcf3c3e17e7432\",\"skill\":\"libero_pick_place\",\"receipt\":\"panda-receipt-0ac230da2b084473a1bb09374f0be0cd\",\"state\":\"failed\",\"goalStatus\":\"unconfirmed\",\"stopStatus\":\"confirmed\",\"phase\":\"finished\",\"actionsApplied\":32,\"reasonCode\":\"prediction_rejected\",\"message\":\"Observed obstacle intersects predicted arm sweep: segment=6, clearance=0.028402, point=[-0.08492959940207462, -0.2593516109032921, 0.1659079708865348]\",\"target\":\"e:1:can\",\"on\":\"e:1:basket\"}\n\u76ee\u6807\uff1a\u7528\u672c\u4f53\u652f\u6301\u7684 libero_pick_place \u628a\u5b57\u6bcd\u6c64\u7f50 e:1:can \u653e\u8fdb\u7bee\u5b50 e:1:basket\n\u5f53\u524d\u6b65\u9aa4\uff1a\u5bf9 receipt panda-receipt-0ac230da2b084473a1bb09374f0be0cd \u6267\u884c skill_run\uff0c\u8f6e\u8be2\u540c\u4e00\u4e2a Job panda-job-1501b434a2644b18afbcf3c3e17e7432\n\u81ea\u6211\u8bca\u65ad\uff1a\u6280\u80fd\u5728 actionsApplied=32 \u65f6\u88ab\u5224\u4e3a prediction_rejected\uff1a\u9884\u6d4b\u7684\u673a\u68b0\u81c2\u626b\u63a0\u4e0e\u4e00\u4e2a\u89c2\u5bdf\u5230\u7684\u969c\u788d\u76f8\u4ea4\uff08segment=6\uff0c\u95f4\u9699 0.028402 m\uff0c\u4f4d\u7f6e [-0.0849,-0.2594,0.1659]\uff09\u3002\u7ec8\u6001\u4e3a state=failed\u3001goalStatus=unconfirmed\u3001stopStatus=confirmed\uff0c\u4e09\u9879\u6761\u4ef6\u4e0d\u540c\u65f6\u6210\u7acb\uff1b\u6309\u6307\u4ee4\u672a\u81ea\u52a8\u91cd\u8bd5\u3002",
+      "t": 1794370150.1481204
+    }
+  ]
+}

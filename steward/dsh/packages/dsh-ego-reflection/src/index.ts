@@ -165,8 +165,13 @@ export function failureOf(tool: string, args: unknown, result: Readonly<ToolExec
     const issues = Array.isArray(value.issues) ? value.issues.join('; ') : ''
     return { tool, arguments: argumentsOf, message: `${String(value.skill ?? argumentsOf.skill)} is not feasible: ${issues}` }
   }
-  if ((tool === 'skill_run' || tool === 'skill_status') && value.state === 'failed') {
+  if ((tool === 'skill_run' || tool === 'skill_status') && (value.state === 'failed' || value.state === 'stopped'
+    || value.state === 'succeeded' && (value.stopStatus === 'unknown'
+      || value.goalStatus !== undefined && value.goalStatus !== 'achieved'))) {
     return { tool, arguments: argumentsOf, message: `${String(value.skill)} failed: ${String(value.message ?? '')}` }
+  }
+  if (tool === 'body_stop' && value.stopStatus === 'unknown') {
+    return { tool, arguments: argumentsOf, message: 'Robot stop is unconfirmed; dependent motion is blocked' }
   }
   if (tool === 'ego_query' && Array.isArray(value.objects) && value.objects.length === 0) {
     const what = typeof argumentsOf.category === 'string' ? argumentsOf.category : 'matching object'

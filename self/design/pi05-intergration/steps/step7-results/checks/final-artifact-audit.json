@@ -1,0 +1,28 @@
+{
+  "formalCasesPassed": true,
+  "sameCapabilityVersionAndCode": true,
+  "videosDecoded": [
+    "attempts/N1-06/videos/external.mp4",
+    "attempts/N1-06/videos/wrist.mp4",
+    "attempts/N1-06/videos/dual.mp4",
+    "attempts/N2-03/videos/external.mp4",
+    "attempts/N2-03/videos/wrist.mp4",
+    "attempts/N2-03/videos/dual.mp4",
+    "attempts/C1-03/videos/external.mp4",
+    "attempts/C1-03/videos/wrist.mp4",
+    "attempts/C1-03/videos/dual.mp4",
+    "attempts/F1-02/videos/external.mp4",
+    "attempts/F1-02/videos/wrist.mp4",
+    "attempts/F1-02/videos/dual.mp4"
+  ],
+  "depthDiagnostic": {
+    "msaa": 0.11605021357536316,
+    "noMsaa": 0.2016076296567917,
+    "ray": 0.20160766777420322
+  },
+  "rawSessionsDecoded": 29,
+  "credentialValueHits": 0,
+  "guardDenialInRawSession": true,
+  "missingLinks": [],
+  "sourceHashesMatch": true
+}

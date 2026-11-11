@@ -108,6 +108,18 @@ ROBOT_BRIEF = (
     "任务结束前整理一次能力库：删掉被更通用的版本取代的、重复的和标为 deprecated 的能力。\n\n操作员任务："
 )
 
+PANDA_BRIEF = (
+    "你控制的是固定底座 LIBERO Panda。先用 ego_state 和 ego_query 读取当前对象引用与支持技能。"
+    "本体配置的任务技能是 libero_pick_place，target 为字母汤罐的 ES 引用，on 为篮子的 ES 引用。"
+    "先 ego_predict，再 skill_run，查询同一个 Job。所有工具在 run_code 中调用。"
+    "该任务是完整抓放操作，ER 使用真实 pi05_libero 连续控制。"
+    "只有 state=succeeded、goalStatus=achieved 且 stopStatus=confirmed 才能宣布任务完成。"
+    "失败、未确认或停止未知时结束依赖步骤并抛出包含结果的 Error，向操作员报告。"
+    "通过 capability_save 保存成功的任务程序，复用时 capability_get 后在 run_code 中执行。"
+    "程序必须检查任务三项终态，查询等待结束仍为 running 时继续查询同一个 Job。"
+    "操作员任务："
+)
+
 ROBOT_OWNER = "operator"
 TURN_BUDGET_S = 24 * 24 * 3600.0
 
@@ -335,12 +347,16 @@ class HarnessChat:
         _terminate(proc)
         with self._lock:
             self._add(key, "system", f"已停止 {agent.label} 的本轮任务")
+        stop_result = {}
         if key == "robot" and self.config and self.config.ego_api:
             try:
-                call("POST", f"{self.config.ego_api}/skill/stop", {})
+                stop_result = call("POST", f"{self.config.ego_api}/skill/stop", {})
+                if stop_result.get("stopStatus") == "unknown":
+                    self._report(agent, "机器人停稳尚未确认，后续运动已锁定；需要明确复核停止状态。")
             except (HttpError, OSError) as exc:
+                stop_result = {"stopStatus": "unknown"}
                 self._report(agent, f"停止机器人动作失败：{exc}")
-        return {"stopped": True}
+        return {"stopped": True, **({"stopStatus": stop_result["stopStatus"]} if "stopStatus" in stop_result else {})}
 
     def stop_turn(self, key: str) -> None:
         """Stop the running turn of ``key``, if any, and return once it has ended; raises

@@ -127,6 +127,7 @@ def test_the_runtime_keeper_runs_one_process_of_the_right_kind_per_robot(kitchen
             self.embodiment, self.api_port, self.task = embodiment, api_port, task
             self.mission_config = dict(mission_config or {})
             self.url = f"http://ego/{embodiment}/{api_port}"
+            self.skills = cli.EMBODIMENTS[embodiment]["skills"]
             started.append(self)
 
         def stop(self) -> None:

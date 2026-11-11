@@ -145,7 +145,8 @@ def test_robot_chat_takes_control_for_the_turn_and_gives_it_back(tmp_path):
     assert [m["agent"] for m in chat.state()["messages"]] == ["robot"] * 3
 
 
-def test_stopping_a_robot_turn_ends_the_run_and_releases_control(tmp_path):
+@pytest.mark.parametrize("stop_status", [None, "confirmed", "unknown"])
+def test_stopping_a_robot_turn_ends_the_run_and_releases_control(tmp_path, stop_status):
     robot = _home(tmp_path, "robot-1", "ego")
     script = _launcher(tmp_path, "sys.stdin.read()\nprint('{\"type\": \"session\", \"sessionId\": \"s-1\"}', flush=True)\ntime.sleep(30)\n")
     calls = []
@@ -155,7 +156,8 @@ def test_stopping_a_robot_turn_ends_the_run_and_releases_control(tmp_path):
         return {"owner": None}
 
     ego = JsonServer({("POST", "/ego/control"): control, ("GET", "/ego/control"): lambda q, b: {"owner": None},
-                      ("POST", "/skill/stop"): lambda q, b: calls.append("stop") or {"stopped": None}}).start()
+                      ("POST", "/skill/stop"): lambda q, b: calls.append("stop") or {
+                          "stopped": None, **({"stopStatus": stop_status} if stop_status else {})}}).start()
     try:
         chat = HarnessChat(ChatConfig(dsh=script, cwd=tmp_path, env_file=tmp_path / ".env", robot_home=robot,
                                       ego_api=ego.url), lambda: "unused")
@@ -164,14 +166,15 @@ def test_stopping_a_robot_turn_ends_the_run_and_releases_control(tmp_path):
         while chat.agents["robot"].session_id is None and time.time() < deadline:
             time.sleep(0.02)
         started = time.time()
-        assert chat.cancel("robot") == {"stopped": True}
+        assert chat.cancel("robot") == {"stopped": True, **({"stopStatus": stop_status} if stop_status else {})}
         _wait_idle(chat, "robot")
         assert time.time() - started < 5
     finally:
         ego.stop()
-    assert calls == ["acquire", "stop", "release"]
+    assert calls[0] == "acquire" and sorted(calls[1:]) == ["release", "stop"]
     roles = [m["role"] for m in chat.state()["messages"]]
-    assert "system" in roles and "error" not in roles
+    assert "system" in roles
+    assert ("error" in roles) == (stop_status == "unknown")
     assert chat.cancel("robot") == {"stopped": False}
 
 
