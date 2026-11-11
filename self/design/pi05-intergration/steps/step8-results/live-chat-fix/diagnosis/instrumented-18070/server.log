@@ -1,0 +1,14 @@
+INFO:root:Loading model...
+INFO:absl:orbax-checkpoint version: 0.11.13
+INFO:absl:Created BasePyTreeCheckpointHandler: use_ocdbt=True, use_zarr3=False, pytree_metadata_options=PyTreeMetadataOptions(support_rich_types=False), array_metadata_store=<orbax.checkpoint._src.metadata.array_metadata_store.Store object at 0x70cf9b927b90>
+INFO:absl:Restoring checkpoint from /home/huawei/hqk/workspace/pi05-step1/checkpoints/pi05_libero/params.
+INFO:absl:[thread=MainThread] Failed to get flag value for EXPERIMENTAL_ORBAX_USE_DISTRIBUTED_PROCESS_ID.
+INFO:absl:[process=0] /jax/checkpoint/read/bytes_per_sec: 1.3 GiB/s (total bytes: 6.2 GiB) (time elapsed: 4 seconds) (per-host)
+INFO:absl:Finished restoring checkpoint in 4.99 seconds from /home/huawei/hqk/workspace/pi05-step1/checkpoints/pi05_libero/params.
+INFO:root:Norm stats not found in /home/huawei/hqk/workspace/openpi-step1/assets/pi05_libero/physical-intelligence/libero, skipping.
+INFO:root:Loaded norm stats from /home/huawei/hqk/workspace/pi05-step1/checkpoints/pi05_libero/assets/physical-intelligence/libero
+{"paramsSHA256": "2f3c1da4572e6637b289e52eb9aa72865b72e36d97dcb5e92ae9f2c27ff375d9", "leaves": 51, "pid": 1114826, "port": 18070, "OPENBLAS_NUM_THREADS": null, "initialRng": [0, 0]}
+INFO:websockets.server:server listening on 127.0.0.1:18070
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 38516) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 38516) closed

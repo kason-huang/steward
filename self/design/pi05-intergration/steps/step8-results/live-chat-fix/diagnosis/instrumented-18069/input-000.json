@@ -1,0 +1,117 @@
+{
+  "rng": [
+    0,
+    0
+  ],
+  "inputs": [
+    {
+      "path": "(DictKey(key='image'), DictKey(key='base_0_rgb'))",
+      "shape": [
+        224,
+        224,
+        3
+      ],
+      "dtype": "uint8",
+      "sha256": "f7b7668bf8322a07473cef656400fdf1022cddbd48586b10f9ace02923870327"
+    },
+    {
+      "path": "(DictKey(key='image'), DictKey(key='left_wrist_0_rgb'))",
+      "shape": [
+        224,
+        224,
+        3
+      ],
+      "dtype": "uint8",
+      "sha256": "e01f6729b77f75511dbfc39380253f4607eaf78ca16d9c29dcefee892f93226a"
+    },
+    {
+      "path": "(DictKey(key='image'), DictKey(key='right_wrist_0_rgb'))",
+      "shape": [
+        224,
+        224,
+        3
+      ],
+      "dtype": "uint8",
+      "sha256": "0a3f0ee9e3cbab26f89ed53b7b20e22cb985b650fd4c52ef57e4aeb27560d773"
+    },
+    {
+      "path": "(DictKey(key='image_mask'), DictKey(key='base_0_rgb'))",
+      "shape": [],
+      "dtype": "bool",
+      "sha256": "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
+      "values": true
+    },
+    {
+      "path": "(DictKey(key='image_mask'), DictKey(key='left_wrist_0_rgb'))",
+      "shape": [],
+      "dtype": "bool",
+      "sha256": "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
+      "values": true
+    },
+    {
+      "path": "(DictKey(key='image_mask'), DictKey(key='right_wrist_0_rgb'))",
+      "shape": [],
+      "dtype": "bool",
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "values": false
+    },
+    {
+      "path": "(DictKey(key='state'),)",
+      "shape": [
+        32
+      ],
+      "dtype": "float64",
+      "sha256": "ca0b15046bad7d406d24d727b39070466daf88d085a8b35b3b333fb382b8f343",
+      "values": [
+        -0.186363761780454,
+        -0.11712040727658912,
+        -0.6585528416507846,
+        0.8588074024636447,
+        0.052029156868975024,
+        0.20110537518266347,
+        0.917839176910747,
+        -0.9313738320543953,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "path": "(DictKey(key='tokenized_prompt'),)",
+      "shape": [
+        200
+      ],
+      "dtype": "int64",
+      "sha256": "86090e3d86a2e85e391a3f33095fd2d71ed91ea02eb3a35a3f61fc0ae4a3e27a"
+    },
+    {
+      "path": "(DictKey(key='tokenized_prompt_mask'),)",
+      "shape": [
+        200
+      ],
+      "dtype": "bool",
+      "sha256": "4f75f314d53777ac46eac6d394e62301103396635522f2bab3d4f5b98215234b"
+    }
+  ]
+}

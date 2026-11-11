@@ -134,7 +134,8 @@ def operation(host, supervisor, args, physical, control_events):
                     if args.policy_pid is None:
                         raise ValueError("F1 requires the dedicated policy server PID")
                     command = Path(f"/proc/{args.policy_pid}/cmdline").read_bytes().replace(b"\0", b" ").decode()
-                    if "/pi05-step1/serve.py " not in command or "--port 18067 " not in command:
+                    if (not any(path in command for path in ("/pi05-step1/serve.py ", "/steward/scripts/serve_pi05_libero.py "))
+                            or "--port 18067 " not in command):
                         raise ValueError("Refusing to terminate a process other than the dedicated Step 7 policy server")
                     os.kill(args.policy_pid, signal.SIGTERM)
                     injected = {"kind": "policy_disconnect", "at_action": job["actionsApplied"],

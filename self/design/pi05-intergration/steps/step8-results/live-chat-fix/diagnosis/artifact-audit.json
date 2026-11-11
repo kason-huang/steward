@@ -1,0 +1,27 @@
+{
+  "videosDecoded": [
+    "attempts/before-1ab65ccd/videos/dual.mp4",
+    "attempts/before-1ab65ccd/videos/external.mp4",
+    "attempts/before-1ab65ccd/videos/wrist.mp4",
+    "attempts/before-86145c3e/videos/dual.mp4",
+    "attempts/before-86145c3e/videos/external.mp4",
+    "attempts/before-86145c3e/videos/wrist.mp4",
+    "attempts/before-cecb418b/videos/dual.mp4",
+    "attempts/before-cecb418b/videos/external.mp4",
+    "attempts/before-cecb418b/videos/wrist.mp4",
+    "attempts/before-f9fc07d7/videos/dual.mp4",
+    "attempts/before-f9fc07d7/videos/external.mp4",
+    "attempts/before-f9fc07d7/videos/wrist.mp4",
+    "attempts/verified-01/videos/dual.mp4",
+    "attempts/verified-01/videos/external.mp4",
+    "attempts/verified-01/videos/wrist.mp4",
+    "attempts/verified-02/videos/dual.mp4",
+    "attempts/verified-02/videos/external.mp4",
+    "attempts/verified-02/videos/wrist.mp4"
+  ],
+  "linksChecked": 43,
+  "credentialScanFiles": 128,
+  "credentialMatches": 0,
+  "regression": "40 passed",
+  "visualContactSheet": "diagnosis/video-contact.png"
+}

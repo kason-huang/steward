@@ -86,3 +86,5 @@ python3 -m http.server 17408 --bind 127.0.0.1
 统一入口自动生成 frozen/initial.json、calibration.json、manifest.json、能力和策略配置，拒绝初态不匹配，记录各侧独立命令和退出状态。底层逐侧命令见 [smoke-03/commands.jsonl](attempts/smoke-03/commands.jsonl)，可直接核对执行路径和参数；只运行统一入口即可完成新目录下的两侧流程。
 
 最终执行源码副本在 source/，散列与 smoke-03 的九个冻结源码文件逐一核对。提交前仅清理运行文件 libero_physical_evidence.py 的末尾空行以满足仓库格式检查，AST 完全相同；执行时原件及冻结散列保留，规范化前后散列见 checks/artifact-audit.json。SHA256SUMS 覆盖本报告、核心证据、源码、日志和视频，不跟随 raw-evidence。未来归档会纳入新尝试；本次已提交记录以 Git 提交为准。
+
+后续当前控制台普通英文任务的权重加载问题、两次独立修复验证和启动命令见[控制台修复报告](live-chat-fix/README.md)。本报告原三轮数据及对应执行时源码保留。

@@ -1,0 +1,107 @@
+INFO:absl:orbax-checkpoint version: 0.11.13
+INFO:absl:Created BasePyTreeCheckpointHandler: use_ocdbt=True, use_zarr3=False, pytree_metadata_options=PyTreeMetadataOptions(support_rich_types=False), array_metadata_store=<orbax.checkpoint._src.metadata.array_metadata_store.Store object at 0x7a1e61bc4090>
+INFO:absl:Restoring checkpoint from /home/huawei/hqk/workspace/pi05-step1/checkpoints/pi05_libero/params.
+INFO:absl:[thread=MainThread] Failed to get flag value for EXPERIMENTAL_ORBAX_USE_DISTRIBUTED_PROCESS_ID.
+INFO:absl:[process=0] /jax/checkpoint/read/bytes_per_sec: 2.5 GiB/s (total bytes: 6.2 GiB) (time elapsed: 2 seconds) (per-host)
+INFO:absl:Finished restoring checkpoint in 2.48 seconds from /home/huawei/hqk/workspace/pi05-step1/checkpoints/pi05_libero/params.
+INFO:root:Norm stats not found in /home/huawei/hqk/workspace/openpi-step1/assets/pi05_libero/physical-intelligence/libero, skipping.
+INFO:root:Loaded norm stats from /home/huawei/hqk/workspace/pi05-step1/checkpoints/pi05_libero/assets/physical-intelligence/libero
+INFO:root:All 51 checkpoint transfers verified; parameter SHA256 77f91766948ba88b9256849b68ce74880420b90d0acafaf35b94c46ff9ab8880
+INFO:websockets.server:server listening on 127.0.0.1:18065
+INFO:websockets.server:connection rejected (200 OK)
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 52574) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 52574) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 50520) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 50520) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 50532) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 50532) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 50534) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 50534) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 50536) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 50536) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 50542) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 50542) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 50552) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 50552) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 46512) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 46512) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 46522) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 46522) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 46532) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 46532) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 46534) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 46534) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 46544) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 46544) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 46558) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 46558) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 46560) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 46560) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 46566) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 46566) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 48856) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 48856) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 48870) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 48870) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 48878) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 48878) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 48890) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 48890) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 48894) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 48894) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 48910) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 48910) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 48922) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 48922) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 43996) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 43996) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 44004) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 44004) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 44012) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 44012) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 44014) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 44014) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 44022) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 44022) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 44028) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 44028) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 44044) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 44044) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 44046) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 44046) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 34612) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 34612) closed
+INFO:websockets.server:connection open
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 34614) opened
+INFO:openpi.serving.websocket_policy_server:Connection from ('127.0.0.1', 34614) closed

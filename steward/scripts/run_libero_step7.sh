@@ -24,13 +24,14 @@ if p.exists():
     try: cmd=Path(f"/proc/{pid}/cmdline").read_bytes().replace(b"\0",b" ").decode()
     except FileNotFoundError: cmd=""
     if cmd:
-        assert "/pi05-step1/serve.py " in cmd and f"--port {sys.argv[1]} " in cmd, cmd
+        assert any(path in cmd for path in ("/pi05-step1/serve.py ", "/steward/scripts/serve_pi05_libero.py ")) and f"--port {sys.argv[1]} " in cmd, cmd
         os.kill(pid,signal.SIGTERM)
         for _ in range(100):
             if not Path(f"/proc/{pid}").exists(): break
             time.sleep(.05)
 PY
-bash /home/huawei/hqk/workspace/pi05-step1/server.sh --port "$port" >"var/step7/policy-$attempt.log" 2>&1 &
+.venv/bin/python scripts/launch_pi05_libero.py --port "$port" \
+  --evidence "$PWD/var/step7/policy-$attempt-restore" >"var/step7/policy-$attempt.log" 2>&1 &
 policy_pid=$!
 echo "$policy_pid" >var/step7/policy-active.pid
 echo "$policy_pid" >"var/step7/policy-$attempt.pid"
@@ -44,7 +45,7 @@ PY
   kill -0 "$policy_pid"
   sleep 1
 done
-bash /home/huawei/hqk/workspace/pi05-step1/client.sh "$PWD/scripts/probe_pi05_step6.py" \
+timeout 60 bash /home/huawei/hqk/workspace/pi05-step1/client.sh "$PWD/scripts/probe_pi05_step6.py" \
   /home/huawei/hqk/workspace/pi05-step1/runs/20261110T021656Z/target-qualification/policy/000.npz \
   "$PWD/var/step7/$attempt-preflight.json" --port "$port"
 .venv/bin/python -u scripts/verify_libero_step7.py var/step4/wsim-root "var/step7/$attempt" \

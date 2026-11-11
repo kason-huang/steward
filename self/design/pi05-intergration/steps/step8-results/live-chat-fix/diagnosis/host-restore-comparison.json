@@ -1,0 +1,28 @@
+[
+  {
+    "index": 0,
+    "sha256": "40eb1506905b358a291ebcf2663897ee6ab5b4791f886d06900403f75ebb4ed0",
+    "shape": [
+      27,
+      4304,
+      1152
+    ],
+    "dtype": "bfloat16",
+    "finite": true,
+    "min": -1.1484375,
+    "max": 0.9296875
+  },
+  {
+    "index": 1,
+    "sha256": "40eb1506905b358a291ebcf2663897ee6ab5b4791f886d06900403f75ebb4ed0",
+    "shape": [
+      27,
+      4304,
+      1152
+    ],
+    "dtype": "bfloat16",
+    "finite": true,
+    "min": -1.1484375,
+    "max": 0.9296875
+  }
+]

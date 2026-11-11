@@ -1,0 +1,68 @@
+[
+  {
+    "attempt": "before-cecb418b",
+    "job": "panda-job-cecb418b8b4f486d887508bb0fae9f9c",
+    "episodeId": 1,
+    "actionsApplied": 85,
+    "state": "failed",
+    "goalStatus": "unconfirmed",
+    "stopStatus": "confirmed",
+    "reasonCode": "action_outside_authorization",
+    "raw": "/home/huawei/hqk/workspace/steward/steward/var/step4/wsim-root/runs/20261111-152702/ego-panda/policy-jobs/panda-job-cecb418b8b4f486d887508bb0fae9f9c"
+  },
+  {
+    "attempt": "before-86145c3e",
+    "job": "panda-job-86145c3e408948cb9c31e222c4a06153",
+    "episodeId": 1,
+    "actionsApplied": 0,
+    "state": "failed",
+    "goalStatus": "unconfirmed",
+    "stopStatus": "confirmed",
+    "reasonCode": "action_outside_authorization",
+    "raw": "/home/huawei/hqk/workspace/steward/steward/var/step4/wsim-root/runs/20261111-152702/ego-panda/policy-jobs/panda-job-86145c3e408948cb9c31e222c4a06153"
+  },
+  {
+    "attempt": "before-f9fc07d7",
+    "job": "panda-job-f9fc07d793464b59bb6adc65c24ebff2",
+    "episodeId": 2,
+    "actionsApplied": 82,
+    "state": "failed",
+    "goalStatus": "unconfirmed",
+    "stopStatus": "confirmed",
+    "reasonCode": "action_outside_authorization",
+    "raw": "/home/huawei/hqk/workspace/steward/steward/var/step4/wsim-root/runs/20261111-152702/ego-panda/policy-jobs/panda-job-f9fc07d793464b59bb6adc65c24ebff2"
+  },
+  {
+    "attempt": "before-1ab65ccd",
+    "job": "panda-job-1ab65ccdc60546a5ae7780c75f2aadb7",
+    "episodeId": 4,
+    "actionsApplied": 95,
+    "state": "failed",
+    "goalStatus": "unconfirmed",
+    "stopStatus": "confirmed",
+    "reasonCode": "action_outside_authorization",
+    "raw": "/home/huawei/hqk/workspace/steward/steward/var/step4/wsim-root/runs/20261111-152702/ego-panda/policy-jobs/panda-job-1ab65ccdc60546a5ae7780c75f2aadb7"
+  },
+  {
+    "attempt": "verified-01",
+    "job": "panda-job-c95779ae18f24f4a95aea249a59da7c8",
+    "episodeId": 5,
+    "actionsApplied": 155,
+    "state": "succeeded",
+    "goalStatus": "achieved",
+    "stopStatus": "confirmed",
+    "reasonCode": "goal_achieved",
+    "raw": "/home/huawei/hqk/workspace/steward/steward/var/step4/wsim-root/runs/20261111-152702/ego-panda/policy-jobs/panda-job-c95779ae18f24f4a95aea249a59da7c8"
+  },
+  {
+    "attempt": "verified-02",
+    "job": "panda-job-1b8ec3bfe3ee4435959aad4ad63dcce1",
+    "episodeId": 6,
+    "actionsApplied": 150,
+    "state": "succeeded",
+    "goalStatus": "achieved",
+    "stopStatus": "confirmed",
+    "reasonCode": "goal_achieved",
+    "raw": "/home/huawei/hqk/workspace/steward/steward/var/step4/wsim-root/runs/20261111-152702/ego-panda/policy-jobs/panda-job-1b8ec3bfe3ee4435959aad4ad63dcce1"
+  }
+]

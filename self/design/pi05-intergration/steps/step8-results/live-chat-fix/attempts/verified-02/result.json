@@ -1,0 +1,28 @@
+{
+  "pass": true,
+  "job": {
+    "id": "panda-job-1b8ec3bfe3ee4435959aad4ad63dcce1",
+    "skill": "libero_pick_place",
+    "receipt": "panda-receipt-fa8d4d258f774c229172e2ad0d3c8d5a",
+    "state": "succeeded",
+    "message": "goal_achieved",
+    "started": 0.0,
+    "finished": 8.549999999999525,
+    "log": [],
+    "episodeId": 6,
+    "phase": "finished",
+    "goalStatus": "achieved",
+    "stopStatus": "confirmed",
+    "reasonCode": "goal_achieved",
+    "evidence": {
+      "grasp": "confirmed",
+      "placement": "confirmed",
+      "reason": "stable_visible_can_below_rim",
+      "target": "e:6:can",
+      "basket": "e:6:basket",
+      "evidenceStep": 3750
+    },
+    "actionsApplied": 150
+  },
+  "monitor": "Recovered saved evidence after SSH monitor disconnect; no resubmission"
+}

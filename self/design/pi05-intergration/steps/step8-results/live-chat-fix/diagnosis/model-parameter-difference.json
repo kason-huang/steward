@@ -1,0 +1,24 @@
+[
+  {
+    "left": {
+      "path": "(DictKey(key='PaliGemma'), DictKey(key='img'), DictKey(key='Transformer'), DictKey(key='encoderblock'), DictKey(key='MlpBlock_0'), DictKey(key='Dense_1'), DictKey(key='kernel'), GetAttrKey(name='value'))",
+      "shape": [
+        27,
+        4304,
+        1152
+      ],
+      "dtype": "bfloat16",
+      "sha256": "40eb1506905b358a291ebcf2663897ee6ab5b4791f886d06900403f75ebb4ed0"
+    },
+    "right": {
+      "path": "(DictKey(key='PaliGemma'), DictKey(key='img'), DictKey(key='Transformer'), DictKey(key='encoderblock'), DictKey(key='MlpBlock_0'), DictKey(key='Dense_1'), DictKey(key='kernel'), GetAttrKey(name='value'))",
+      "shape": [
+        27,
+        4304,
+        1152
+      ],
+      "dtype": "bfloat16",
+      "sha256": "8146105ab3d0dc6cb9b1f0975b2537aa592914e88f0fbcefaf31c43dfb29f1ab"
+    }
+  }
+]

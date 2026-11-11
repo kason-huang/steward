@@ -1,0 +1,39 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________________ test_launcher_keeps_the_venv_interpreter_path _________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x764260538800>
+tmp_path = PosixPath('/tmp/pytest-of-huawei/pytest-36/test_launcher_keeps_the_venv_i0')
+
+    def test_launcher_keeps_the_venv_interpreter_path(monkeypatch, tmp_path):
+        import launch_pi05_libero as launcher
+        data, source = tmp_path / "data", tmp_path / "source"
+        (data / "checkpoints/pi05_libero/params").mkdir(parents=True)
+        (source / "src/openpi").mkdir(parents=True)
+        base = tmp_path / "python-base"
+        base.write_text("base interpreter")
+        python = data / "server-mirror-venv/bin/python"
+        python.parent.mkdir(parents=True)
+        python.symlink_to(base)
+        calls = []
+        monkeypatch.setattr(sys, "argv", ["launcher", "--data-root", str(data), "--openpi-root", str(source),
+                                          "--evidence", str(tmp_path / "evidence")])
+        monkeypatch.setattr(launcher.os, "chdir", lambda path: None)
+        def execute(executable, argv, env):
+            calls.append((executable, argv, env))
+            raise SystemExit(0)
+        monkeypatch.setattr(launcher.os, "execve", execute)
+        with pytest.raises(SystemExit):
+            launcher.main()
+        executable, argv, env = calls[0]
+>       assert executable == str(python)
+E       AssertionError: assert '/tmp/pytest-...0/python-base' == '/tmp/pytest-...nv/bin/python'
+E         
+E         Skipping 54 identical leading characters in diff, use -v to show
+E         - e_venv_i0/data/server-mirror-venv/bin/python
+E         + e_venv_i0/python-base
+
+tests/test_pi05_verified_restore.py:65: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_pi05_verified_restore.py::test_launcher_keeps_the_venv_interpreter_path
+1 failed in 0.02s

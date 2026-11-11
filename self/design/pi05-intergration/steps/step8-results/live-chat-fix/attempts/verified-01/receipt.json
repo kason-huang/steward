@@ -1,0 +1,43 @@
+{
+  "id": "panda-receipt-350ddb8cbd554547adaa453bbf4688f8",
+  "skill": "libero_pick_place",
+  "params": {
+    "target": "e:5:can",
+    "on": "e:5:basket"
+  },
+  "episodeId": 5,
+  "controlGeneration": 0,
+  "modelId": "pi05_libero@215abfb217dbac7d5f1273282331b9b1866c0479",
+  "calibrationId": "a7a9b040d7b4e49862254b2d49c559f3027ac572c71e9e7e87598ab163f5718e",
+  "sourceStep": 0,
+  "expiresAt": 30.0,
+  "risk": 0.08684933446199769,
+  "maxRisk": 0.35,
+  "feasible": true,
+  "withinRiskLimit": true,
+  "issues": [],
+  "used": true,
+  "plan": {
+    "target": "e:5:can",
+    "support": "e:5:basket",
+    "coverage": {
+      "observedPoints": 3262,
+      "minimumObservedClearanceM": 0.23028386024939912,
+      "maximumPredictedJointDeltaRad": 0.0,
+      "translationCommandM": 0.0,
+      "coverage": [
+        "encoder_fk",
+        "joint_limits",
+        "arm_and_tool_sweep",
+        "observed_rgbd_obstacles",
+        "task_contact_regions",
+        "operating_volume_visibility"
+      ],
+      "scope": "calibrated self geometry and observed operating volume"
+    },
+    "prefixSize": 5,
+    "maxActions": 280,
+    "maxWallS": 420.0
+  },
+  "job": "panda-job-c95779ae18f24f4a95aea249a59da7c8"
+}

@@ -1,0 +1,17 @@
+{
+  "id": "panda-job-f9fc07d793464b59bb6adc65c24ebff2",
+  "skill": "libero_pick_place",
+  "receipt": "panda-receipt-65491206682d41419fb8b4b017993b5a",
+  "state": "failed",
+  "message": "LIBERO policy action outside trial volume at target [-0.15237964031303441, -0.003463986768255649, 0.022322492419248684]",
+  "started": 0.0,
+  "finished": 5.09999999999966,
+  "log": [],
+  "episodeId": 2,
+  "phase": "finished",
+  "goalStatus": "unconfirmed",
+  "stopStatus": "confirmed",
+  "reasonCode": "action_outside_authorization",
+  "evidence": {},
+  "actionsApplied": 82
+}

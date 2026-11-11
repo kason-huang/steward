@@ -1,0 +1,1 @@
+{"pid": 1167825, "port": 18065, "argv": ["/home/huawei/hqk/workspace/steward/steward/.venv/bin/python", "/home/huawei/hqk/workspace/steward/steward/scripts/launch_pi05_libero.py", "--port", "18065", "--evidence", "/home/huawei/hqk/workspace/steward/steward/var/pi05-live-20261111T072702Z/diagnosis/verified-02"]}

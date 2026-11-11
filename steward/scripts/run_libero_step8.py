@@ -56,7 +56,8 @@ def service(package, output, port, journal):
         pass
     stream = (output / "policy-server.log").open("wb")
     try:
-        process = subprocess.Popen(["bash", str(SERVICE / "server.sh"), "--port", str(port)], stdout=stream,
+        process = subprocess.Popen([str(package / ".venv/bin/python"), str(package / "scripts/launch_pi05_libero.py"),
+                                   "--port", str(port), "--evidence", str(output / "restore")], stdout=stream,
                                    stderr=subprocess.STDOUT, start_new_session=True)
     except BaseException:
         stream.close()
@@ -76,7 +77,7 @@ def service(package, output, port, journal):
                 time.sleep(.5)
         warmup = command(["bash", SERVICE / "client.sh", package / "scripts/probe_pi05_step6.py",
             SERVICE / "runs/20261110T021656Z/target-qualification/policy/000.npz", output / "preflight.json",
-            "--port", port], package, output / "preflight.log", 15, journal)
+            "--port", port], package, output / "preflight.log", 60, journal)
         if warmup["exitCode"] or warmup["timedOut"]:
             raise RuntimeError("Single preflight failed; no output-based server selection is allowed")
         return process, stream
@@ -175,7 +176,8 @@ def main():
     slots = [{"runId":"libero-init0-0", "environment":"libero", "initialIndex":0,"seed":0},
              {"runId":"wsim-init0-0", "environment":"wsim", "initialIndex":0,"seed":0}]
     sources = [package/"scripts"/n for n in ("run_libero_step8.py","record_libero_step8.py",
-        "libero_physical_evidence.py","step8_capture.py","step8_metrics.py","verify_libero_step7.py")]
+        "libero_physical_evidence.py","step8_capture.py","step8_metrics.py","verify_libero_step7.py",
+        "launch_pi05_libero.py","serve_pi05_libero.py","pi05_verified_restore.py")]
     sources += [package/"src/steward/ego"/n for n in ("panda_perception.py","panda_jobs.py","panda_prediction.py")]
     manifest = {"scope":"initial-state-0 end-to-end smoke test, not a success-rate benchmark", "slots":slots,
         "gitBase":subprocess.check_output(["git","rev-parse","HEAD"],cwd=repo,text=True).strip(),

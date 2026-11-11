@@ -1,0 +1,114 @@
+{
+  "episodeId": 5,
+  "stamp": 8.799999999999608,
+  "version": 4400,
+  "body": "libero-panda",
+  "self": {
+    "toolPose": {
+      "p": [
+        0.011173597717210527,
+        0.2494594953685116,
+        0.20435483144935304
+      ],
+      "q": [
+        -0.05589395120420912,
+        0.7733211155335898,
+        0.6262445568503826,
+        -0.08165827272195683
+      ]
+    },
+    "grasp": "confirmed",
+    "holding": null
+  },
+  "objects": [
+    {
+      "id": "e:5:can",
+      "category": "alphabet_soup",
+      "role": "alphabet_soup",
+      "position": [
+        0.011126170776175129,
+        0.24833643977916187,
+        0.08880332989804235
+      ],
+      "sizeM": [
+        0.062,
+        0.062,
+        0.075
+      ],
+      "extentM": [
+        0.062,
+        0.062,
+        0.075
+      ],
+      "existence": 1.0,
+      "lastSeenAgoS": 0.0,
+      "on": "e:5:basket",
+      "categories": {
+        "alphabet_soup": 1.0
+      },
+      "uncertaintyM": 0.015
+    },
+    {
+      "id": "e:5:basket",
+      "category": "basket",
+      "role": "basket",
+      "position": [
+        0.018954503244647362,
+        0.25192940698282534,
+        0.07071795897994132
+      ],
+      "sizeM": [
+        0.15,
+        0.16,
+        0.13
+      ],
+      "extentM": [
+        0.15,
+        0.16,
+        0.13
+      ],
+      "existence": 1.0,
+      "lastSeenAgoS": 0.0,
+      "on": null,
+      "categories": {
+        "basket": 1.0
+      },
+      "uncertaintyM": 0.015
+    }
+  ],
+  "judgment": {
+    "grasp": "confirmed",
+    "placement": "confirmed",
+    "reason": "stable_visible_can_below_rim",
+    "target": "e:5:can",
+    "basket": "e:5:basket",
+    "evidenceStep": 4400
+  },
+  "job": {
+    "id": "panda-job-c95779ae18f24f4a95aea249a59da7c8",
+    "skill": "libero_pick_place",
+    "receipt": "panda-receipt-350ddb8cbd554547adaa453bbf4688f8",
+    "state": "succeeded",
+    "message": "goal_achieved",
+    "started": 0.0,
+    "finished": 8.799999999999608,
+    "log": [],
+    "episodeId": 5,
+    "phase": "finished",
+    "goalStatus": "achieved",
+    "stopStatus": "confirmed",
+    "reasonCode": "goal_achieved",
+    "evidence": {
+      "grasp": "confirmed",
+      "placement": "confirmed",
+      "reason": "stable_visible_can_below_rim",
+      "target": "e:5:can",
+      "basket": "e:5:basket",
+      "evidenceStep": 3875
+    },
+    "actionsApplied": 155
+  },
+  "skills": [
+    "libero_pick_place"
+  ]
+}

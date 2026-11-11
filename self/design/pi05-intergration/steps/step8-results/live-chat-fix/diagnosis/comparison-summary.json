@@ -1,0 +1,12 @@
+{
+  "initialImagesMAE": 0.0,
+  "initialStateMaxDifference": 0.0,
+  "transformedInputsAndInitialRngIdentical": true,
+  "verifiedIndependentStartupCount": 2,
+  "tensorCount": 51,
+  "parameterManifestSHA256": "77f91766948ba88b9256849b68ce74880420b90d0acafaf35b94c46ff9ab8880",
+  "parameterManifestsIdentical": true,
+  "firstPreflightActionsMaxDifference": 0.0024409191894529947,
+  "regression": "40 passed in 61.20s",
+  "raw": "/home/huawei/hqk/workspace/steward/steward/var/pi05-live-20261111T072702Z/diagnosis"
+}

@@ -42,6 +42,8 @@ echo 'DEEPSEEK_API_KEY=sk-...' > .env     # 已被 Git 忽略，运行脚本自�
 
 The fixed LIBERO Panda trial uses `up --scenario libero-object-alphabet-soup-panda --panda-policy-config var/step7/policy.toml --freeze-idle --no-dispatch-task`. Its separate Panda Ego Runtime publishes `libero_pick_place` only when a policy configuration is loaded. The task takes current Ego-State `target` and `on` references; a successful result requires `state=succeeded`, `goalStatus=achieved` and `stopStatus=confirmed`. An unknown stop blocks further motion until explicit recovery confirms stopping. See the [Step 7 report and reproduction commands](../self/design/pi05-intergration/steps/step7-results/README.md) for the tested Linux deployment, isolated profile, dedicated model service and limits.
 
+On 4090-2, start the model with `.venv/bin/python scripts/launch_pi05_libero.py --port 18067 --evidence var/pi05-server-integrity` and prewarm it before starting a task. This restores checkpoint arrays in host memory, verifies every GPU transfer and checks parameters again after the first compiled inference. Step 7/8 launchers use this path; cold prewarm allows 60 seconds while task inference keeps its 15-second limit. The observed direct-GPU restore failure, ordinary English chat verification and complete console startup commands are recorded in the [live-chat repair report](../self/design/pi05-intergration/steps/step8-results/live-chat-fix/README.md).
+
 ## Windows
 
 Steward runs on Windows with the same commands: `uv sync` installs the `steward` executable under `.venv\Scripts`, and every `.sh` script has a PowerShell counterpart with the same name and arguments. If PowerShell refuses unsigned scripts, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once.
