@@ -1,0 +1,42 @@
+2026-11-10T09:56:42+08:00
+Linux huawei-Z790M-AORUS-ELITE-AX 6.8.0-138-generic #138~22.04.1-Ubuntu SMP PREEMPT_DYNAMIC Fri Aug  7 13:43:15 UTC  x86_64 x86_64 x86_64 GNU/Linux
+PRETTY_NAME="Ubuntu 22.04.5 LTS"
+NAME="Ubuntu"
+VERSION_ID="22.04"
+VERSION="22.04.5 LTS (Jammy Jellyfish)"
+VERSION_CODENAME=jammy
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+SUPPORT_URL="https://help.ubuntu.com/"
+BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+UBUNTU_CODENAME=jammy
+Tue Nov 10 09:56:42 2026
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 580.196.07             Driver Version: 580.196.07     CUDA Version: 13.0     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA GeForce RTX 4090        Off |   00000000:01:00.0 Off |                  Off |
+|  0%   41C    P8             24W /  450W |      41MiB /  24564MiB |      0%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|    0   N/A  N/A            1183      G   /usr/lib/xorg/Xorg                        9MiB |
+|    0   N/A  N/A            1395      G   /usr/bin/gnome-shell                     10MiB |
++-----------------------------------------------------------------------------------------+
+               total        used        free      shared  buff/cache   available
+内存：       62Gi       3.6Gi       5.4Gi       4.0Mi        53Gi        58Gi
+交换：      2.0Gi       0.0Ki       2.0Gi
+文件系统        大小  已用  可用 已用% 挂载点
+/dev/nvme0n1p2  938G  209G  682G   24% /
+Docker and Compose unavailable; native Python environments
+uv 0.13.7 (x86_64-unknown-linux-gnu)

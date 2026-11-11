@@ -1,0 +1,68 @@
+{
+  "task_order_index": 0,
+  "target_task_id": 0,
+  "tasks": [
+    {
+      "id": 0,
+      "name": "pick_up_the_alphabet_soup_and_place_it_in_the_basket",
+      "language": "pick up the alphabet soup and place it in the basket"
+    },
+    {
+      "id": 1,
+      "name": "pick_up_the_cream_cheese_and_place_it_in_the_basket",
+      "language": "pick up the cream cheese and place it in the basket"
+    },
+    {
+      "id": 2,
+      "name": "pick_up_the_salad_dressing_and_place_it_in_the_basket",
+      "language": "pick up the salad dressing and place it in the basket"
+    },
+    {
+      "id": 3,
+      "name": "pick_up_the_bbq_sauce_and_place_it_in_the_basket",
+      "language": "pick up the bbq sauce and place it in the basket"
+    },
+    {
+      "id": 4,
+      "name": "pick_up_the_ketchup_and_place_it_in_the_basket",
+      "language": "pick up the ketchup and place it in the basket"
+    },
+    {
+      "id": 5,
+      "name": "pick_up_the_tomato_sauce_and_place_it_in_the_basket",
+      "language": "pick up the tomato sauce and place it in the basket"
+    },
+    {
+      "id": 6,
+      "name": "pick_up_the_butter_and_place_it_in_the_basket",
+      "language": "pick up the butter and place it in the basket"
+    },
+    {
+      "id": 7,
+      "name": "pick_up_the_milk_and_place_it_in_the_basket",
+      "language": "pick up the milk and place it in the basket"
+    },
+    {
+      "id": 8,
+      "name": "pick_up_the_chocolate_pudding_and_place_it_in_the_basket",
+      "language": "pick up the chocolate pudding and place it in the basket"
+    },
+    {
+      "id": 9,
+      "name": "pick_up_the_orange_juice_and_place_it_in_the_basket",
+      "language": "pick up the orange juice and place it in the basket"
+    }
+  ],
+  "initial_state_count": 50,
+  "assets": {
+    "/home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/libero/bddl_files/libero_object/pick_up_the_alphabet_soup_and_place_it_in_the_basket.bddl": "df088984da13131f8332ee0f13a7896c6a97afd02ee5007a42e8fc5e0893571e",
+    "/home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/libero/init_files/libero_object/pick_up_the_alphabet_soup_and_place_it_in_the_basket.pruned_init": "b9023e5546b239cacb2aaa3c76df3b73c3de6f97500fea5e27a0db9827002a19"
+  },
+  "versions": {
+    "mujoco": "3.2.3",
+    "robosuite": "1.4.1",
+    "numpy": "1.22.4",
+    "torch": "1.11.0+cu113",
+    "imageio": "2.35.1"
+  }
+}

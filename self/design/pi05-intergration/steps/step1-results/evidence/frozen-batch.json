@@ -1,0 +1,14 @@
+{
+  "suite": "libero_object",
+  "task": "pick_up_the_alphabet_soup_and_place_it_in_the_basket",
+  "task_order_index": 0,
+  "seed": 7,
+  "init_indices": [0, 1, 2, 3, 4],
+  "num_episodes": 5,
+  "warmup_control_steps": 10,
+  "max_policy_control_steps": 280,
+  "wall_timeout_seconds_per_episode": 600,
+  "execution_prefix": 5,
+  "expected_action_horizon": 10,
+  "counting": "Every scheduled initial state is one episode in the denominator. Only the independent LIBERO success signal with environment termination and no human intervention counts as success. Failures, exceptions and timeouts count as unsuccessful. Smoke and repeat attempts are reported separately."
+}
