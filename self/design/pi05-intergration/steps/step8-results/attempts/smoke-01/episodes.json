@@ -1,0 +1,30 @@
+[
+  {
+    "runId": "libero-init0-0",
+    "environment": "libero",
+    "initialIndex": 0,
+    "seed": 0,
+    "valid": true,
+    "physicalSuccess": true,
+    "functionalSuccess": false,
+    "state": null,
+    "goalStatus": null,
+    "stopStatus": null,
+    "reasonCode": "execution_budget",
+    "capabilityMatches": true
+  },
+  {
+    "runId": "wsim-init0-0",
+    "environment": "wsim",
+    "initialIndex": 0,
+    "seed": 0,
+    "valid": true,
+    "physicalSuccess": true,
+    "functionalSuccess": true,
+    "state": "succeeded",
+    "goalStatus": "achieved",
+    "stopStatus": "confirmed",
+    "reasonCode": "goal_achieved",
+    "capabilityMatches": true
+  }
+]

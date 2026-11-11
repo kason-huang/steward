@@ -1,0 +1,30 @@
+{
+  "name": "libero_soup_to_basket",
+  "layer": "recipe",
+  "description": "Place an alphabet soup can into a basket using the body's libero_pick_place skill. Predicts a fresh receipt from args, runs it, polls the same Job until terminal, and returns the job id with the three terminal fields, throwing when state/goalStatus/stopStatus are not all successful.",
+  "requires": "Body supports libero_pick_place; ego_state contains the can and the basket with usable ES references.",
+  "ensures": "Returns { job, state, goalStatus, stopStatus, evidence } with state=succeeded, goalStatus=achieved, stopStatus=confirmed; otherwise throws an Error containing the job result. No automatic retry.",
+  "parameters": {
+    "target": "ES reference of the alphabet soup can to pick",
+    "on": "ES reference of the basket to place it into"
+  },
+  "code": "const target = args.target;\nconst on = args.on;\nif (!target || !on) throw new Error(\"libero_soup_to_basket requires args.target and args.on\");\n\nconst pred = await tools.ego_predict({ skill: \"libero_pick_place\", target, on });\nif (pred.feasible !== true || pred.withinRiskLimit !== true) {\n  throw new Error(\"libero_pick_place not feasible: \" + JSON.stringify({ feasible: pred.feasible, withinRiskLimit: pred.withinRiskLimit, issues: pred.issues, risk: pred.risk }));\n}\n\nconst run = await tools.skill_run({ receipt: pred.receipt, wait: true, timeoutS: 240 });\nconst jobId = run.job ?? run.jobId ?? run.id;\nif (!jobId) throw new Error(\"skill_run returned no job: \" + JSON.stringify(run));\n\nlet last = run;\nlet polls = 0;\nwhile (last.state === \"running\" || last.state === \"queued\") {\n  if (polls >= 60) break;\n  await new Promise((r) => setTimeout(r, 5000));\n  last = await tools.skill_status({ job: jobId });\n  polls += 1;\n}\n\nconst ok = last.state === \"succeeded\" && last.goalStatus === \"achieved\" && last.stopStatus === \"confirmed\";\nif (!ok) {\n  throw new Error(\"libero_pick_place did not reach success: \" + JSON.stringify({ job: jobId, state: last.state, goalStatus: last.goalStatus, stopStatus: last.stopStatus, message: last.message, reasonCode: last.reasonCode, evidence: last.evidence }));\n}\nreturn { job: jobId, state: last.state, goalStatus: last.goalStatus, stopStatus: last.stopStatus, evidence: last.evidence };",
+  "version": 2,
+  "status": "verified",
+  "runs": {
+    "succeeded": 2,
+    "failed": 0,
+    "failedInARow": 0,
+    "succeededIn": [
+      "6aed4cdf-66c6-4974-9452-42cd0a7adf6d/call_00_ET_nd5AsMnso8qw31HJZxL70323",
+      "6aed4cdf-66c6-4974-9452-42cd0a7adf6d/call_00_rSc7ndAP1ZmFU07Hq6CG6251"
+    ],
+    "last": {
+      "at": "2026-11-11T06:45:21.108Z",
+      "ok": true
+    }
+  },
+  "createdAt": "2026-11-11T04:27:48.575Z",
+  "updatedAt": "2026-11-11T06:45:28.109Z",
+  "uses": 17
+}

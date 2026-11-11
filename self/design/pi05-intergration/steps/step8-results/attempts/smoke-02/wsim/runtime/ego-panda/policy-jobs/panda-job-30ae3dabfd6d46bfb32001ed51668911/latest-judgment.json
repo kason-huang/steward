@@ -1,0 +1,8 @@
+{
+  "grasp": "confirmed",
+  "placement": "confirmed",
+  "reason": "stable_visible_can_below_rim",
+  "target": "e:1:can",
+  "basket": "e:1:basket",
+  "evidenceStep": 3875
+}

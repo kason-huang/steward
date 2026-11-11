@@ -1,0 +1,180 @@
+{
+  "attempts": [
+    {
+      "attempt": "smoke-01",
+      "flowPassed": true,
+      "traceAndInitialChecks": true,
+      "commandsCompleted": true,
+      "completionAudit": true
+    },
+    {
+      "attempt": "smoke-02",
+      "flowPassed": false,
+      "traceAndInitialChecks": true,
+      "commandsCompleted": true,
+      "completionAudit": true
+    },
+    {
+      "attempt": "smoke-03",
+      "flowPassed": true,
+      "traceAndInitialChecks": true,
+      "commandsCompleted": true,
+      "completionAudit": true
+    }
+  ],
+  "finalFrozenSourceFilesMatched": 9,
+  "syntaxCheckedSourceFiles": 12,
+  "videos": [
+    {
+      "path": "attempts/smoke-01/libero/external-wrist.mp4",
+      "decoded": true,
+      "frames": 302,
+      "outTime": "00:00:15.100000"
+    },
+    {
+      "path": "attempts/smoke-01/libero/videos/dual.mp4",
+      "decoded": true,
+      "frames": 302,
+      "outTime": "00:00:15.100000"
+    },
+    {
+      "path": "attempts/smoke-01/libero/videos/external.mp4",
+      "decoded": true,
+      "frames": 302,
+      "outTime": "00:00:15.100000"
+    },
+    {
+      "path": "attempts/smoke-01/libero/videos/wrist.mp4",
+      "decoded": true,
+      "frames": 302,
+      "outTime": "00:00:15.100000"
+    },
+    {
+      "path": "attempts/smoke-01/wsim/videos/dual.mp4",
+      "decoded": true,
+      "frames": 206,
+      "outTime": "00:00:10.300000"
+    },
+    {
+      "path": "attempts/smoke-01/wsim/videos/external.mp4",
+      "decoded": true,
+      "frames": 206,
+      "outTime": "00:00:10.300000"
+    },
+    {
+      "path": "attempts/smoke-01/wsim/videos/wrist.mp4",
+      "decoded": true,
+      "frames": 206,
+      "outTime": "00:00:10.300000"
+    },
+    {
+      "path": "attempts/smoke-02/libero/external-wrist.mp4",
+      "decoded": true,
+      "frames": 302,
+      "outTime": "00:00:15.100000"
+    },
+    {
+      "path": "attempts/smoke-02/libero/videos/dual.mp4",
+      "decoded": true,
+      "frames": 302,
+      "outTime": "00:00:15.100000"
+    },
+    {
+      "path": "attempts/smoke-02/libero/videos/external.mp4",
+      "decoded": true,
+      "frames": 302,
+      "outTime": "00:00:15.100000"
+    },
+    {
+      "path": "attempts/smoke-02/libero/videos/wrist.mp4",
+      "decoded": true,
+      "frames": 302,
+      "outTime": "00:00:15.100000"
+    },
+    {
+      "path": "attempts/smoke-02/wsim/videos/dual.mp4",
+      "decoded": true,
+      "frames": 176,
+      "outTime": "00:00:08.800000"
+    },
+    {
+      "path": "attempts/smoke-02/wsim/videos/external.mp4",
+      "decoded": true,
+      "frames": 176,
+      "outTime": "00:00:08.800000"
+    },
+    {
+      "path": "attempts/smoke-02/wsim/videos/wrist.mp4",
+      "decoded": true,
+      "frames": 176,
+      "outTime": "00:00:08.800000"
+    },
+    {
+      "path": "attempts/smoke-03/libero/external-wrist.mp4",
+      "decoded": true,
+      "frames": 302,
+      "outTime": "00:00:15.100000"
+    },
+    {
+      "path": "attempts/smoke-03/libero/videos/dual.mp4",
+      "decoded": true,
+      "frames": 302,
+      "outTime": "00:00:15.100000"
+    },
+    {
+      "path": "attempts/smoke-03/libero/videos/external.mp4",
+      "decoded": true,
+      "frames": 302,
+      "outTime": "00:00:15.100000"
+    },
+    {
+      "path": "attempts/smoke-03/libero/videos/wrist.mp4",
+      "decoded": true,
+      "frames": 302,
+      "outTime": "00:00:15.100000"
+    },
+    {
+      "path": "attempts/smoke-03/wsim/videos/dual.mp4",
+      "decoded": true,
+      "frames": 172,
+      "outTime": "00:00:08.600000"
+    },
+    {
+      "path": "attempts/smoke-03/wsim/videos/external.mp4",
+      "decoded": true,
+      "frames": 172,
+      "outTime": "00:00:08.600000"
+    },
+    {
+      "path": "attempts/smoke-03/wsim/videos/wrist.mp4",
+      "decoded": true,
+      "frames": 172,
+      "outTime": "00:00:08.600000"
+    }
+  ],
+  "secretScan": {
+    "files": 1097,
+    "exactCredentialValuesChecked": 1,
+    "matches": 0,
+    "compressedSessionsScanned": true
+  },
+  "localLinksChecked": 35,
+  "step8PolicyPortClosed": true,
+  "videoFrameVisualCheck": {
+    "path": "checks/video-contact.png",
+    "checked": [
+      "smoke-03/libero",
+      "smoke-03/wsim",
+      "smoke-02/libero"
+    ],
+    "result": "成功回合的抓起及入篮、失败回合未抓起，外部与腕部画面与各自结果一致"
+  },
+  "committedWhitespaceNormalization": {
+    "path": "steward/scripts/libero_physical_evidence.py",
+    "executedSHA256": "6f7045c11ff93cec5d1c723f3cccb26e382b54b220aad24c17ca2d653d6fa2b7",
+    "committedSHA256": "ec2cacdd7e00f0b7fb3b2b9106177456b1ee616d5fc57e28f83f899ba21ee111",
+    "change": "Remove extra blank EOF line to pass repository whitespace gate",
+    "ASTIdentical": true,
+    "executedSourcePreserved": "source/steward/scripts/libero_physical_evidence.py"
+  }
+}

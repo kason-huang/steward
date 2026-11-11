@@ -1,0 +1,14 @@
+{
+  "environment": "libero",
+  "initialIndex": 0,
+  "seed": 0,
+  "prompt": "pick up the alphabet soup and place it in the basket",
+  "mujoco": "3.2.3",
+  "python": "3.8.20 (default, Oct  2 2024, 16:34:12) \n[Clang 18.1.8 ]",
+  "policyRng": "fresh pinned server default; not controlled by client seed",
+  "sources": {
+    "openpi": "215abfb217dbac7d5f1273282331b9b1866c0479",
+    "libero": "f78abd68ee283de9f9be3c8f7e2a9ad60246e95c"
+  },
+  "mode": "policy"
+}

@@ -1,0 +1,34 @@
+{
+  "scope": "initial-state-0 end-to-end smoke test, not a success-rate benchmark",
+  "slots": [
+    {
+      "runId": "libero-init0-0",
+      "environment": "libero",
+      "initialIndex": 0,
+      "seed": 0
+    },
+    {
+      "runId": "wsim-init0-0",
+      "environment": "wsim",
+      "initialIndex": 0,
+      "seed": 0
+    }
+  ],
+  "gitBase": "08a4a050e81d0f4f4c61f145cb2eff3d9d491b1e",
+  "branch": "feat-pi05-intergration",
+  "codeSHA256": {
+    "steward/scripts/run_libero_step8.py": "68052e5b9cd7eabf412f792052c7e5178e98009bfbcb4db2a40995179e57740f",
+    "steward/scripts/record_libero_step8.py": "972fc4de4b2e29b8701bcddf9595268e1d3de2d46c5be2f72615a3e51051fbb9",
+    "steward/scripts/libero_physical_evidence.py": "6f7045c11ff93cec5d1c723f3cccb26e382b54b220aad24c17ca2d653d6fa2b7",
+    "steward/scripts/step8_capture.py": "334b0134ba305f2c5e99ebd551700a0594aa436d7b8eff39fcdcc43802e3bc40",
+    "steward/scripts/step8_metrics.py": "4ecf88794b0f3524158032e0b98f2091043158266f150f542b11adb01d9b9444",
+    "steward/scripts/verify_libero_step7.py": "43d7e6eb832f94d61d455f39b150b60c8fd2d7ad5c5399adb718206d08b7826c",
+    "steward/src/steward/ego/panda_perception.py": "804cd5971f411d3c93477bc7d7a7d31380ff334e9713f1d3e0738cb344821929",
+    "steward/src/steward/ego/panda_jobs.py": "f0b6df503020fad2af401bdd494e5eab0ec78a9bd9d1ef41d10262b7a7b42712",
+    "steward/src/steward/ego/panda_prediction.py": "ca5d8397008fc2be1285ef0dbf3a849846f0f3b9e109836c079dd8ffabb7fab4"
+  },
+  "capabilityVersion": 2,
+  "capabilityCodeSHA256": "4ddc93dc69ea1160ef0c22179139cc6999c30656821e72132d0bd0a3e122c505",
+  "policyPort": 18068,
+  "randomness": "Python/NumPy seed=0; pinned server defaults and EH API sampling not overridden"
+}

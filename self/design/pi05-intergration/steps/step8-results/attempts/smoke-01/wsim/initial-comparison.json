@@ -1,0 +1,21 @@
+{
+  "matches": true,
+  "maximumJointDifference": {
+    "robot0_joint1": 0.0,
+    "robot0_joint2": 0.0,
+    "robot0_joint3": 0.0,
+    "robot0_joint4": 0.0,
+    "robot0_joint5": 0.0,
+    "robot0_joint6": 0.0,
+    "robot0_joint7": 0.0,
+    "gripper0_finger_joint1": 0.0,
+    "gripper0_finger_joint2": 0.0,
+    "alphabet_soup_1_joint0": 0.0,
+    "basket_1_joint0": 0.0,
+    "salad_dressing_1_joint0": 0.0,
+    "cream_cheese_1_joint0": 0.0,
+    "milk_1_joint0": 0.0,
+    "tomato_sauce_1_joint0": 0.0,
+    "butter_1_joint0": 0.0
+  }
+}

@@ -1,0 +1,38 @@
+[
+  {
+    "attempt": "smoke-01",
+    "flowPassed": true,
+    "liberoPhysical": true,
+    "wsimPhysical": true,
+    "wsimFunctional": true,
+    "completionChecked": true,
+    "source": "/home/huawei/hqk/workspace/steward/steward/var/step8/smoke-01",
+    "liberoActions": 280,
+    "wsimActions": 185,
+    "liberoFailure": null
+  },
+  {
+    "attempt": "smoke-02",
+    "flowPassed": false,
+    "liberoPhysical": false,
+    "wsimPhysical": true,
+    "wsimFunctional": true,
+    "completionChecked": true,
+    "source": "/home/huawei/hqk/workspace/steward/steward/var/step8/smoke-02",
+    "liberoActions": 280,
+    "wsimActions": 155,
+    "liberoFailure": "未抓起; 未夹持搬运; 未释放; 终态物理未通过；结束原因：execution_budget"
+  },
+  {
+    "attempt": "smoke-03",
+    "flowPassed": true,
+    "liberoPhysical": true,
+    "wsimPhysical": true,
+    "wsimFunctional": true,
+    "completionChecked": true,
+    "source": "/home/huawei/hqk/workspace/steward/steward/var/step8/smoke-03",
+    "liberoActions": 280,
+    "wsimActions": 150,
+    "liberoFailure": null
+  }
+]

@@ -1,0 +1,16 @@
+[robosuite WARNING] No private macro file found! (macros.py:53)
+[robosuite WARNING] It is recommended to use a private macro file (macros.py:54)
+[robosuite WARNING] To setup, run: python /home/huawei/hqk/workspace/pi05-step1/client-mirror-venv/lib/python3.8/site-packages/robosuite/scripts/setup_macros.py (macros.py:55)
+[info] using task orders [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+[Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+/home/huawei/hqk/workspace/pi05-step1/client-mirror-venv/lib/python3.8/site-packages/numba/np/arraymath.py:3845: DeprecationWarning: `np.MachAr` is deprecated (NumPy 1.22).
+  @overload(np.MachAr)
+[Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+Traceback (most recent call last):
+  File "/home/huawei/hqk/workspace/steward/steward/scripts/record_libero_step8.py", line 170, in <module>
+    raise SystemExit(main())
+  File "/home/huawei/hqk/workspace/steward/steward/scripts/record_libero_step8.py", line 106, in main
+    camera.record(data, 0, "initial")
+  File "/home/huawei/hqk/workspace/steward/steward/scripts/step8_capture.py", line 45, in record
+    mujoco.mj_copyData(self.data, self.model, data)
+AttributeError: module 'mujoco' has no attribute 'mj_copyData'

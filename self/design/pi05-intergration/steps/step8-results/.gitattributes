@@ -1,0 +1,5 @@
+# Preserve exact raw experiment outputs.
+*.log binary
+*.patch binary
+# Preserve the exact executed source; committed runtime only normalizes its EOF.
+source/steward/scripts/libero_physical_evidence.py binary

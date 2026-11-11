@@ -1,0 +1,10 @@
+[policy]
+client_command = ["bash", "/home/huawei/hqk/workspace/pi05-step1/client.sh", "/home/huawei/hqk/workspace/steward/steward/scripts/openpi_step6_infer.py"]
+port = 18068
+model_id = "pi05_libero@215abfb217dbac7d5f1273282331b9b1866c0479"
+request_timeout_s = 15.0
+max_actions = 280
+max_wall_s = 420.0
+prefix_size = 5
+receipt_wall_s = 30.0
+stop_wall_s = 20.0

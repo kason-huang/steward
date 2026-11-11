@@ -1,0 +1,26 @@
+{
+  "argv": [
+    "/home/huawei/hqk/workspace/steward/steward/.venv/bin/python",
+    "-u",
+    "/home/huawei/hqk/workspace/steward/steward/scripts/verify_libero_step7.py",
+    "/home/huawei/hqk/workspace/steward/steward/var/step4/wsim-root",
+    "/home/huawei/hqk/workspace/steward/steward/var/step8/smoke-02/wsim",
+    "--policy-config",
+    "/home/huawei/hqk/workspace/steward/steward/var/step8/smoke-02/frozen/policy.toml",
+    "--mode",
+    "chat",
+    "--case",
+    "N2",
+    "--harness-home",
+    "/home/huawei/hqk/workspace/steward/steward/var/step8/smoke-02/robot-home",
+    "--expected-initial",
+    "/home/huawei/hqk/workspace/steward/steward/var/step8/smoke-02/frozen/initial.json",
+    "--seed",
+    "0"
+  ],
+  "cwd": "/home/huawei/hqk/workspace/steward/steward",
+  "exitCode": 0,
+  "timedOut": false,
+  "wallSeconds": 54.21640531599405,
+  "log": "/home/huawei/hqk/workspace/steward/steward/var/step8/smoke-02/wsim.log"
+}

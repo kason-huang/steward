@@ -1,0 +1,28 @@
+{
+  "startedUtc": "2026-11-11T06:44:38.806830+00:00",
+  "argv": [
+    "/home/huawei/hqk/workspace/steward/steward/scripts/verify_libero_step7.py",
+    "/home/huawei/hqk/workspace/steward/steward/var/step4/wsim-root",
+    "/home/huawei/hqk/workspace/steward/steward/var/step8/smoke-02/wsim",
+    "--policy-config",
+    "/home/huawei/hqk/workspace/steward/steward/var/step8/smoke-02/frozen/policy.toml",
+    "--mode",
+    "chat",
+    "--case",
+    "N2",
+    "--harness-home",
+    "/home/huawei/hqk/workspace/steward/steward/var/step8/smoke-02/robot-home",
+    "--expected-initial",
+    "/home/huawei/hqk/workspace/steward/steward/var/step8/smoke-02/frozen/initial.json",
+    "--seed",
+    "0"
+  ],
+  "scenario": "libero-object-alphabet-soup-panda",
+  "initialState": 0,
+  "seed": 0,
+  "seedScope": "Python and NumPy applied; policy server default and EH sampling not controlled here",
+  "profile": "ego",
+  "credentials": "loaded by HarnessChat from steward/.env; value is not archived",
+  "gitHead": "08a4a050e81d0f4f4c61f145cb2eff3d9d491b1e",
+  "policyConfig": "[policy]\nclient_command = [\"bash\", \"/home/huawei/hqk/workspace/pi05-step1/client.sh\", \"/home/huawei/hqk/workspace/steward/steward/scripts/openpi_step6_infer.py\"]\nport = 18068\nmodel_id = \"pi05_libero@215abfb217dbac7d5f1273282331b9b1866c0479\"\nrequest_timeout_s = 15.0\nmax_actions = 280\nmax_wall_s = 420.0\nprefix_size = 5\nreceipt_wall_s = 30.0\nstop_wall_s = 20.0\n"
+}

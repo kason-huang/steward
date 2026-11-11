@@ -1,0 +1,23 @@
+{
+  "argv": [
+    "bash",
+    "/home/huawei/hqk/workspace/pi05-step1/client.sh",
+    "/home/huawei/hqk/workspace/steward/steward/scripts/record_libero_step8.py",
+    "/home/huawei/hqk/workspace/steward/steward/var/step8/smoke-03/libero",
+    "--calibration",
+    "/home/huawei/hqk/workspace/steward/steward/var/step8/smoke-03/frozen/calibration.json",
+    "--expected-initial",
+    "/home/huawei/hqk/workspace/steward/steward/var/step8/smoke-03/frozen/initial.json",
+    "--ffmpeg",
+    "/home/huawei/hqk/workspace/pi05-step1/server-mirror-venv/lib/python3.11/site-packages/imageio_ffmpeg/binaries/ffmpeg-linux-x86_64-v7.0.2",
+    "--seed",
+    "0",
+    "--port",
+    "18068"
+  ],
+  "cwd": "/home/huawei/hqk/workspace/steward/steward",
+  "exitCode": 0,
+  "timedOut": false,
+  "wallSeconds": 29.31663736901828,
+  "log": "/home/huawei/hqk/workspace/steward/steward/var/step8/smoke-03/libero.log"
+}

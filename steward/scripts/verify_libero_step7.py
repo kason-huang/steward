@@ -10,6 +10,7 @@ import signal
 import shutil
 import subprocess
 import sys
+import random
 import time
 import traceback
 from datetime import datetime, timezone
@@ -21,6 +22,7 @@ from steward.ego.runtime import RobotLink
 from steward.net import HttpError, call
 from steward.world.chat import ChatConfig
 from steward.world.server import StewardHost
+import numpy as np
 
 from rollout_libero_step6 import PhysicalEvidence
 
@@ -171,7 +173,8 @@ def operation(host, supervisor, args, physical, control_events):
             return {"pass": attempted and denied and controller["lastApplied"] is None,
                     "case": args.case, "mode": args.mode, "attemptedNestedSkillRun": attempted,
                     "guardDenialReported": denied, "final_control": controller, "world": physical.summary()}
-        return {"pass": False, "reason": "No policy Job was created"}
+        return {"pass": False, "case": args.case, "mode": args.mode,
+                "reason": "No policy Job was created", "world": physical.summary()}
     write_json(args.out / "job.json", job)
     world = physical.summary()
     final_control = call("GET", host.robot_servers["w:panda"].url + "/control/status")
@@ -214,13 +217,19 @@ def main():
     parser.add_argument("--case", choices=("N1", "N2", "C1", "F1", "G1"), default="N1")
     parser.add_argument("--harness-home", type=Path)
     parser.add_argument("--policy-pid", type=int)
+    parser.add_argument("--expected-initial", type=Path)
+    parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
     args.root = args.root.resolve()
     args.out = args.out.resolve()
     args.out.mkdir(parents=True)
+    random.seed(args.seed)
+    np.random.seed(args.seed)
     package = Path(__file__).resolve().parents[1]
     write_json(args.out / "run-manifest.json", {"startedUtc": datetime.now(timezone.utc).isoformat(),
-               "argv": sys.argv, "scenario": SCENARIO, "initialState": 0, "profile": "ego" if args.mode == "chat" else None,
+               "argv": sys.argv, "scenario": SCENARIO, "initialState": 0, "seed": args.seed,
+               "seedScope": "Python and NumPy applied; policy server default and EH sampling not controlled here",
+               "profile": "ego" if args.mode == "chat" else None,
                "credentials": "loaded by HarnessChat from steward/.env; value is not archived",
                "gitHead": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=package, text=True).strip(),
                "policyConfig": args.policy_config.read_text()})
@@ -237,6 +246,21 @@ def main():
     trace_folder = args.out / "world"
     trace_folder.mkdir()
     try:
+        initial_matches = None
+        if args.expected_initial:
+            expected = json.loads(args.expected_initial.read_text())
+            with host.sim.lock:
+                actual = {host.sim.model.joint(i).name: {field: getattr(host.sim.data.joint(
+                    host.sim.model.joint(i).name), field).tolist() for field in ("qpos", "qvel")}
+                    for i in range(host.sim.model.njnt)}
+            differences = {name: max(float(np.max(np.abs(np.asarray(values[field]) -
+                           np.asarray(expected["joints"][name][field])))) for field in ("qpos", "qvel"))
+                           for name, values in actual.items()}
+            initial_matches = set(actual) == set(expected["joints"]) and max(differences.values()) <= 1e-8
+            write_json(args.out / "initial-comparison.json", {"matches": initial_matches,
+                       "maximumJointDifference": differences})
+            if not initial_matches:
+                raise ValueError("Loaded WSim initial state differs from the frozen reference")
         supervisor.reconcile(host)
         control_events = []
         with gzip.open(trace_folder / "physics.jsonl.gz", "wt") as stream, \
@@ -265,6 +289,8 @@ def main():
                                   "verificationError": f"{type(exc).__name__}: {exc}", "world": evidence.summary()}
             finally:
                 unsubscribe()
+        if initial_matches is not None:
+            result["initialStateMatches"] = initial_matches
         write_json(args.out / "result.json", result)
         print(json.dumps({"pass": result["pass"], "case": args.case, "mode": args.mode}), flush=True)
         return 0 if result["pass"] else 1
