@@ -68,3 +68,5 @@ MUJOCO_GL=egl OPENBLAS_NUM_THREADS=1 .venv/bin/python -m pytest \
 ![当前初态的 Ego 视图](ready-ego.jpg)
 
 [当前初态完整摘要](ready-summary.json) · [World 视图](ready-world.jpg)
+
+旧汤罐在暂时遮挡时保留 holding 身份的兼容检查另有 16 passed（与上述用例有重叠），见 [holding-compatibility-tests.log](holding-compatibility-tests.log)。

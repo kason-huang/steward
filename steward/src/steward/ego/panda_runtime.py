@@ -262,7 +262,8 @@ class PandaEgoRuntime:
             return {"episodeId": self.latest["episodeId"], "stamp": self.sensor.observation["stamp"],
                     "version": self.latest["step"], "body": "libero-panda", "self": {
                         "toolPose": self.sensor.observation["tool"], "grasp": self.latest["judgment"]["grasp"],
-                        "holding": (self.latest['judgment']['target'] if self.latest["judgment"]["grasp"] == "confirmed"
+                        "holding": ((self.pick_evidence.target['id'] if self.pick_evidence is not None
+                                     else f"e:{self.latest['episodeId']}:can") if self.latest["judgment"]["grasp"] == "confirmed"
                                     and width < .071 and (self.pick_evidence is not None or self.evidence.release is None) else None)},
                     "objects": objects, "judgment": copy.deepcopy(self.latest["judgment"]), "job": job,
                     "skills": [PICK, SKILL] if self.executor else []}

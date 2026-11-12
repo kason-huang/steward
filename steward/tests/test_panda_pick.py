@@ -141,6 +141,18 @@ def test_failed_pick_binding_keeps_the_previous_identity_and_evidence(monkeypatc
     assert runtime.pick_entity is old_entity and runtime.pick_evidence is old_evidence
 
 
+def test_legacy_soup_holding_identity_survives_temporary_label_occlusion(monkeypatch):
+    from steward.ego.panda_runtime import PandaEgoRuntime
+    runtime = PandaEgoRuntime(None)
+    runtime.sensor.observation = frame(0, .06)
+    runtime.sensor.observation['encoders'] = {'gripper0_finger_joint1': {'position': .02},
+                                             'gripper0_finger_joint2': {'position': -.02}}
+    runtime.latest = {'episodeId': 1, 'step': 0, 'judgment': {'grasp': 'confirmed',
+                      'placement': 'unconfirmed', 'target': None, 'basket': None}}
+    monkeypatch.setattr(runtime.sensor, 'read', lambda **kwargs: None)
+    assert runtime.summary()['self']['holding'] == 'e:1:can'
+
+
 def test_stopping_waits_for_catalog_load_and_never_publishes_after_stop(monkeypatch):
     import threading
     from concurrent.futures import ThreadPoolExecutor
