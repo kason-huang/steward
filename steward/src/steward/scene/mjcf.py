@@ -371,6 +371,26 @@ def _emit_link(body: ET.Element, ent: Entity, link_id: str, names: EntityNames, 
 
 
 def _geom_attrs(g: dict, textures: _Textures, appearance: str) -> dict:
+    if g["kind"] == "mesh":
+        raw = base64.b64decode(g["data"], validate=True)
+        name = "mesh-" + hashlib.sha256(raw).hexdigest()[:24]
+        if name + ".obj" not in textures.files:
+            textures.files[name + ".obj"] = raw
+            ET.SubElement(textures.element, "mesh", name=name, file=name + ".obj")
+        at = g.get("pose") or {"p": [0, 0, 0], "q": [1, 0, 0, 0]}
+        attrs = {"type": "mesh", "mesh": name, "pos": _fmt(at["p"]), "quat": _fmt(at["q"]),
+                 "rgba": _fmt(g.get("rgba", [1, 1, 1, 1]))}
+        if g.get("meshTexture"):
+            png = base64.b64decode(g["meshTexture"], validate=True)
+            texture = "surface-" + hashlib.sha256(png).hexdigest()[:24]
+            if texture + ".png" not in textures.files:
+                textures.files[texture + ".png"] = png
+                ET.SubElement(textures.element, "texture", name=texture, type="2d", file=texture + ".png",
+                              **({"colorspace": "linear"} if mujoco.mj_version() >= 333 else {}))
+                ET.SubElement(textures.element, "material", name=texture, texture=texture, rgba="1 1 1 1")
+            attrs["material"] = texture
+            attrs.pop("rgba")
+        return attrs
     if g["kind"] != "primitive":
         raise NotImplementedError(f"{g['kind']} geometry is not simulated in Phase 0")
     shape, size = g["shape"], g["size"]
@@ -398,6 +418,8 @@ def _geom_attrs(g: dict, textures: _Textures, appearance: str) -> dict:
 
 
 def _volume(g: dict) -> float:
+    if g["kind"] != "primitive":
+        raise NotImplementedError("Mesh geometry is visual-only; provide primitive collision geometry")
     s = g["size"]
     shape = g["shape"]
     if shape == "box":

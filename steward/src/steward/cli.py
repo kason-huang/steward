@@ -196,7 +196,8 @@ def cmd_panda_ego(args) -> int:
 
     config = PandaPolicyConfig.load(args.policy_config) if args.policy_config else None
     out_dir = Path(args.out_dir) if args.out_dir else Path(args.root) / "ego" / "panda"
-    runtime = PandaEgoRuntime(RobotLink(args.robot_url), config, out_dir)
+    runtime = PandaEgoRuntime(RobotLink(args.robot_url), config, out_dir,
+                             visual_bundle=Path(args.root) / "libero-step3")
     api = panda_ego_api(runtime, args.api_port, args.bind_wait).start()
     print(json.dumps({"egoApi": api.url, "robot": args.robot_url, "skills": config is not None}), flush=True)
     runtime.start()

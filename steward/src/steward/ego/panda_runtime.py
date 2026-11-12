@@ -27,7 +27,7 @@ _LOG = logging.getLogger(__name__)
 
 
 class PandaEgoRuntime:
-    def __init__(self, link, policy_config=None, out_dir=None):
+    def __init__(self, link, policy_config=None, out_dir=None, visual_bundle=None):
         self.link = link
         self.sensor = PandaObservationRuntime(link)
         self.lock = threading.RLock()
@@ -43,6 +43,10 @@ class PandaEgoRuntime:
             self.out_dir.mkdir(parents=True, exist_ok=True)
         self.evidence = PandaEvidence()
         self.scene = SceneState("ego").to_dict()
+        self.visual_prior = None
+        if visual_bundle is not None:
+            from steward.ego.panda_visual_model import PandaVisualModel
+            self.visual_prior = PandaVisualModel(visual_bundle)
         renderer = EgoViewRenderer()
         self.view = ViewLoop("panda-ego", lambda settings: self._render(renderer, settings), renderer.close)
         self.executor = PandaJobs(self, policy_config, self.out_dir / "policy-jobs") if policy_config else None
@@ -78,9 +82,9 @@ class PandaEgoRuntime:
             width = abs(encoders["gripper0_finger_joint1"]["position"]
                         - encoders["gripper0_finger_joint2"]["position"])
             prefix = f"e:{observation['episodeId']}:"
-            robot = Entity(prefix + "panda", "robot", exact("libero-panda"), exact(tool),
-                           RigidTree(exact("fixed"), [observed_box("tool", [.06, .08, .035])]),
-                           state_vars={"fingerWidth": exact(width)})
+            from steward.ego.panda_self_model import self_entity
+            robot = self_entity(observation, prefix + "panda")
+            robot.state_vars["fingerWidth"] = exact(width)
             if self.latest is None or self.latest["episodeId"] != observation["episodeId"]:
                 self.evidence = PandaEvidence()
             can, basket, grasp, placement, reason = self.evidence.update(observation, width)
@@ -229,7 +233,18 @@ class PandaEgoRuntime:
         return self.latest
 
     def _render(self, renderer, settings):
-        scene = self.scene
+        if self.visual_prior is not None and self.visual_prior.robot is None:
+            self.visual_prior.load()
+        with self.lock:
+            scene = copy.deepcopy(self.scene)
+            observation = self.sensor.observation
+            if self.visual_prior is not None and observation is not None:
+                from steward.ego.panda_self_model import self_entity
+                robot = self_entity(observation, scene["self"], self.visual_prior.robot).to_dict()
+                for i,entity in enumerate(scene["entities"]):
+                    if entity["role"] == "robot":scene["entities"][i] = robot
+                    elif entity["category"]["value"] in self.visual_prior.objects:
+                        entity["body"]["links"][0]["geometry"]["visual"] = self.visual_prior.objects[entity["category"]["value"]]
         return renderer.render(scene, settings), "image/jpeg", {"esVersion": scene["version"], "t": scene["stamp"]}
 
 

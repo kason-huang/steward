@@ -44,6 +44,8 @@ echo 'DEEPSEEK_API_KEY=sk-...' > .env     # 已被 Git 忽略，运行脚本自�
 
 4090-2 上先通过 `.venv/bin/python scripts/launch_pi05_libero.py --port 18067 --evidence var/pi05-server-integrity` 启动模型，并在任务前完成预热。该路径在主机内存恢复 checkpoint，逐张量核对 GPU 传输，并在首次编译推理后复核模型参数；Step 7/8 启动脚本也使用它。冷启动预热最多 60 秒，任务推理请求仍保留 15 秒限制。直接 GPU 恢复异常的实测、普通英文聊天验证和控制台完整启动命令见[控制台修复报告](../self/design/pi05-intergration/steps/step8-results/live-chat-fix/README.md)。
 
+Panda Ego State 与厨房场景共用场景转换器和渲染器，在编码器及感知估计位姿上保留已知网格和纹理，见 [Panda Ego State 可视化](docs/panda-ego-view.md)。
+
 ## Windows
 
 Windows 上使用同样的命令：`uv sync` 把 `steward` 可执行文件装在 `.venv\Scripts` 下，每个 `.sh` 脚本都有同名、同参数的 PowerShell 版本。如果 PowerShell 拒绝运行未签名脚本，先执行一次 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`。

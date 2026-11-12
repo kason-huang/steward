@@ -44,6 +44,8 @@ The fixed LIBERO Panda trial uses `up --scenario libero-object-alphabet-soup-pan
 
 On 4090-2, start the model with `.venv/bin/python scripts/launch_pi05_libero.py --port 18067 --evidence var/pi05-server-integrity` and prewarm it before starting a task. This restores checkpoint arrays in host memory, verifies every GPU transfer and checks parameters again after the first compiled inference. Step 7/8 launchers use this path; cold prewarm allows 60 seconds while task inference keeps its 15-second limit. The observed direct-GPU restore failure, ordinary English chat verification and complete console startup commands are recorded in the [live-chat repair report](../self/design/pi05-intergration/steps/step8-results/live-chat-fix/README.md).
 
+Panda Ego views use the same scene converter and renderer as the kitchen, retaining known visual meshes and textures at encoder/estimated poses. See [Panda Ego view](docs/panda-ego-view.md).
+
 ## Windows
 
 Steward runs on Windows with the same commands: `uv sync` installs the `steward` executable under `.venv\Scripts`, and every `.sh` script has a PowerShell counterpart with the same name and arguments. If PowerShell refuses unsigned scripts, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once.

@@ -33,6 +33,7 @@ from steward.scene.schema import SceneState
 from steward.viewloop import ViewSettings
 
 CATEGORY_RGB = {
+    "alphabet_soup": [0.88, 0.60, 0.20], "basket": [0.45, 0.70, 0.83],
     "table": [0.79, 0.64, 0.42], "counter": [0.54, 0.42, 0.29], "cabinet": [0.63, 0.47, 0.31],
     "sideboard": [0.69, 0.53, 0.38], "cup": [0.50, 0.83, 1.00], "bowl": [0.91, 0.91, 0.92],
     "plate": [0.95, 0.95, 0.95], "wall": [0.55, 0.58, 0.62], "drawer": [0.80, 0.67, 0.50],
@@ -126,7 +127,8 @@ class EgoViewRenderer:
         toward_camera = np.zeros(2) if float(camera["elevation"]) < -80 else np.array([-math.cos(az), -math.sin(az)])
         room_center = [float(camera["lookat"][0]), float(camera["lookat"][1])]
         scene = ego_render_scene(ego, toward_camera, room_center)
-        fixed = [e for e in scene.entities if e.role == "robot" or e.id == FLOOR_ID or len(e.rigid.links) > 1]
+        fixed = [e for e in scene.entities if e.role == "robot" or e.id == FLOOR_ID or len(e.rigid.links) > 1
+                 or any(link.geometry.get("visual") for link in e.rigid.links)]
         boxes = [(e, g) for e in scene.entities if e not in fixed for g in e.rigid.links[0].geometry.get("collision", [])]
         capacity = max(SLOT_MIN, 1 << max(0, len(boxes) - 1).bit_length())
         structure = (tuple((e.id, e.rigid.root.value, len(e.rigid.links)) for e in fixed), capacity)
