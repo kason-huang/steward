@@ -1,0 +1,15 @@
+{
+  "name": "panda_pick",
+  "layer": "skill",
+  "description": "Pick up one currently visible graspable object using its Ego-State target reference. The body's pick skill binds the selected identity, derives its policy instruction, observes lift and confirms stopping. A successful pick keeps holding the object. No automatic retry.",
+  "requires": "The body is libero-panda and supports pick; args.target is a fresh graspable object id from this episode's ego_state or ego_query; the gripper is not already holding another object.",
+  "ensures": "Returns the same Job's id, state, goalStatus, stopStatus and evidence after succeeded/achieved/confirmed, otherwise throws with the terminal result. Does not claim placement success.",
+  "parameters": {"target": "Current Ego-State id of the selected graspable object"},
+  "code": "if (!args.target) throw new Error('panda_pick requires args.target');\nconst pred = await tools.ego_predict({skill: 'pick', target: args.target});\nif (pred.feasible !== true || pred.withinRiskLimit !== true) throw new Error('pick not feasible: ' + JSON.stringify(pred));\nconst run = await tools.skill_run({receipt: pred.receipt, wait: true, timeoutS: 240});\nconst job = run.job ?? run.jobId ?? run.id;\nif (!job) throw new Error('pick returned no Job');\nlet last = run;\nfor (let n = 0; n < 60 && (last.state === 'running' || last.state === 'queued'); n++) {\n  await new Promise(r => setTimeout(r, 5000));\n  last = await tools.skill_status({job});\n}\nconst result = {job, state: last.state, goalStatus: last.goalStatus, stopStatus: last.stopStatus, reasonCode: last.reasonCode, evidence: last.evidence};\nif (last.state !== 'succeeded' || last.goalStatus !== 'achieved' || last.stopStatus !== 'confirmed') throw new Error('pick not confirmed: ' + JSON.stringify(result));\nreturn result;",
+  "version": 1,
+  "status": "candidate",
+  "runs": {"succeeded": 0, "failed": 0, "failedInARow": 0, "succeededIn": []},
+  "createdAt": "2026-11-12T00:00:00.000Z",
+  "updatedAt": "2026-11-12T00:00:00.000Z",
+  "uses": 0
+}

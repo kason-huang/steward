@@ -194,8 +194,10 @@ export function egoTools(ego: EgoService): ToolDefinition[] {
         + 'observe, or choose another spot) and predict again. An infeasible receipt lists blockers: entities in the '
         + 'way, whether they can be moved, and parking spots (parkAt) out of the way; clear a movable blocker first '
         + '(pick it, place it at a parking spot), then predict the original skill again. A receipt can be run once '
-        + 'and expires. A configured LIBERO Panda supports "libero_pick_place", one complete alphabet-soup-to-basket '
-        + 'task with target and on from ego_state. Check the body\'s supported skills before predicting.',
+        + 'and expires. A configured LIBERO Panda supports "pick" with a fresh graspable target id from ego_state; '
+        + 'the selected object determines the policy instruction, and success means observed lift retained after stopping. '
+        + 'It also retains "libero_pick_place" for the alphabet-soup-to-basket task with target and on. '
+        + 'Check the body\'s supported skills before predicting. A successful pick keeps holding the object.',
       parameters: {
         skill: { type: 'string', enum: ['navigate', 'pick', 'place', 'pour', 'open', 'close', 'libero_pick_place'], required: true, description: 'Skill to predict.' },
         target: { type: 'string', description: 'pick: id of the object to grasp; open/close: id of the drawer.' },

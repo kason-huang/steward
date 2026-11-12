@@ -35,12 +35,13 @@ def segment_distances(points, start, end):
 class PandaPrediction:
     """Checks observed obstacles and differential FK, with task-scoped contact exemptions."""
 
-    def __init__(self, observation, target, basket):
+    def __init__(self, observation, target, basket=None, target_size=None):
         self.observation = observation
         self.rig = observation["toolRig"]
         self.encoders = {name: dict(value) for name, value in observation["encoders"].items()}
         self.target = np.asarray(target)
-        self.basket = np.asarray(basket)
+        self.basket = np.asarray(basket) if basket is not None else None
+        self.target_half = np.asarray(target_size) / 2 + .025 if target_size is not None else None
         points = []
         for role in ("external", "wrist"):
             depth = observation["depth"][role]
@@ -72,7 +73,9 @@ class PandaPrediction:
         for position, rotation, center, size in self.boxes:
             if np.all(np.abs((point - position) @ rotation - center) <= size + .006):
                 return
-        if contact and (np.linalg.norm(point - self.target) < .075 or
+        target_contact = (np.linalg.norm(point - self.target) < .075 if self.target_half is None else
+                          np.all(np.abs(point - self.target) < self.target_half))
+        if contact and (target_contact or self.basket is not None and
                         np.all(np.abs(point[:2] - self.basket[:2]) < .065) and .02 < point[2] < .17):
             return
         for role in ("external", "wrist"):
@@ -147,9 +150,10 @@ class PandaPrediction:
                     self.require_observed(end, contact=index >= len(sweep) - 3)
                     obstacles = self.points
                     if index >= len(sweep) - 3:
-                        target_contact = np.linalg.norm(obstacles - self.target, axis=1) < .085
-                        basket_contact = ((np.abs(obstacles[:, :2] - self.basket[:2]).max(axis=1) < .09)
-                                          & (obstacles[:, 2] < .17))
+                        target_contact = (np.linalg.norm(obstacles - self.target, axis=1) < .085
+                            if self.target_half is None else (np.abs(obstacles - self.target) < self.target_half).all(axis=1))
+                        basket_contact = (np.zeros(len(obstacles), bool) if self.basket is None else
+                            (np.abs(obstacles[:, :2] - self.basket[:2]).max(axis=1) < .09) & (obstacles[:, 2] < .17))
                         obstacles = obstacles[~(target_contact | basket_contact)]
                     if len(obstacles):
                         distance = float(segment_distances(obstacles, start, end).min())
@@ -160,7 +164,7 @@ class PandaPrediction:
                                                 f"segment={index}, clearance={distance:.6f}, point={closest.tolist()}")
                 tool = position + fraction * (goal - position)
                 self.require_observed(tool, contact=True)
-                for point in (self.target, self.basket):
+                for point in (self.target,) + ((self.basket,) if self.basket is not None else ()):
                     if np.linalg.norm(tool[:2] - point[:2]) < .095:
                         break
                 else:

@@ -16,11 +16,13 @@ from steward.ego.panda_observation import PandaObservationRuntime, policy_inputs
 from steward.ego.panda_perception import PandaEvidence
 from steward.ego.panda_jobs import PandaJobs
 from steward.ego.panda_policy import SKILL
+from steward.ego.panda_pick import PICK, PickEvidence, pickable
+from steward.math3d import matrix_from_quat, pose_compose
 from steward.ego.server import ego_api
 from steward.ego.view import EgoViewRenderer
 from steward.glrender import encode_image
 from steward.net import HttpError, JsonServer, NO_CONTENT
-from steward.scene.schema import Entity, Link, RigidTree, SceneState, exact, pose
+from steward.scene.schema import Entity, Est, Link, RigidTree, SceneState, exact, pose
 from steward.viewloop import ViewLoop, ViewSettings, frame_response
 
 _LOG = logging.getLogger(__name__)
@@ -45,6 +47,8 @@ class PandaEgoRuntime:
         self.visible_objects = []
         self.surface_key = None
         self.appearance_cache = {}
+        self.pick_evidence = None
+        self.pick_entity = None
         self.scene = SceneState("ego").to_dict()
         self.visual_prior = None
         if visual_bundle is not None:
@@ -60,12 +64,20 @@ class PandaEgoRuntime:
         self.thread.start()
 
     def stop(self):
-        if self.executor is not None:
-            self.executor.close()
         self.stop_event.set()
-        if self.thread is not None:
-            self.thread.join(timeout=5)
-        self.view.stop()
+        try:
+            if self.executor is not None:
+                self.executor.close()
+                if self.executor.thread is not None and self.executor.thread.is_alive():
+                    raise RuntimeError('Panda policy worker did not stop')
+        finally:
+            try:
+                if self.thread is not None:
+                    self.thread.join(timeout=30)
+                    if self.thread.is_alive():
+                        raise RuntimeError('Panda observation worker did not stop')
+            finally:
+                self.view.stop(timeout=30)
 
     def _run(self):
         while not self.stop_event.is_set():
@@ -78,6 +90,8 @@ class PandaEgoRuntime:
 
     def observe(self, force=False):
         with self.lock:
+            if self.stop_event.is_set() and not force:
+                return self.latest
             observation = self.sensor.read(force=force)
             if observation is None:
                 return self.latest
@@ -92,6 +106,8 @@ class PandaEgoRuntime:
             if self.latest is None or self.latest["episodeId"] != observation["episodeId"]:
                 self.evidence = PandaEvidence()
                 self.visible_objects = []
+                self.pick_evidence = None
+                self.pick_entity = None
             can, basket, grasp, placement, reason = self.evidence.update(observation, width)
             entities = [robot]
             for identifier, category, point, size in (
@@ -105,6 +121,19 @@ class PandaEgoRuntime:
                                            RigidTree(exact("fixed"), [observed_box("observed", size)]),
                                            state_vars={"size": exact(size)}))
             entities.extend(self.visible_objects)
+            pick_judgment = None
+            if self.pick_evidence is not None:
+                pick_judgment = self.pick_evidence.update(observation, width)
+                selected = copy.deepcopy(self.pick_entity)
+                selected['pose']['value']['p'] = self.pick_evidence.position.tolist()
+                selected['pose']['src'] = 'fused' if pick_judgment['observedTargetPoints'] else 'predicted'
+                if pick_judgment['observedTargetPoints']:
+                    selected['stateVars']['observedAt'] = exact(observation['stamp']).to_dict()
+                selected['stateVars']['tracking'] = exact(selected['pose']['src']).to_dict()
+                self.pick_entity = selected
+                entities = [e for e in entities if e.id != selected['id']]
+                entities.append(Entity.from_dict(selected))
+                grasp = pick_judgment['grasp']
             robot.state_vars.update({"grasp": exact(grasp), "placement": exact(placement)})
             scene = SceneState("ego", entities=entities, self_id=robot.id,
                                version=observation["step"], stamp=observation["stamp"])
@@ -115,6 +144,8 @@ class PandaEgoRuntime:
                                         "target": prefix + "can" if can is not None else None,
                                         "basket": prefix + "basket" if basket is not None else None,
                                         "evidenceStep": observation["step"]}}
+            if pick_judgment is not None:
+                self.latest['judgment'] = pick_judgment
             self.link.telemetry(self.scene | {"episodeId": observation["episodeId"]})
             return self.latest
 
@@ -128,7 +159,10 @@ class PandaEgoRuntime:
             if key == self.surface_key:
                 return
             known = [e for e in self.scene['entities'] if e['role'] == 'object'
-                     and e['category']['value'] != 'unknown']
+                     and e['category']['value'] in ('alphabet_soup', 'basket')]
+            if self.pick_evidence is not None:
+                known.append({'pose': {'value': pose(self.pick_evidence.position.tolist())},
+                              'stateVars': {'size': {'value': (self.pick_evidence.size + .03).tolist()}}})
             if self.evidence.last_can is not None:
                 known.append({'pose': {'value': pose(self.evidence.last_can.tolist())},
                               'stateVars': {'size': {'value': [.10, .10, .12]}}})
@@ -141,14 +175,49 @@ class PandaEgoRuntime:
             previous = self.visible_objects
         from steward.ego.panda_surfaces import surface_entities
         visible = surface_entities(observation, f'e:{key[0]}:', known, previous)
+        if self.visual_prior is not None:
+            self.visual_prior.load()
+            for entity in visible:
+                match = self.visual_prior.matcher.match(entity.to_dict())
+                if match is None:
+                    continue
+                adjustment = match['pose']
+                entity.category = Est(match['category'], src='inferred')
+                entity.pose = Est(pose_compose(entity.pose.value, adjustment), src='fused')
+                for surface in entity.rigid.links[0].geometry.get('observed', []):
+                    surface['triangles'] = ((np.asarray(surface['triangles']) - adjustment['p'])
+                                            @ matrix_from_quat(adjustment['q'])).round(6).tolist()
+                entity.state_vars['size'] = exact(self.visual_prior.matcher.templates[match['category']]['size'].tolist())
+                entity.state_vars['recognitionScore'] = exact(match['score'])
+                entity.state_vars['canonicalVisual'] = exact(True)
         with self.lock:
-            if self.latest['episodeId'] != key[0]:
+            if self.stop_event.is_set() or self.latest['episodeId'] != key[0]:
                 return
             self.surface_key = key
             self.visible_objects = visible
-            self.scene['entities'] = [e for e in self.scene['entities'] if e['category']['value'] != 'unknown']
+            selected = next((e for e in self.scene['entities'] if self.pick_evidence is not None
+                             and e['id'] == self.pick_evidence.target['id']), None)
+            self.scene['entities'] = [e for e in self.scene['entities'] if ':seen-' not in e['id']]
             self.scene['entities'].extend(e.to_dict() for e in visible)
+            if selected is not None:
+                self.scene['entities'] = [e for e in self.scene['entities'] if e['id'] != selected['id']]
+                self.scene['entities'].append(selected)
             self.link.telemetry(self.scene | {'episodeId': key[0]})
+
+    def bind_pick(self, target):
+        """Bind an immutable receipt target to observed pick evidence for this episode."""
+        with self.lock:
+            selected = next((e for e in self.scene['entities'] if e['id'] == target['id']), None)
+            if selected is None:
+                raise ValueError('Selected pick target is no longer tracked')
+            entity = copy.deepcopy(selected)
+            evidence = PickEvidence(target, self.sensor.observation)
+            self.pick_entity, self.pick_evidence = entity, evidence
+
+    def bind_legacy_task(self):
+        with self.lock:
+            self.pick_evidence = None
+            self.pick_entity = None
 
     def policy_observation(self, force=False):
         with self.lock:
@@ -159,6 +228,8 @@ class PandaEgoRuntime:
 
     def task_positions(self):
         with self.lock:
+            if self.pick_evidence is not None:
+                return self.pick_evidence.position.copy(), None
             if self.evidence.last_can is None or self.evidence.basket is None:
                 raise ValueError("Task objects have insufficient visual evidence")
             return self.evidence.last_can.copy(), np.array([*self.evidence.basket[0], self.evidence.basket[1] - .065])
@@ -174,23 +245,27 @@ class PandaEgoRuntime:
                     continue
                 category = entity["category"]["value"]
                 size = entity["stateVars"]["size"]["value"]
-                objects.append({"id": entity["id"], "category": category, "role": category,
+                item = {"id": entity["id"], "category": category, "role": category,
                     "position": entity["pose"]["value"]["p"], "sizeM": size, "extentM": size,
                     "existence": 1.0, "lastSeenAgoS": max(0, self.scene['stamp'] -
                         entity.get('stateVars', {}).get('observedAt', {}).get('value', self.scene['stamp'])),
                     "on": (self.latest["judgment"]["basket"] if category == "alphabet_soup"
                            and self.latest["judgment"]["placement"] == "confirmed" else None),
-                    "categories": {category: 1.0}, "uncertaintyM": .015})
+                    "categories": {category: 1.0}, "uncertaintyM": .015,
+                    'categorySource': entity['category'].get('src', 'observed'),
+                    'recognitionScore': entity.get('stateVars', {}).get('recognitionScore', {}).get('value')}
+                item['graspable'] = pickable(item)
+                objects.append(item)
             job = self.executor.current.to_dict() if self.executor and self.executor.current else None
             width = abs(self.sensor.observation["encoders"]["gripper0_finger_joint1"]["position"]
                         - self.sensor.observation["encoders"]["gripper0_finger_joint2"]["position"])
             return {"episodeId": self.latest["episodeId"], "stamp": self.sensor.observation["stamp"],
                     "version": self.latest["step"], "body": "libero-panda", "self": {
                         "toolPose": self.sensor.observation["tool"], "grasp": self.latest["judgment"]["grasp"],
-                        "holding": (f"e:{self.latest['episodeId']}:can" if self.latest["judgment"]["grasp"] == "confirmed"
-                                    and width < .071 and self.evidence.release is None else None)},
+                        "holding": (self.latest['judgment']['target'] if self.latest["judgment"]["grasp"] == "confirmed"
+                                    and width < .071 and (self.pick_evidence is not None or self.evidence.release is None) else None)},
                     "objects": objects, "judgment": copy.deepcopy(self.latest["judgment"]), "job": job,
-                    "skills": [SKILL] if self.executor else []}
+                    "skills": [PICK, SKILL] if self.executor else []}
 
     def query(self, category=None, near=None, radius=None):
         objects = self.summary()["objects"]
@@ -200,6 +275,7 @@ class PandaEgoRuntime:
                 raise ValueError("Unknown Ego-State reference")
             objects = [obj for obj in objects if obj["id"] != near and np.linalg.norm(
                 np.subtract(obj["position"], anchor["position"])) <= (1.0 if radius is None else radius)]
+        category = category.lower().replace(' ', '_') if category else category
         return [obj for obj in objects if category is None or obj["category"] == category]
 
     def jobs(self):
@@ -272,7 +348,7 @@ class PandaEgoRuntime:
         return self.latest
 
     def _render(self, renderer, settings):
-        if self.visual_prior is not None and self.visual_prior.robot is None:
+        if self.visual_prior is not None:
             self.visual_prior.load()
         with self.lock:
             scene = copy.deepcopy(self.scene)
@@ -286,7 +362,13 @@ class PandaEgoRuntime:
                 if entity["role"] == "robot":
                     scene["entities"][i] = robot
                 elif entity["category"]["value"] in self.visual_prior.objects:
-                    entity["body"]["links"][0]["geometry"]["visual"] = self.visual_prior.objects[entity["category"]["value"]]
+                    category = entity['category']['value']
+                    canonical = entity.get('stateVars', {}).get('canonicalVisual', {}).get('value')
+                    visuals = (self.visual_prior.matcher.templates[category]['visuals'] if canonical else
+                               self.visual_prior.objects[category])
+                    entity["body"]["links"][0]["geometry"]["visual"] = visuals
+                    entity['body']['links'][0]['geometry']['visualKey'] = category
+                    entity['body']['links'][0]['geometry'].pop('observed', None)
                 elif entity['category']['value'] == 'unknown':
                     if entity['id'] not in self.appearance_cache:
                         match = self.visual_prior.matcher.match(entity)

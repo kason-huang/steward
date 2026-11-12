@@ -89,4 +89,5 @@ class VisualMatcher:
         # Recover the small unseen bottom strip from the known class height.
         at['p'][2] = float(points[:, 2].max() - template['size'][2] / 2)
         return {'category': category, 'score': float(score),
+                'pose': at,
                 'visuals': [dict(v, pose=pose_compose(at, v['pose'])) for v in template['visuals']]}

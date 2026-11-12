@@ -1,0 +1,74 @@
+[
+  {
+    "category": "alphabet_soup",
+    "target": "e:1:can",
+    "prompt": "pick up the alphabet soup",
+    "systemCheck": "passed",
+    "policy": "explicit-noop-system-test",
+    "job": "panda-job-eb3d71ac69c047a7924adf3e1780ea5f",
+    "actionsApplied": 5,
+    "state": "failed",
+    "goalStatus": "not_achieved",
+    "stopStatus": "confirmed"
+  },
+  {
+    "category": "milk",
+    "target": "e:2:seen-2",
+    "prompt": "pick up the milk",
+    "systemCheck": "passed",
+    "policy": "explicit-noop-system-test",
+    "job": "panda-job-54a936d5b57b4e429383c87253d45943",
+    "actionsApplied": 5,
+    "state": "failed",
+    "goalStatus": "not_achieved",
+    "stopStatus": "confirmed"
+  },
+  {
+    "category": "butter",
+    "target": "e:3:seen-5",
+    "prompt": "pick up the butter",
+    "systemCheck": "passed",
+    "policy": "explicit-noop-system-test",
+    "job": "panda-job-c41de9afd0a248d38a749abfbbf136fe",
+    "actionsApplied": 5,
+    "state": "failed",
+    "goalStatus": "not_achieved",
+    "stopStatus": "confirmed"
+  },
+  {
+    "category": "cream_cheese",
+    "target": "e:4:seen-4",
+    "prompt": "pick up the cream cheese",
+    "systemCheck": "passed",
+    "policy": "explicit-noop-system-test",
+    "job": "panda-job-db02e3706a984909bef1f0c52367515a",
+    "actionsApplied": 5,
+    "state": "failed",
+    "goalStatus": "not_achieved",
+    "stopStatus": "confirmed"
+  },
+  {
+    "category": "salad_dressing",
+    "target": "e:5:seen-3",
+    "prompt": "pick up the salad dressing",
+    "systemCheck": "passed",
+    "policy": "explicit-noop-system-test",
+    "job": "panda-job-0f40df1075b349e589b6899084571971",
+    "actionsApplied": 5,
+    "state": "failed",
+    "goalStatus": "not_achieved",
+    "stopStatus": "confirmed"
+  },
+  {
+    "category": "tomato_sauce",
+    "target": "e:6:seen-1",
+    "prompt": "pick up the tomato sauce",
+    "systemCheck": "passed",
+    "policy": "explicit-noop-system-test",
+    "job": "panda-job-44234bb944e94549b94ccd1969efca50",
+    "actionsApplied": 5,
+    "state": "failed",
+    "goalStatus": "not_achieved",
+    "stopStatus": "confirmed"
+  }
+]

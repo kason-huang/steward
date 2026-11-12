@@ -1,0 +1,248 @@
+{
+  "episodeId": 3,
+  "stamp": 0.0,
+  "version": 0,
+  "body": "libero-panda",
+  "self": {
+    "toolPose": {
+      "p": [
+        -0.152564205990392,
+        -0.006272675972043295,
+        0.2484394383626053
+      ],
+      "q": [
+        -0.020642699359338965,
+        0.7071489059162857,
+        0.7064678430551257,
+        -0.020432585582803354
+      ]
+    },
+    "grasp": "unconfirmed",
+    "holding": null
+  },
+  "objects": [
+    {
+      "id": "e:3:can",
+      "category": "alphabet_soup",
+      "role": "alphabet_soup",
+      "position": [
+        -0.11035747198170984,
+        -0.2400338022924282,
+        0.0571606730836256
+      ],
+      "sizeM": [
+        0.062,
+        0.062,
+        0.075
+      ],
+      "extentM": [
+        0.062,
+        0.062,
+        0.075
+      ],
+      "existence": 1.0,
+      "lastSeenAgoS": 0,
+      "on": null,
+      "categories": {
+        "alphabet_soup": 1.0
+      },
+      "uncertaintyM": 0.015,
+      "categorySource": "observed",
+      "recognitionScore": null,
+      "graspable": true
+    },
+    {
+      "id": "e:3:basket",
+      "category": "basket",
+      "role": "basket",
+      "position": [
+        0.01895450326769401,
+        0.2519253364444003,
+        0.07084331712156966
+      ],
+      "sizeM": [
+        0.15,
+        0.16,
+        0.13
+      ],
+      "extentM": [
+        0.15,
+        0.16,
+        0.13
+      ],
+      "existence": 1.0,
+      "lastSeenAgoS": 0,
+      "on": null,
+      "categories": {
+        "basket": 1.0
+      },
+      "uncertaintyM": 0.015,
+      "categorySource": "observed",
+      "recognitionScore": null,
+      "graspable": false
+    },
+    {
+      "id": "e:3:seen-1",
+      "category": "tomato_sauce",
+      "role": "tomato_sauce",
+      "position": [
+        0.15147555205855018,
+        0.030011061664557317,
+        0.03839929767174852
+      ],
+      "sizeM": [
+        0.0664697959433255,
+        0.07019820870502877,
+        0.0828467074137626
+      ],
+      "extentM": [
+        0.0664697959433255,
+        0.07019820870502877,
+        0.0828467074137626
+      ],
+      "existence": 1.0,
+      "lastSeenAgoS": 0,
+      "on": null,
+      "categories": {
+        "tomato_sauce": 1.0
+      },
+      "uncertaintyM": 0.015,
+      "categorySource": "inferred",
+      "recognitionScore": 0.08788165141499832,
+      "graspable": true
+    },
+    {
+      "id": "e:3:seen-2",
+      "category": "milk",
+      "role": "milk",
+      "position": [
+        0.10570820499290956,
+        -0.19581465608515203,
+        0.06941250608526903
+      ],
+      "sizeM": [
+        0.0541159484854927,
+        0.05494660248315461,
+        0.14276834753088954
+      ],
+      "extentM": [
+        0.0541159484854927,
+        0.05494660248315461,
+        0.14276834753088954
+      ],
+      "existence": 1.0,
+      "lastSeenAgoS": 0,
+      "on": null,
+      "categories": {
+        "milk": 1.0
+      },
+      "uncertaintyM": 0.015,
+      "categorySource": "inferred",
+      "recognitionScore": 0.03857753685810943,
+      "graspable": true
+    },
+    {
+      "id": "e:3:seen-3",
+      "category": "salad_dressing",
+      "role": "salad_dressing",
+      "position": [
+        0.05390219248865924,
+        -0.0992778604232091,
+        0.07287777171050404
+      ],
+      "sizeM": [
+        0.06403901823246727,
+        0.04369562039588497,
+        0.14744063673073254
+      ],
+      "extentM": [
+        0.06403901823246727,
+        0.04369562039588497,
+        0.14744063673073254
+      ],
+      "existence": 1.0,
+      "lastSeenAgoS": 0,
+      "on": null,
+      "categories": {
+        "salad_dressing": 1.0
+      },
+      "uncertaintyM": 0.015,
+      "categorySource": "inferred",
+      "recognitionScore": 0.1411793558505928,
+      "graspable": true
+    },
+    {
+      "id": "e:3:seen-4",
+      "category": "cream_cheese",
+      "role": "cream_cheese",
+      "position": [
+        -0.15040287164002797,
+        0.05841835863805695,
+        0.009015166403863913
+      ],
+      "sizeM": [
+        0.08287224699564734,
+        0.04256462912685492,
+        0.019384920118715225
+      ],
+      "extentM": [
+        0.08287224699564734,
+        0.04256462912685492,
+        0.019384920118715225
+      ],
+      "existence": 1.0,
+      "lastSeenAgoS": 0,
+      "on": null,
+      "categories": {
+        "cream_cheese": 1.0
+      },
+      "uncertaintyM": 0.015,
+      "categorySource": "inferred",
+      "recognitionScore": 0.26818518545525694,
+      "graspable": true
+    },
+    {
+      "id": "e:3:seen-5",
+      "category": "butter",
+      "role": "butter",
+      "position": [
+        -0.20093690177234014,
+        -0.07519632831671991,
+        0.008859378009853158
+      ],
+      "sizeM": [
+        0.07747602073052218,
+        0.03961978317576472,
+        0.01795220870174813
+      ],
+      "extentM": [
+        0.07747602073052218,
+        0.03961978317576472,
+        0.01795220870174813
+      ],
+      "existence": 1.0,
+      "lastSeenAgoS": 0,
+      "on": null,
+      "categories": {
+        "butter": 1.0
+      },
+      "uncertaintyM": 0.015,
+      "categorySource": "inferred",
+      "recognitionScore": 0.19866406253048302,
+      "graspable": true
+    }
+  ],
+  "judgment": {
+    "grasp": "unconfirmed",
+    "placement": "unconfirmed",
+    "reason": "awaiting_visible_post_release_evidence",
+    "target": "e:3:can",
+    "basket": "e:3:basket",
+    "evidenceStep": 0
+  },
+  "job": null,
+  "skills": [
+    "pick",
+    "libero_pick_place"
+  ]
+}

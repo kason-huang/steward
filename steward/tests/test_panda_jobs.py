@@ -128,6 +128,91 @@ def test_owner_old_object_and_calibration_checks_reject_direct_http(panda):
     off_main(host, check)
 
 
+def test_pick_admits_all_visible_objects_and_binds_milk_instruction_over_real_http(panda):
+    host, runtime, url, _ = panda
+    from steward.ego.panda_visual_model import PandaVisualModel
+    runtime.visual_prior = PandaVisualModel(Path(__file__).parents[1] / 'var/step4/wsim-root/libero-step3')
+    def check():
+        runtime.observe(force=True)
+        runtime.observe_surfaces()
+        objects = call('GET', url + '/ego/summary')['objects']
+        groceries = {o['category']: o for o in objects if o['graspable']}
+        assert set(groceries) == {'alphabet_soup', 'milk', 'butter', 'cream_cheese', 'salad_dressing', 'tomato_sauce'}
+        for category, obj in groceries.items():
+            r = call('POST', url + '/ego/predict', {'skill': 'pick', 'params': {'target': obj['id']}})
+            assert r['feasible'], (category, r['issues'])
+            assert r['plan']['object']['id'] == obj['id']
+            assert r['plan']['prompt'] == 'pick up the ' + category.replace('_', ' ')
+        basket = next(o for o in objects if o['category'] == 'basket')
+        denied = call('POST', url + '/ego/predict', {'skill': 'pick', 'params': {'target': basket['id']}})
+        assert not denied['feasible']
+        r = call('POST', url + '/ego/predict', {'skill': 'pick', 'params': {'target': groceries['milk']['id']}})
+        job = call('POST', url + '/skill/run', {'receipt': r['id']})
+        final = call('POST', url + '/skill/wait', {'job': job['id'], 'timeoutS': 15})
+        assert final['skill'] == 'pick' and final['actionsApplied'] == 5
+        assert final['goalStatus'] == 'not_achieved' and final['stopStatus'] == 'confirmed'
+        assert final['evidence']['target'] == groceries['milk']['id']
+        request = json.loads((runtime.executor.out / job['id'] / 'prefix-000/observation.json').read_text())
+        assert request['prompt'] == 'pick up the milk'
+        assert request['target']['id'] == groceries['milk']['id']
+        assert not host.sim._holds
+    off_main(host, check)
+
+
+def test_pick_stop_interrupts_inference_and_confirms_stationary_control(panda):
+    host, runtime, url, client = panda
+    from steward.ego.panda_visual_model import PandaVisualModel
+    runtime.visual_prior = PandaVisualModel(Path(__file__).parents[1] / 'var/step4/wsim-root/libero-step3')
+    client.write_text(client.read_text().replace('time.sleep(0.05)', 'time.sleep(8)'))
+    def check():
+        runtime.observe(force=True); runtime.observe_surfaces(); runtime.start()
+        selected = call('GET', url + '/ego/query?category=milk')['objects'][0]
+        receipt = call('POST', url + '/ego/predict', {'skill': 'pick', 'params': {'target': selected['id']}})
+        job = call('POST', url + '/skill/run', {'receipt': receipt['id']})
+        deadline = time.monotonic() + 5
+        while call('GET', url + '/skill/status?job=' + job['id'])['phase'] != 'waiting_inference':
+            assert time.monotonic() < deadline
+            time.sleep(.01)
+        started = time.monotonic()
+        stopped = call('POST', url + '/skill/stop', {}, timeout=12)
+        assert time.monotonic() - started < 4
+        assert stopped['stopStatus'] == 'confirmed'
+        assert stopped['job']['state'] == 'stopped' and stopped['job']['actionsApplied'] == 0
+        assert not host.sim._holds
+    off_main(host, check)
+
+
+def test_rejected_pick_prefix_requires_reset_before_automatic_retry(panda, monkeypatch):
+    host, runtime, url, _ = panda
+    from steward.ego.panda_visual_model import PandaVisualModel
+    runtime.visual_prior = PandaVisualModel(Path(__file__).parents[1] / 'var/step4/wsim-root/libero-step3')
+    original = PandaPrediction.check
+    def reject_prefix(self, actions):
+        if len(actions) > 1: raise PolicyFailure('prediction_rejected', 'deliberate obstacle in test')
+        return original(self, actions)
+    def check():
+        runtime.observe(force=True); runtime.observe_surfaces()
+        selected = call('GET', url + '/ego/query?category=milk')['objects'][0]
+        r = call('POST', url + '/ego/predict', {'skill': 'pick', 'params': {'target': selected['id']}})
+        monkeypatch.setattr(PandaPrediction, 'check', reject_prefix)
+        job = call('POST', url + '/skill/run', {'receipt': r['id']})
+        final = call('POST', url + '/skill/wait', {'job': job['id'], 'timeoutS': 15})
+        assert final['reasonCode'] == 'prediction_rejected' and final['actionsApplied'] == 0
+        assert final['stopStatus'] == 'confirmed'
+        monkeypatch.setattr(PandaPrediction, 'check', original)
+        for _ in range(2):
+            denied = call('POST', url + '/ego/predict', {'skill': 'pick', 'params': {'target': selected['id']}})
+            assert not denied['feasible'] and any('reset the episode' in issue for issue in denied['issues'])
+            call('POST', url + '/skill/stop', {})
+        assert len(runtime.executor.jobs) == 1 and not host.sim._holds
+        host.on_main(host.sim.reset)
+        runtime.observe(force=True); runtime.observe_surfaces()
+        fresh = call('GET', url + '/ego/query?category=milk')['objects'][0]
+        allowed = call('POST', url + '/ego/predict', {'skill': 'pick', 'params': {'target': fresh['id']}})
+        assert allowed['feasible'], allowed['issues']
+    off_main(host, check)
+
+
 @pytest.mark.parametrize("fault", ["nan", "dimensions", "timeout"])
 def test_policy_faults_stop_without_applying_an_action(panda, fault):
     host, runtime, url, client = panda

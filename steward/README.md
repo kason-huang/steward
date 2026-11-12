@@ -48,6 +48,8 @@ Panda Ego views use the same scene converter and renderer as the kitchen, retain
 
 Pushing from 4090-2 through a local proxy, including temporary token authentication and repeatable commands, is documented in the [remote Git push guide](docs/remote-git-push.md).
 
+Panda also exposes object-bound `pick(target)` for the current scene, with named RGB-D object estimates and target-specific policy instructions; the original soup-to-basket task remains available. See [multi-object pick](docs/panda-pick.md).
+
 ## Windows
 
 Steward runs on Windows with the same commands: `uv sync` installs the `steward` executable under `.venv\Scripts`, and every `.sh` script has a PowerShell counterpart with the same name and arguments. If PowerShell refuses unsigned scripts, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once.

@@ -1,0 +1,120 @@
+{
+  "message": "pick up the milk",
+  "systemBindingCheck": "passed",
+  "beforeRetryGuard": true,
+  "attemptCount": 2,
+  "attempts": [
+    {
+      "job": {
+        "id": "panda-job-71699d8172084a0d90f31a57f9065548",
+        "skill": "pick",
+        "receipt": "panda-receipt-3b3dd6b24f88466daf8da6793e48649f",
+        "state": "failed",
+        "message": "Observed obstacle intersects tool sweep",
+        "started": 0.0,
+        "finished": 2.7499999999999187,
+        "log": [],
+        "episodeId": 2,
+        "phase": "finished",
+        "goalStatus": "unconfirmed",
+        "stopStatus": "confirmed",
+        "reasonCode": "prediction_rejected",
+        "evidence": {},
+        "actionsApplied": 35
+      },
+      "request": {
+        "episodeId": 2,
+        "step": 0,
+        "prompt": "pick up the milk",
+        "target": {
+          "id": "e:2:seen-2",
+          "category": "milk",
+          "role": "milk",
+          "position": [
+            0.10570820499290956,
+            -0.19581465608515203,
+            0.06941250608526903
+          ],
+          "sizeM": [
+            0.0541159484854927,
+            0.05494660248315461,
+            0.14276834753088954
+          ],
+          "extentM": [
+            0.0541159484854927,
+            0.05494660248315461,
+            0.14276834753088954
+          ],
+          "existence": 1.0,
+          "lastSeenAgoS": 0,
+          "on": null,
+          "categories": {
+            "milk": 1.0
+          },
+          "uncertaintyM": 0.015,
+          "categorySource": "inferred",
+          "recognitionScore": 0.03857753685810943,
+          "graspable": true
+        }
+      },
+      "rawJobDirectory": "/home/huawei/hqk/workspace/steward/steward/var/step4/wsim-root/runs/20261112-114648/ego-panda/policy-jobs/panda-job-71699d8172084a0d90f31a57f9065548"
+    },
+    {
+      "job": {
+        "id": "panda-job-bcf131d15b3e417d8235e1d05b9a478f",
+        "skill": "pick",
+        "receipt": "panda-receipt-9e73adc873594f9382bd603031e96f2e",
+        "state": "failed",
+        "message": "Observed obstacle intersects tool sweep",
+        "started": 2.7499999999999187,
+        "finished": 3.799999999999803,
+        "log": [],
+        "episodeId": 2,
+        "phase": "finished",
+        "goalStatus": "unconfirmed",
+        "stopStatus": "confirmed",
+        "reasonCode": "prediction_rejected",
+        "evidence": {},
+        "actionsApplied": 1
+      },
+      "request": {
+        "episodeId": 2,
+        "step": 1375,
+        "prompt": "pick up the milk",
+        "target": {
+          "id": "e:2:seen-2",
+          "category": "milk",
+          "role": "milk",
+          "position": [
+            0.10570820499290956,
+            -0.19581465608515203,
+            0.06941250608526903
+          ],
+          "sizeM": [
+            0.0541159484854927,
+            0.05494660248315461,
+            0.14276834753088954
+          ],
+          "extentM": [
+            0.0541159484854927,
+            0.05494660248315461,
+            0.14276834753088954
+          ],
+          "existence": 1.0,
+          "lastSeenAgoS": 0,
+          "on": null,
+          "categories": {
+            "milk": 1.0
+          },
+          "uncertaintyM": 0.015,
+          "categorySource": "inferred",
+          "recognitionScore": 0.03857753685810943,
+          "graspable": true
+        }
+      },
+      "rawJobDirectory": "/home/huawei/hqk/workspace/steward/steward/var/step4/wsim-root/runs/20261112-114648/ego-panda/policy-jobs/panda-job-bcf131d15b3e417d8235e1d05b9a478f"
+    }
+  ],
+  "physicalPickSuccess": false,
+  "notes": "Natural chat created correct milk Jobs. The first rejected trajectory was retried once by the Harness before the final reset-required fault latch was added; both were stopped and no success was claimed."
+}

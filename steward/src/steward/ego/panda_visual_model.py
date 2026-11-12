@@ -6,6 +6,7 @@ from PIL import Image
 import xml.etree.ElementTree as ET
 import mujoco
 import numpy as np
+import threading
 from steward.glrender import encode_image
 from steward.world.panda_sensors import chain
 from steward.math3d import pose_compose
@@ -16,8 +17,15 @@ CLASSES = ('alphabet_soup', 'basket', 'salad_dressing', 'cream_cheese', 'milk', 
 class PandaVisualModel:
     def __init__(self,bundle):
         self.bundle=Path(bundle).resolve();self.robot=None;self.objects={}
+        self._load_lock=threading.Lock();self._ready=False
 
     def load(self):
+        with self._load_lock:
+            if not self._ready:
+                self._load()
+                self._ready=True
+
+    def _load(self):
         manifest=dict(line.split(maxsplit=1)[::-1] for line in (self.bundle/'SHA256SUMS').read_text().splitlines())
         def read(name):
             path=(self.bundle/name).resolve()

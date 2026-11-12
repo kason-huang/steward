@@ -60,16 +60,18 @@ class PolicyFailure(Exception):
         self.code = code
 
 
-def infer(config, observation, folder, cancelled):
+def infer(config, observation, folder, cancelled, *, prompt=PROMPT, target=None):
     """Run the pinned client with one in-flight request and cancellable wall deadline."""
     folder.mkdir()
     inputs = policy_inputs(observation)
     payload = {
-        "episodeId": observation["episodeId"], "step": observation["step"], "prompt": PROMPT,
+        "episodeId": observation["episodeId"], "step": observation["step"], "prompt": prompt,
         "observation/state": inputs["observation/state"].tolist(),
         **{key: base64.b64encode(encode_image(inputs[key])).decode("ascii")
            for key in ("observation/image", "observation/wrist_image")},
     }
+    if target is not None:
+        payload['target'] = target
     source, target = folder / "observation.json", folder / "inference.json"
     write_json(source, payload)
     command = [*config.client_command, str(config.port), str(source), str(target)]
