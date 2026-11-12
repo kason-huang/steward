@@ -46,6 +46,8 @@ echo 'DEEPSEEK_API_KEY=sk-...' > .env     # 已被 Git 忽略，运行脚本自�
 
 Panda Ego State 与厨房场景共用场景转换器和渲染器，在编码器及感知估计位姿上保留已知网格和纹理，见 [Panda Ego State 可视化](docs/panda-ego-view.md)。
 
+4090-2 通过本机代理推送 GitHub 的完整命令、临时 token 认证和排错方法见[远程 Git 推送说明](docs/remote-git-push.md)。
+
 ## Windows
 
 Windows 上使用同样的命令：`uv sync` 把 `steward` 可执行文件装在 `.venv\Scripts` 下，每个 `.sh` 脚本都有同名、同参数的 PowerShell 版本。如果 PowerShell 拒绝运行未签名脚本，先执行一次 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`。

@@ -46,6 +46,8 @@ On 4090-2, start the model with `.venv/bin/python scripts/launch_pi05_libero.py 
 
 Panda Ego views use the same scene converter and renderer as the kitchen, retaining known visual meshes and textures at encoder/estimated poses. See [Panda Ego view](docs/panda-ego-view.md).
 
+Pushing from 4090-2 through a local proxy, including temporary token authentication and repeatable commands, is documented in the [remote Git push guide](docs/remote-git-push.md).
+
 ## Windows
 
 Steward runs on Windows with the same commands: `uv sync` installs the `steward` executable under `.venv\Scripts`, and every `.sh` script has a PowerShell counterpart with the same name and arguments. If PowerShell refuses unsigned scripts, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once.
