@@ -8,6 +8,9 @@ import mujoco
 import numpy as np
 from steward.glrender import encode_image
 from steward.world.panda_sensors import chain
+from steward.math3d import pose_compose
+
+CLASSES = ('alphabet_soup', 'basket', 'salad_dressing', 'cream_cheese', 'milk', 'tomato_sauce', 'butter')
 
 
 class PandaVisualModel:
@@ -26,7 +29,7 @@ class PandaVisualModel:
         for tag in ('compiler','default','asset'):
             for element in original.findall(tag):xml.append(copy.deepcopy(element))
         world=ET.SubElement(xml,'worldbody')
-        for name in ('robot0_base','alphabet_soup_1_main','basket_1_main'):
+        for name in ('robot0_base', *(category+'_1_main' for category in CLASSES)):
             node=copy.deepcopy(original.find("worldbody/body[@name='%s']"%name))
             if name!='robot0_base':
                 node.set('pos','0 0 0');node.set('quat','1 0 0 0')
@@ -43,7 +46,7 @@ class PandaVisualModel:
             geom=model.geom(index)
             if geom.group[0]!=1:continue
             body=model.body(int(geom.bodyid[0]));name=body.name
-            if not name.startswith(('robot0_','gripper0_','alphabet_soup_1','basket_1')):continue
+            if not name.startswith(('robot0_','gripper0_', *(c+'_1' for c in CLASSES))):continue
             if geom.type[0]!=mujoco.mjtGeom.mjGEOM_MESH:continue
             mid=int(geom.dataid[0]);vadr=model.mesh_vertadr[mid];vn=model.mesh_vertnum[mid];fadr=model.mesh_faceadr[mid];fn=model.mesh_facenum[mid]
             lines=['v '+' '.join(map(str,v)) for v in model.mesh_vert[vadr:vadr+vn]]
@@ -68,11 +71,12 @@ class PandaVisualModel:
                 key=json.dumps(chain(model,body.id),sort_keys=True)
                 self.robot.setdefault(key,[]).append(item)
             else:
-                category='alphabet_soup' if name.startswith('alphabet_soup') else 'basket'
+                category=next(c for c in CLASSES if name.startswith(c+'_1'))
                 self.objects.setdefault(category,[]).append(item)
         # Recenter category templates geometrically, independent of any episode placement.
         data=mujoco.MjData(model);mujoco.mj_forward(model,data)
-        for category,prefix in (('alphabet_soup','alphabet_soup_1'),('basket','basket_1')):
+        for category in CLASSES:
+            prefix=category+'_1'
             gids=[i for i in range(model.ngeom) if model.body(model.geom(i).bodyid[0]).name.startswith(prefix) and model.geom(i).group[0]==1]
             low=[];high=[]
             for gid in gids:
@@ -80,4 +84,12 @@ class PandaVisualModel:
                 center=data.geom_xpos[gid]+rotation@center;extent=np.abs(rotation)@half
                 low.append(center-extent);high.append(center+extent)
             center=(np.min(low,axis=0)+np.max(high,axis=0))/2
-            for item in self.objects[category]:item['pose']['p']=(np.array(item['pose']['p'])-center).tolist()
+            # The HOPE soup mesh's cylinder axis is +Y. The Ego position/size
+            # estimate uses an upright +Z cylinder, unlike the source mesh frame.
+            canonical = {'p': [0, 0, 0], 'q': [2**-.5, 2**-.5, 0, 0]
+                         if category == 'alphabet_soup' else [1, 0, 0, 0]}
+            for item in self.objects[category]:
+                item['pose']['p']=(np.array(item['pose']['p'])-center).tolist()
+                item['pose']=pose_compose(canonical,item['pose'])
+        from steward.ego.visual_matching import VisualMatcher
+        self.matcher=VisualMatcher(self.objects)

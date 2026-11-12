@@ -42,6 +42,9 @@ class PandaEgoRuntime:
         if self.out_dir is not None:
             self.out_dir.mkdir(parents=True, exist_ok=True)
         self.evidence = PandaEvidence()
+        self.visible_objects = []
+        self.surface_key = None
+        self.appearance_cache = {}
         self.scene = SceneState("ego").to_dict()
         self.visual_prior = None
         if visual_bundle is not None:
@@ -68,6 +71,7 @@ class PandaEgoRuntime:
         while not self.stop_event.is_set():
             try:
                 self.observe()
+                self.observe_surfaces()
             except (OSError, HttpError, ValueError, KeyError) as exc:
                 _LOG.warning("Panda observation unavailable: %s", exc)
             self.stop_event.wait(0.12)
@@ -87,6 +91,7 @@ class PandaEgoRuntime:
             robot.state_vars["fingerWidth"] = exact(width)
             if self.latest is None or self.latest["episodeId"] != observation["episodeId"]:
                 self.evidence = PandaEvidence()
+                self.visible_objects = []
             can, basket, grasp, placement, reason = self.evidence.update(observation, width)
             entities = [robot]
             for identifier, category, point, size in (
@@ -99,6 +104,7 @@ class PandaEgoRuntime:
                                            exact({"p": list(point), "q": [1, 0, 0, 0]}),
                                            RigidTree(exact("fixed"), [observed_box("observed", size)]),
                                            state_vars={"size": exact(size)}))
+            entities.extend(self.visible_objects)
             robot.state_vars.update({"grasp": exact(grasp), "placement": exact(placement)})
             scene = SceneState("ego", entities=entities, self_id=robot.id,
                                version=observation["step"], stamp=observation["stamp"])
@@ -111,6 +117,38 @@ class PandaEgoRuntime:
                                         "evidenceStep": observation["step"]}}
             self.link.telemetry(self.scene | {"episodeId": observation["episodeId"]})
             return self.latest
+
+    def observe_surfaces(self):
+        """Refresh display surfaces on the background observer, outside the policy lock."""
+        with self.lock:
+            observation = self.sensor.observation
+            if observation is None:
+                return
+            key = observation['episodeId'], observation['step']
+            if key == self.surface_key:
+                return
+            known = [e for e in self.scene['entities'] if e['role'] == 'object'
+                     and e['category']['value'] != 'unknown']
+            if self.evidence.last_can is not None:
+                known.append({'pose': {'value': pose(self.evidence.last_can.tolist())},
+                              'stateVars': {'size': {'value': [.10, .10, .12]}}})
+            # A partially occluded held target must not be reclassified as a new
+            # package merely because its blue label is hidden by the fingers.
+            if self.evidence.grasp == 'confirmed' and self.evidence.release is None:
+                center = np.asarray(observation['tool']['p']) - [0, 0, .04]
+                known.append({'pose': {'value': pose(center.tolist())},
+                              'stateVars': {'size': {'value': [.14, .14, .18]}}})
+            previous = self.visible_objects
+        from steward.ego.panda_surfaces import surface_entities
+        visible = surface_entities(observation, f'e:{key[0]}:', known, previous)
+        with self.lock:
+            if self.latest['episodeId'] != key[0]:
+                return
+            self.surface_key = key
+            self.visible_objects = visible
+            self.scene['entities'] = [e for e in self.scene['entities'] if e['category']['value'] != 'unknown']
+            self.scene['entities'].extend(e.to_dict() for e in visible)
+            self.link.telemetry(self.scene | {'episodeId': key[0]})
 
     def policy_observation(self, force=False):
         with self.lock:
@@ -138,7 +176,8 @@ class PandaEgoRuntime:
                 size = entity["stateVars"]["size"]["value"]
                 objects.append({"id": entity["id"], "category": category, "role": category,
                     "position": entity["pose"]["value"]["p"], "sizeM": size, "extentM": size,
-                    "existence": 1.0, "lastSeenAgoS": 0.0,
+                    "existence": 1.0, "lastSeenAgoS": max(0, self.scene['stamp'] -
+                        entity.get('stateVars', {}).get('observedAt', {}).get('value', self.scene['stamp'])),
                     "on": (self.latest["judgment"]["basket"] if category == "alphabet_soup"
                            and self.latest["judgment"]["placement"] == "confirmed" else None),
                     "categories": {category: 1.0}, "uncertaintyM": .015})
@@ -238,13 +277,27 @@ class PandaEgoRuntime:
         with self.lock:
             scene = copy.deepcopy(self.scene)
             observation = self.sensor.observation
-            if self.visual_prior is not None and observation is not None:
-                from steward.ego.panda_self_model import self_entity
-                robot = self_entity(observation, scene["self"], self.visual_prior.robot).to_dict()
-                for i,entity in enumerate(scene["entities"]):
-                    if entity["role"] == "robot":scene["entities"][i] = robot
-                    elif entity["category"]["value"] in self.visual_prior.objects:
-                        entity["body"]["links"][0]["geometry"]["visual"] = self.visual_prior.objects[entity["category"]["value"]]
+        if self.visual_prior is not None and observation is not None:
+            from steward.ego.panda_self_model import self_entity
+            robot = self_entity(observation, scene["self"], self.visual_prior.robot).to_dict()
+            active = {e['id'] for e in scene['entities']}
+            self.appearance_cache = {k: v for k, v in self.appearance_cache.items() if k in active}
+            for i,entity in enumerate(scene["entities"]):
+                if entity["role"] == "robot":
+                    scene["entities"][i] = robot
+                elif entity["category"]["value"] in self.visual_prior.objects:
+                    entity["body"]["links"][0]["geometry"]["visual"] = self.visual_prior.objects[entity["category"]["value"]]
+                elif entity['category']['value'] == 'unknown':
+                    if entity['id'] not in self.appearance_cache:
+                        match = self.visual_prior.matcher.match(entity)
+                        if match is not None:
+                            self.appearance_cache[entity['id']] = match
+                    match = self.appearance_cache.get(entity['id'])
+                    if match is not None:
+                        geometry = entity['body']['links'][0]['geometry']
+                        geometry['visual'] = match['visuals']
+                        geometry['visualKey'] = match['category']
+                        geometry.pop('observed', None)
         return renderer.render(scene, settings), "image/jpeg", {"esVersion": scene["version"], "t": scene["stamp"]}
 
 

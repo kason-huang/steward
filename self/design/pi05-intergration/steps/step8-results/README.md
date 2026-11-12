@@ -1,5 +1,7 @@
 # Step 8：初态 0 端到端实测报告
 
+2026-11-12 补充：[Panda Ego 物体显示修复实测](ego-object-visuals/README.md)，包含汤罐朝向、其余五个可见物体、真实聊天回归及录像路径。
+
 2026-11-11，4090-2，分支 `feat-pi05-intergration`。本轮按缩小后的 [Step 8 方案](../step8.md)完成：**最终 smoke-03 的原始 LIBERO 参考和 WSim 真实 Ego Harness 链路均通过**。原始侧执行 280 条策略动作后物理成功、停止 confirmed；WSim 执行 150 条动作，唯一 Panda Job 为 succeeded，目标 achieved，停止 confirmed，独立物理评估成功。所有开发试运行均保留，包括 smoke-02 原始策略没有抓起汤罐的失败。
 
 任务为 `pick up the alphabet soup and place it in the basket`，类别为抓取、搬运、容器内放置。场景 `libero-object-alphabet-soup-panda`，仅初态 0。此报告证明一条完整流程已打通，不代表多初态稳定成功率或 LIBERO 全任务验收。

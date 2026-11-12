@@ -152,6 +152,7 @@ def test_policy_faults_stop_without_applying_an_action(panda, fault):
 
 def test_stop_interrupts_an_inflight_policy_request_without_waiting_for_it(panda):
     host, runtime, url, client = panda
+    runtime.start()
     client.write_text(client.read_text().replace("time.sleep(0.05)", "time.sleep(8)"))
 
     def check():

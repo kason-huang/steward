@@ -1,0 +1,21 @@
+{
+  "settings": {
+    "camera": {
+      "lookat": [
+        -0.15,
+        0.0,
+        0.15
+      ],
+      "distance": 1.65,
+      "azimuth": 90.0,
+      "elevation": -50.0
+    },
+    "fps": 10.0,
+    "width": 1024,
+    "height": 768
+  },
+  "fps": 7.37,
+  "frame": 17944494989,
+  "renderMs": 34.2,
+  "error": null
+}

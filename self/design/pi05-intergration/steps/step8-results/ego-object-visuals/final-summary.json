@@ -1,0 +1,249 @@
+{
+  "episodeId": 6,
+  "stamp": 9.249999999999758,
+  "version": 4625,
+  "body": "libero-panda",
+  "self": {
+    "toolPose": {
+      "p": [
+        -0.01505323510894796,
+        0.24175234703065343,
+        0.20247387401000183
+      ],
+      "q": [
+        -0.10132900004498425,
+        0.739000354916524,
+        0.6614833534923497,
+        -0.07778613138375258
+      ]
+    },
+    "grasp": "confirmed",
+    "holding": null
+  },
+  "objects": [
+    {
+      "id": "e:6:can",
+      "category": "alphabet_soup",
+      "role": "alphabet_soup",
+      "position": [
+        -0.009322905659816166,
+        0.2503716974277761,
+        0.09605696715695072
+      ],
+      "sizeM": [
+        0.062,
+        0.062,
+        0.075
+      ],
+      "extentM": [
+        0.062,
+        0.062,
+        0.075
+      ],
+      "existence": 1.0,
+      "lastSeenAgoS": 0,
+      "on": "e:6:basket",
+      "categories": {
+        "alphabet_soup": 1.0
+      },
+      "uncertaintyM": 0.015
+    },
+    {
+      "id": "e:6:basket",
+      "category": "basket",
+      "role": "basket",
+      "position": [
+        0.018954510875648846,
+        0.2519445633233893,
+        0.0707179649555586
+      ],
+      "sizeM": [
+        0.15,
+        0.16,
+        0.13
+      ],
+      "extentM": [
+        0.15,
+        0.16,
+        0.13
+      ],
+      "existence": 1.0,
+      "lastSeenAgoS": 0,
+      "on": null,
+      "categories": {
+        "basket": 1.0
+      },
+      "uncertaintyM": 0.015
+    },
+    {
+      "id": "e:6:seen-1",
+      "category": "unknown",
+      "role": "unknown",
+      "position": [
+        0.15147555205855018,
+        0.030011061664557317,
+        0.043659651378629816
+      ],
+      "sizeM": [
+        0.06383719047897041,
+        0.06910895411191512,
+        0.07232670735628788
+      ],
+      "extentM": [
+        0.06383719047897041,
+        0.06910895411191512,
+        0.07232670735628788
+      ],
+      "existence": 1.0,
+      "lastSeenAgoS": 0.1000000000000334,
+      "on": null,
+      "categories": {
+        "unknown": 1.0
+      },
+      "uncertaintyM": 0.015
+    },
+    {
+      "id": "e:6:seen-2",
+      "category": "unknown",
+      "role": "unknown",
+      "position": [
+        0.10570820499290956,
+        -0.19581465608515203,
+        0.0744316798507138
+      ],
+      "sizeM": [
+        0.05315347651494129,
+        0.05368260344288986,
+        0.13272942168090796
+      ],
+      "extentM": [
+        0.05315347651494129,
+        0.05368260344288986,
+        0.13272942168090796
+      ],
+      "existence": 1.0,
+      "lastSeenAgoS": 0.1000000000000334,
+      "on": null,
+      "categories": {
+        "unknown": 1.0
+      },
+      "uncertaintyM": 0.015
+    },
+    {
+      "id": "e:6:seen-3",
+      "category": "unknown",
+      "role": "unknown",
+      "position": [
+        0.05390219248865924,
+        -0.0992778604232091,
+        0.0769200900758703
+      ],
+      "sizeM": [
+        0.03608930565160828,
+        0.06083598181887277,
+        0.13935538106982515
+      ],
+      "extentM": [
+        0.03608930565160828,
+        0.06083598181887277,
+        0.13935538106982515
+      ],
+      "existence": 1.0,
+      "lastSeenAgoS": 0.1000000000000334,
+      "on": null,
+      "categories": {
+        "unknown": 1.0
+      },
+      "uncertaintyM": 0.015
+    },
+    {
+      "id": "e:6:seen-4",
+      "category": "unknown",
+      "role": "unknown",
+      "position": [
+        -0.15040287164002797,
+        0.05841835863805695,
+        0.014687626463221526
+      ],
+      "sizeM": [
+        0.08070219940490753,
+        0.0415799635733035,
+        0.008039280292274853
+      ],
+      "extentM": [
+        0.08070219940490753,
+        0.0415799635733035,
+        0.008039280292274853
+      ],
+      "existence": 1.0,
+      "lastSeenAgoS": 0.1000000000000334,
+      "on": null,
+      "categories": {
+        "unknown": 1.0
+      },
+      "uncertaintyM": 0.015
+    },
+    {
+      "id": "e:6:seen-5",
+      "category": "unknown",
+      "role": "unknown",
+      "position": [
+        -0.20093690177234014,
+        -0.07519632831671991,
+        0.012962482360727223
+      ],
+      "sizeM": [
+        0.06928173589396591,
+        0.038204671199019685,
+        0.009746792240988289
+      ],
+      "extentM": [
+        0.06928173589396591,
+        0.038204671199019685,
+        0.009746792240988289
+      ],
+      "existence": 1.0,
+      "lastSeenAgoS": 0.1000000000000334,
+      "on": null,
+      "categories": {
+        "unknown": 1.0
+      },
+      "uncertaintyM": 0.015
+    }
+  ],
+  "judgment": {
+    "grasp": "confirmed",
+    "placement": "confirmed",
+    "reason": "stable_visible_can_below_rim",
+    "target": "e:6:can",
+    "basket": "e:6:basket",
+    "evidenceStep": 4625
+  },
+  "job": {
+    "id": "panda-job-31d89ac6c5e94bca9f369fadebd18993",
+    "skill": "libero_pick_place",
+    "receipt": "panda-receipt-a49a2ab134e242bbacf3843b937bbc2b",
+    "state": "succeeded",
+    "message": "goal_achieved",
+    "started": 0.0,
+    "finished": 9.249999999999758,
+    "log": [],
+    "episodeId": 6,
+    "phase": "finished",
+    "goalStatus": "achieved",
+    "stopStatus": "confirmed",
+    "reasonCode": "goal_achieved",
+    "evidence": {
+      "grasp": "confirmed",
+      "placement": "confirmed",
+      "reason": "stable_visible_can_below_rim",
+      "target": "e:6:can",
+      "basket": "e:6:basket",
+      "evidenceStep": 4125
+    },
+    "actionsApplied": 165
+  },
+  "skills": [
+    "libero_pick_place"
+  ]
+}

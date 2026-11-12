@@ -10,11 +10,10 @@ fainter when their existence probability is low, the robot body at its own estim
 neutral floor for orientation. Walls on the camera side are left out so the camera looks into the
 room.
 
-The robot and the floor are compiled into a model together with a pool of box slots; every other
-entity (each is one box in an Ego-State) is drawn by a slot whose pose, size and colour are set per
-frame, and unused slots are hidden. Tracks appearing and disappearing therefore cost nothing; the
-model is compiled again only when the robot model changes or the pool must grow (doubling). All
-calls must run on one thread, which owns the OpenGL renderers.
+The robot, floor and known mesh appearances are compiled together with a pool of box slots.
+Other bounding boxes use slots updated per frame. Measured coloured surfaces are appended as
+non-colliding triangles after each scene update, so changing observations never require recompiling
+the robot. All calls run on one thread, which owns the OpenGL renderers.
 """
 
 from __future__ import annotations
@@ -28,6 +27,7 @@ import numpy as np
 
 from steward.glrender import close_renderer, encode_image, free_camera
 from steward.math3d import pose_compose, yaw_from_quat
+from steward.ego.observed_surfaces import append_surfaces
 from steward.scene.mjcf import MjcfBuild, build_mjcf
 from steward.scene.schema import SceneState
 from steward.viewloop import ViewSettings
@@ -131,7 +131,8 @@ class EgoViewRenderer:
                  or any(link.geometry.get("visual") for link in e.rigid.links)]
         boxes = [(e, g) for e in scene.entities if e not in fixed for g in e.rigid.links[0].geometry.get("collision", [])]
         capacity = max(SLOT_MIN, 1 << max(0, len(boxes) - 1).bit_length())
-        structure = (tuple((e.id, e.rigid.root.value, len(e.rigid.links)) for e in fixed), capacity)
+        structure = (tuple((e.id, e.rigid.root.value, len(e.rigid.links),
+                            tuple(link.geometry.get('visualKey') for link in e.rigid.links)) for e in fixed), capacity)
         compiled = self._compiled
         if compiled is None or compiled.structure != structure:
             if compiled is not None:
@@ -145,9 +146,14 @@ class EgoViewRenderer:
         mujoco.mj_camlight(compiled.model, compiled.data)
         key = (settings.width, settings.height)
         if key not in compiled.renderers:
-            compiled.renderers[key] = mujoco.Renderer(compiled.model, settings.height, settings.width)
+            compiled.renderers[key] = mujoco.Renderer(compiled.model, settings.height, settings.width, max_geom=20000)
         renderer = compiled.renderers[key]
         renderer.update_scene(compiled.data, camera=free_camera(camera))
+        before_surfaces = renderer.scene.ngeom
+        append_surfaces(renderer.scene, scene)
+        # Measured surfaces are open sheets; operators may view their back sides.
+        if renderer.scene.ngeom > before_surfaces:
+            renderer.scene.flags[mujoco.mjtRndFlag.mjRND_CULL_FACE] = False
         return encode_image(renderer.render(), "jpeg")
 
     @staticmethod

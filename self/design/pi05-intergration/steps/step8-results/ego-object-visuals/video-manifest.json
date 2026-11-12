@@ -1,0 +1,20 @@
+[
+  {
+    "file": "/home/huawei/hqk/workspace/steward/steward/var/pi05-ego-object-diagnosis/final-live/world.mp4",
+    "sha256": "52bd4ac50713f8ded227515e140c4403dc8c0d707c4f50a664bdfea7d04398ea",
+    "bytes": 814474,
+    "fps": 2
+  },
+  {
+    "file": "/home/huawei/hqk/workspace/steward/steward/var/pi05-ego-object-diagnosis/final-live/ego.mp4",
+    "sha256": "966156cc03392027005db23988267a41d6c788c15580c7980670f2be538f2ac6",
+    "bytes": 668601,
+    "fps": 2
+  },
+  {
+    "file": "/home/huawei/hqk/workspace/steward/steward/var/pi05-ego-object-diagnosis/final-live/pair.mp4",
+    "sha256": "3b5953c1f931bb64146e9729a417cb6be6d581e3797110379098ece82dce0ef7",
+    "bytes": 971094,
+    "fps": 2
+  }
+]

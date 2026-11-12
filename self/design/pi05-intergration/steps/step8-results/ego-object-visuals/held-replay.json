@@ -1,0 +1,160 @@
+[
+  {
+    "frame": 65,
+    "step": 1625,
+    "before": [
+      {
+        "id": "e:4:seen-6",
+        "appearance": "butter"
+      }
+    ],
+    "after": []
+  },
+  {
+    "frame": 70,
+    "step": 1750,
+    "before": [
+      {
+        "id": "e:4:seen-6",
+        "appearance": "butter"
+      }
+    ],
+    "after": []
+  },
+  {
+    "frame": 75,
+    "step": 1875,
+    "before": [],
+    "after": []
+  },
+  {
+    "frame": 80,
+    "step": 2000,
+    "before": [
+      {
+        "id": "e:4:seen-6",
+        "appearance": "butter"
+      }
+    ],
+    "after": []
+  },
+  {
+    "frame": 85,
+    "step": 2125,
+    "before": [
+      {
+        "id": "e:4:seen-6",
+        "appearance": "butter"
+      }
+    ],
+    "after": []
+  },
+  {
+    "frame": 90,
+    "step": 2250,
+    "before": [
+      {
+        "id": "e:4:seen-6",
+        "appearance": "butter"
+      }
+    ],
+    "after": []
+  },
+  {
+    "frame": 95,
+    "step": 2375,
+    "before": [
+      {
+        "id": "e:4:seen-6",
+        "appearance": "butter"
+      }
+    ],
+    "after": []
+  },
+  {
+    "frame": 100,
+    "step": 2500,
+    "before": [
+      {
+        "id": "e:4:seen-6",
+        "appearance": "butter"
+      }
+    ],
+    "after": []
+  },
+  {
+    "frame": 105,
+    "step": 2625,
+    "before": [
+      {
+        "id": "e:4:seen-7",
+        "appearance": "butter"
+      }
+    ],
+    "after": []
+  },
+  {
+    "frame": 110,
+    "step": 2750,
+    "before": [
+      {
+        "id": "e:4:seen-6",
+        "appearance": "butter"
+      }
+    ],
+    "after": []
+  },
+  {
+    "frame": 115,
+    "step": 2875,
+    "before": [
+      {
+        "id": "e:4:seen-6",
+        "appearance": "butter"
+      }
+    ],
+    "after": []
+  },
+  {
+    "frame": 120,
+    "step": 3000,
+    "before": [],
+    "after": []
+  },
+  {
+    "frame": 125,
+    "step": 3125,
+    "before": [],
+    "after": []
+  },
+  {
+    "frame": 130,
+    "step": 3250,
+    "before": [],
+    "after": []
+  },
+  {
+    "frame": 135,
+    "step": 3375,
+    "before": [],
+    "after": []
+  },
+  {
+    "frame": 140,
+    "step": 3500,
+    "before": [],
+    "after": []
+  },
+  {
+    "frame": 145,
+    "step": 3625,
+    "before": [],
+    "after": []
+  },
+  {
+    "frame": 150,
+    "step": 3750,
+    "before": [],
+    "after": []
+  }
+]
