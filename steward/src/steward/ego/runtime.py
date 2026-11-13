@@ -25,6 +25,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
+from steward.ego.verification import PlacementVerifier, VerificationConfig
 from steward.ego.perception import (PerceptionConfig, box_of, decimated, decode_rgbd, face_colour_stats, match_face, resample_face, segments,
                                     top_face,
                                     top_face_array,
@@ -115,6 +116,7 @@ class RuntimeConfig:
     motion: MotionConfig = field(default_factory=MotionConfig)
     roles: RoleConfig = field(default_factory=RoleConfig)
     reflection: ReflectionConfig = field(default_factory=ReflectionConfig)
+    verification: VerificationConfig = field(default_factory=VerificationConfig)
 
 
 def body_ok(category: str) -> bool:
@@ -327,6 +329,7 @@ class EgoRuntime:
         self._episode: int | None = None  # the world's episode number of the last sensor frame
         self._generation = 0  # counts restarts: state read in one episode is not applied in the next
         self._receipt_generation: dict[str, int] = {}  # receipt id -> the generation it was predicted in
+        self._place_releases: dict[str, tuple[int, float | None]] = {}
         self._looked_at: dict[str, float] = {}  # target id -> body stamp of its last fresh look
         self._roles: dict[str, str] = {}  # the latest role assignment, kept unless clearly outweighed
         self.activity: collections.deque[dict] = collections.deque(maxlen=ACTIVITY_MAX)
@@ -338,7 +341,7 @@ class EgoRuntime:
         self.executor = SkillExecutor(lambda cmd: self.link.command(self.arm.command(cmd)), self._motion_state,
                                       self._mark_held, self.config.motion,
                                       shift=self._shift_track, on_error=lambda msg: self.alert(msg, "skill"),
-                                      on_finish=self._skill_finished, on_release=self._released,
+                                      on_finish=self._skill_finished, on_release=self._released, verify_place=self._verify_place,
                                       on_begin=self._skill_begin, clock=self.link,
                                       closed_drawers=self._closed_drawer_ids, drawer_plan=self._drawer_plan,
                                       pin=self._pin_track, furniture=self._furniture_id,
@@ -734,6 +737,7 @@ class EgoRuntime:
         self._generation += 1
         self.estimator = EgoEstimator(robot_model=self.estimator.robot_model, config=self.estimator.config)
         self.receipts.clear()
+        self._place_releases.clear()
         self._receipt_generation.clear()  # skills predicted before now are of another episode
         self._roles.clear()
         self._looked_at.clear()
@@ -903,6 +907,87 @@ class EgoRuntime:
             if not self._same_episode(generation, body):  # the skill or the body is another episode's
                 return
             self.estimator.release_at(track_id, spot, body=body)
+            job_id = threading.current_thread().name.removeprefix("skill-")
+            job = self.executor.jobs.get(job_id)
+            if job is not None and job.skill == "place":
+                self._place_releases[job_id] = (generation, float(body["stamp"]) if body and body.get("stamp") is not None else None)
+
+    def _verify_place(self, job, receipt: dict, tick) -> dict:
+        """Check fresh post-release observations while retaining the skill's motion ownership.
+
+        Perception continues on its existing worker; ticks advance the world and remain
+        cancellable. A timeout, missing identity, reset or unavailable evidence is unknown,
+        never confirmation from the estimator's commanded release position. No retry moves.
+        """
+        import copy
+        with self._lock:
+            release = self._place_releases.pop(job.id, None)
+        unknown = {"status": "unknown", "checks": {}, "reason": "no measured release timestamp; inspect before continuing"}
+        if release is None or release[1] is None:
+            return unknown
+        generation, released_at = release
+        cfg = copy.deepcopy(self.config.verification)
+        plan = copy.deepcopy(receipt["plan"])
+        verifier = PlacementVerifier(plan, dict(receipt.get("params") or {}), released_at, cfg)
+        result = unknown
+        deadline = time.monotonic() + cfg.timeout_s
+        started_at = None
+        while time.monotonic() < deadline:
+            body = tick()
+            if started_at is None:
+                started_at = body.get("stamp", released_at)
+            with self._lock:
+                if generation != self._generation or self._receipt_generation.get(job.receipt) != generation:
+                    return {"status": "unknown", "checks": {}, "reason": "scene changed during placement verification"}
+                est = self.estimator
+                target = est.tracks.get(plan["object"])
+                observed = None
+                ambiguous = False
+                if (target is not None and target.last_seen > released_at and target.existence >= cfg.min_existence
+                        and body.get("stamp", released_at) - target.last_seen <= cfg.max_age_s):
+                    ambiguous = any(other.id != target.id and not other.held
+                                    and other.category == target.category and other.existence >= cfg.min_existence
+                                    and float(np.linalg.norm(other.pos - target.pos)) <= cfg.identity_separation_m
+                                    + cfg.confidence_sigma * math.sqrt(float(max(other.var + target.var)))
+                                    for other in est.tracks.values())
+                    scene = est.to_scene()
+                    support = next((r.b.get("entity") for r in scene.relations
+                                    if r.type == "supported-by" and r.a["entity"] == target.id), None)
+                    support_track = est.tracks.get(support)
+                    support_fresh = (support_track is not None and support_track.last_seen > released_at
+                                     and body.get("stamp", released_at) - support_track.last_seen <= cfg.max_age_s)
+                    if "floor" in plan and abs(target.bottom()) + cfg.confidence_sigma * math.sqrt(float(target.var[2])) <= cfg.floor_height_tolerance_m:
+                        support, support_fresh = "floor", True
+                    expected_support = est.tracks.get(plan.get("support"))
+                    contact = {}
+                    if expected_support is not None:
+                        if "support-surface" not in expected_support.affordances:
+                            support_fresh = False  # Receptacle interiors need observed floor geometry.
+                        else:
+                            contact = {"supportGapM": target.bottom() - expected_support.top(),
+                                       "supportSigmaM": math.sqrt(float(target.var[2] + expected_support.var[2]))}
+                            support_fresh = (support_fresh and expected_support.last_seen > released_at
+                                             and body.get("stamp", released_at) - expected_support.last_seen <= cfg.max_age_s)
+                    observed = {"stamp": target.last_seen, "position": target.pos.tolist(),
+                                "sigmaM": math.sqrt(float(max(target.var[:2]))),
+                                "heightM": float(target.size[2]),
+                                "support": support, "supportFresh": support_fresh, **contact}
+            fresh_body = body.get("stamp", -1) > released_at
+            holding = bool(body["gripper"]["holding"]) if fresh_body and "holding" in body.get("gripper", {}) else None
+            result = verifier.observe(None if ambiguous else observed, holding)
+            if ambiguous:
+                result['checks']['identity'] = 'unknown'
+                if result['status'] == 'unknown':
+                    result['reason'] = 'nearby similar tracks make target identity uncertain; inspect before continuing'
+            elif observed is not None:
+                result['checks']['identity'] = 'passed'
+            if result["status"] in ("passed", "failed"):
+                return result
+            if result["checks"].get("position") == result["checks"].get("support") == "passed":
+                return result  # Remaining appearance conditions need a different observation method.
+            if body.get("stamp", started_at) - started_at >= cfg.timeout_s:
+                break
+        return result
 
     def _skill_generation(self) -> int:
         """The generation the running skill was predicted in: a callback reached after a reset (the
@@ -1508,7 +1593,7 @@ class EgoRuntime:
     # ---------------------------------------------------------------- activity
     def _log(self, kind: str, text: str) -> None:
         """Append to the activity record the console shows below the Ego-State view: ``step``,
-        ``difficulty``, ``state``, ``skill``, ``alert`` and ``reflection`` entries, newest last."""
+        ``difficulty``, ``state``, ``skill``, ``verification``, ``alert`` and ``reflection`` entries, newest last."""
         with self._lock:
             self.activity.append({"id": next(self._activity_ids), "t": round(self.estimator.stamp, 1),
                                   "kind": kind, "text": text[:ALERT_TEXT_MAX]})
@@ -1551,8 +1636,13 @@ class EgoRuntime:
               file=sys.stderr, flush=True)
 
     def _skill_finished(self, job) -> None:
+        with self._lock:
+            self._place_releases.pop(job.id, None)
         result = {"succeeded": "完成", "failed": "失败", "stopped": "被停止"}.get(job.state, job.state)
         self._log("skill", f"{job.skill} {result}" + (f"：{job.message}" if job.state != "succeeded" else ""))
+
+        if job.verification is not None:
+            self._log("verification", f"place {job.verification['status']}: {job.verification['reason']}")
 
     def activity_since(self, since: int = 0) -> list[dict]:
         """Activity entries with an id above ``since``, oldest first.
@@ -1773,8 +1863,8 @@ class EgoRuntime:
         limit = receipt.get("maxRisk", self.config.max_risk)
         if receipt["risk"] > limit:
             raise PermissionError(f"receipt risk {receipt['risk']:.2f} exceeds the limit {limit:.2f}")
-        receipt["used"] = True
         job = self.executor.start(receipt["skill"], receipt).to_dict()
+        receipt["used"] = True
         params = receipt.get("params") or {}
         target = params.get("target") or params.get("on") or (f"({params['x']:.2f}, {params['y']:.2f})" if "x" in params else "")
         self._log("skill", f"{receipt['skill']} 开始" + (f"：{target}" if target else ""))

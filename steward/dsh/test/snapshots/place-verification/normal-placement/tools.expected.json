@@ -1,0 +1,20 @@
+{
+  "job": "job-place",
+  "skill": "place",
+  "state": "succeeded",
+  "message": "placed e:piece on e:table",
+  "log": [],
+  "execution": "succeeded",
+  "verification": {
+    "status": "passed",
+    "checks": {
+      "released": "passed",
+      "position": "passed",
+      "support": "passed"
+    },
+    "reason": "fresh stable observations confirm the requested placement",
+    "supportGapM": 0.001,
+    "supportUncertaintyM": 0.0027,
+    "supportToleranceM": 0.01
+  }
+}

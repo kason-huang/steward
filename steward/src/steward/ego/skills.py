@@ -120,6 +120,7 @@ class MotionConfig:
 
 @dataclass
 class Job:
+    """One execution; placement observation is separate from its mechanical outcome."""
     id: str
     skill: str
     receipt: str
@@ -128,10 +129,13 @@ class Job:
     started: float = 0.0
     finished: float | None = None
     log: list[str] = field(default_factory=list)
+    execution: str | None = None
+    verification: dict | None = None
 
     def to_dict(self) -> dict:
         return {"id": self.id, "skill": self.skill, "receipt": self.receipt, "state": self.state,
-                "message": self.message, "started": self.started, "finished": self.finished, "log": self.log[-20:]}
+                "message": self.message, "started": self.started, "finished": self.finished, "log": self.log[-20:],
+                **({"execution": self.execution, "verification": self.verification} if self.execution is not None else {})}
 
 
 class _Stall:
@@ -171,7 +175,8 @@ class SkillExecutor:
                  contents: Callable[[str], list[str]] | None = None,
                  content_positions: Callable[[str], dict[str, list[float]]] | None = None,
                  resettle: Callable[[str, list[float], dict[str, list[float]]], list[str]] | None = None,
-                 home_empty: Callable[[Callable[[], dict]], bool] | None = None):
+                 home_empty: Callable[[Callable[[], dict]], bool] | None = None,
+                 verify_place: Callable[[Job, dict, Callable[[], dict]], dict] | None = None):
         """``clock`` is the robot link whose world clock times the control ticks (one hold per job,
         ``skill/<job id>``); without it a tick sleeps ``tick_s`` of wall time.
 
@@ -181,6 +186,11 @@ class SkillExecutor:
         ``furniture`` is the piece that holds a drawer; it is held still for the visit so the
         open drawer is not fused into it.
 
+        ``verify_place``, when provided, runs after mechanical placement and homing using the
+        cancellable tick. The job remains running and owns motion until verification and clock
+        cleanup finish. Its result is independent of mechanical success; exceptions are reported
+        without retracting an already released object. None preserves execution-only jobs.
+
         ``home_empty``, when provided, returns empty arms home after successful work using the job's
         cancellable tick. Homing failure fails the job without attempting Cartesian recovery; None
         leaves arms as-is."""
@@ -188,6 +198,7 @@ class SkillExecutor:
         self._clock = clock
         self._now = 0.0
         self._hold = ""
+        self._verify_place = verify_place
         self._on_finish = on_finish
         self._on_begin = on_begin
         self._on_release = on_release
@@ -233,6 +244,9 @@ class SkillExecutor:
             if self.current is not None and self.current.state == "running":
                 raise RuntimeError(f"skill {self.current.skill} ({self.current.id}) is still running")
             job = Job(id=f"job-{next(self._ids)}", skill=skill, receipt=receipt["id"], started=self._state()["stamp"])
+            if skill == "place" and self._verify_place is not None:
+                job.execution = "running"
+                job.verification = {"status": "pending", "checks": {}, "reason": "motion has not completed"}
             self.jobs[job.id] = job
             self.current = job
             self._stop.clear()
@@ -283,6 +297,8 @@ class SkillExecutor:
 
     def _run(self, job: Job, skill: str, receipt: dict) -> None:
         homing = False
+        verifying = False
+        outcome = "failed"
         self._arm_engaged = False
         try:
             if self._clock is not None:
@@ -320,26 +336,41 @@ class SkillExecutor:
                 if self._home_empty(self._tick):
                     self._setpoints.clear()
                     job.log.append("both empty arms returned to zero")
-            job.state, job.message = "succeeded", job.message or f"{skill} completed"
+            if skill == "place" and self._verify_place is not None:
+                verifying = True
+                job.execution = "succeeded"
+                job.verification = {"status": "pending", "checks": {}, "reason": "collecting post-release observations"}
+                job.verification = self._verify_place(job, receipt, self._tick)
+            outcome, job.message = "succeeded", job.message or f"{skill} completed"
         except SkillStopped:
-            job.state, job.message = "stopped", "stopped on request"
+            outcome, job.message = "stopped", "stopped on request"
         except SkillFailed as exc:
-            job.state, job.message = "failed", (f"{job.message or skill + ' completed'}; homing failed: {exc}"
+            outcome, job.message = "failed", (f"{job.message or skill + ' completed'}; homing failed: {exc}"
                                                 if homing else str(exc))
-            if not homing and self._arm_engaged:
+            if verifying:
+                job.message = f"motion completed; verification error: {exc}"
+            if not homing and not verifying and self._arm_engaged:
                 self._safe_retract()
         except Exception as exc:  # noqa: BLE001 - surfaced to the caller through the job record
             detail = f"{type(exc).__name__}: {exc}"
-            job.state, job.message = "failed", (f"{job.message or skill + ' completed'}; homing failed: {detail}"
+            outcome, job.message = "failed", (f"{job.message or skill + ' completed'}; homing failed: {detail}"
                                                 if homing else detail)
+            if verifying:
+                job.message = f"motion completed; verification error: {detail}"
             if self._on_error is not None:
                 self._on_error(f"技能 {skill}（{job.id}）出现未预料的异常：{type(exc).__name__}: {exc}")
-            if not homing and self._arm_engaged:
+            if not homing and not verifying and self._arm_engaged:
                 self._safe_retract()
         finally:
+            if job.execution is not None:
+                if job.execution == "running":
+                    job.execution = outcome
+                if job.verification is None or job.verification["status"] == "pending":
+                    job.verification = {"status": "unknown", "checks": {}, "reason": "execution or verification did not finish"}
             job.finished = self._state()["stamp"]
             if self._clock is not None:
                 self._release_clock(f"skill/{job.id}")
+            job.state = outcome
             if self._on_finish is not None:
                 self._on_finish(job)
 

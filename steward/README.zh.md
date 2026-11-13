@@ -2,6 +2,10 @@
 
 [English](README.md) | 中文
 
+`EgoRuntime` 会为所有机器人构型自动执行放置验证。`skill_run` 在释放后观测期间保持 job 为运行状态，阻止下一次机械动作抢先启动；`wait=false` 或等待超时仍可返回运行中的 job。`state=succeeded` 表示机械执行完成，`execution` 与 `verification` 分别报告独立结果。验证返回 `passed`、`failed` 或 `unknown`，包含释放、位置、支撑的逐项检查和实测偏差。必须取得实测释放时刻之后不同时间的稳定观测；`release_at()` 写入的预测位置不算确认。支撑关系还要通过接触高度和不确定性检查，精度不足或附近同类轨迹存在身份歧义时保持未知。朝向、翻面及容器内部需要进一步视觉证据，不能仅凭包围盒认证。继续依赖该放置的动作前应处理失败或未知项；运行时不会自动导航、重抓或重试。
+
+`RuntimeConfig.verification` 接收 `VerificationConfig`：`timeout_s=5`、`max_age_s=1`、`min_existence=0.9`、`identity_separation_m=0.01`、`confidence_sigma=2`、`stable_s=0.25`、`stable_motion_m=0.003`、`position_tolerance_m=0.015`、`floor_height_tolerance_m=0.003`、`support_height_tolerance_m=0.01` 和 `support_height_fraction=0.25`，时间以秒、长度以米计，存在概率、标准差倍数与高度比例无量纲。支撑接触容差取绝对高度上限与观测物体高度乘以 `support_height_fraction` 的较小值，因此薄片的限制比杯碗更严格。该比例必须小于一。重复帧保留已完成的检查，但不能建立稳定性；陈旧或缺失的观测会使检查失效。`supportToleranceM` 报告实际使用的接触容差。非法值在构造时拒绝。观测预算结合墙钟和机器人时钟，暂停的时钟可能让控制 tick 等待恢复或取消。场景重置使待验证证据失效；取消保留已经完成的机械结果，未完成验证报告未知。验证结果经 job/status/wait 接口进入工具会话记录，运行时活动日志也包含观测结果。这些检查只使用机器人观测，世界状态仅用于外部测试。
+
 机器人 Ego Harness 可选用 `rgbd_video_gen` 和 `NovelAnything` 两个 skill 调用远程新视角生成服务。`scripts/setup-dsh-profiles.sh`（Linux/macOS）和 `scripts/setup-dsh-profiles.ps1`（Windows）会在机器人 profile 中安装两者；Windows 上也可用 `scripts/setup-rgbd-video-gen.ps1`、`scripts/setup-novelanything.ps1` 加到已有 profile。使用方法见 [rgbd_video_gen](dsh/packages/dsh-bundle-rgbd-video-gen/README.zh.md) 和 [NovelAnything](dsh/packages/dsh-bundle-novelanything/README.zh.md)。
 
 模型证据沿用原有 `head_camera`；连续录制按仿真时钟采样并保存机器人里程计和编码器，手爪目标由机器人自身运动学计算。快照工具使用现有头部／广角相机各自的标定，不改变两者的布局、视场或感知分工。此次集成不包含 SLARM 或新增三目相机。

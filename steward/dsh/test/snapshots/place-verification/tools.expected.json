@@ -1,0 +1,17 @@
+{
+  "job": "job-place",
+  "skill": "place",
+  "state": "succeeded",
+  "message": "placed e:piece on e:table",
+  "log": [],
+  "execution": "succeeded",
+  "verification": {
+    "status": "failed",
+    "checks": {
+      "released": "passed",
+      "position": "passed",
+      "support": "failed"
+    },
+    "reason": "object rests on another piece; re-plan before retrying"
+  }
+}
