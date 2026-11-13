@@ -970,6 +970,7 @@ class EgoRuntime:
                                              and body.get("stamp", released_at) - expected_support.last_seen <= cfg.max_age_s)
                     observed = {"stamp": target.last_seen, "position": target.pos.tolist(),
                                 "sigmaM": math.sqrt(float(max(target.var[:2]))),
+                                "heightM": float(target.size[2]),
                                 "support": support, "supportFresh": support_fresh, **contact}
             fresh_body = body.get("stamp", -1) > released_at
             holding = bool(body["gripper"]["holding"]) if fresh_body and "holding" in body.get("gripper", {}) else None

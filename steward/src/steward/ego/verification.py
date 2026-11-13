@@ -5,7 +5,11 @@ import math
 
 @dataclass
 class VerificationConfig:
-    """Placement tolerances in metres and bounded observation duration in seconds."""
+    """Placement tolerances in metres and bounded observation duration in seconds.
+
+    Support clearance uses the smaller of the absolute cap and a fraction of observed height,
+    so tall objects tolerate perception noise without applying that clearance to thin pieces.
+    """
     timeout_s: float = 5.0
     max_age_s: float = 1.0
     min_existence: float = 0.9
@@ -15,12 +19,15 @@ class VerificationConfig:
     stable_motion_m: float = 0.003
     position_tolerance_m: float = 0.015
     floor_height_tolerance_m: float = 0.003
-    support_height_tolerance_m: float = 0.003
+    support_height_tolerance_m: float = 0.01
+    support_height_fraction: float = 0.25
 
     def __post_init__(self):
         for name, value in vars(self).items():
             if not math.isfinite(value) or value <= 0:
                 raise ValueError(f'verification {name} must be finite and positive')
+        if self.support_height_fraction >= 1:
+            raise ValueError('verification support_height_fraction must be less than one')
         if self.min_existence > 1:
             raise ValueError("verification min_existence must be at most one")
         if self.stable_s >= self.timeout_s:
@@ -52,11 +59,13 @@ class PlacementVerifier:
             checks['face'] = 'unknown'
         if observed is None or observed['stamp'] <= self.released_at:
             self.previous = self.stable_since = None
+            result['reason'] = 'no fresh target observation; inspect before continuing dependent placements'
         else:
             stamp, position = observed['stamp'], observed['position']
             if self.previous is None or stamp < self.previous['stamp'] or math.dist(position, self.previous['position']) > self.config.stable_motion_m:
                 self.stable_since = stamp
-            elif stamp > self.previous['stamp'] and stamp - self.stable_since >= self.config.stable_s:
+                result['reason'] = 'need distinct stable target observations; inspect before continuing dependent placements'
+            elif stamp - self.stable_since >= self.config.stable_s:
                 goal = self.plan.get('spot', self.plan.get('floor'))
                 error = math.dist(position[:2], goal[:2])
                 uncertainty = self.config.confidence_sigma * observed['sigmaM']
@@ -66,13 +75,22 @@ class PlacementVerifier:
                 if observed['supportFresh'] and observed['support'] is not None:
                     gap = observed.get('supportGapM')
                     support_sigma = self.config.confidence_sigma * observed.get('supportSigmaM', 0.0)
-                    result.update(supportGapM=gap, supportUncertaintyM=observed.get('supportSigmaM', 0.0))
-                    if gap is not None and abs(gap) - support_sigma > self.config.support_height_tolerance_m:
+                    tolerance = min(self.config.support_height_tolerance_m,
+                                    observed['heightM'] * self.config.support_height_fraction)
+                    result.update(supportGapM=gap, supportUncertaintyM=observed.get('supportSigmaM', 0.0),
+                                  supportToleranceM=tolerance)
+                    if gap is not None and abs(gap) - support_sigma > tolerance:
                         checks['support'] = 'failed'
-                    elif gap is None or abs(gap) + support_sigma <= self.config.support_height_tolerance_m:
+                    elif gap is None or abs(gap) + support_sigma <= tolerance:
                         checks['support'] = 'passed' if observed['support'] == self.plan.get('support', 'floor') else 'failed'
                 result.update(observedAt=stamp, positionErrorM=round(error, 4), uncertaintyM=observed['sigmaM'],
                               observedSupport=observed['support'])
+                if checks['position'] == 'unknown':
+                    result['reason'] = 'position uncertainty overlaps the tolerance; inspect before continuing dependent placements'
+                elif checks['support'] == 'unknown':
+                    result['reason'] = ('support contact uncertainty exceeds the height tolerance; inspect before continuing dependent placements'
+                                        if observed['supportFresh'] and observed['support'] is not None else
+                                        'no fresh support observation; inspect before continuing dependent placements')
             if self.previous is None or stamp >= self.previous['stamp']:
                 self.previous = observed
         if 'failed' in checks.values():

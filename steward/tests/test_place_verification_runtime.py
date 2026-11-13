@@ -85,13 +85,16 @@ def test_next_skill_is_rejected_while_verification_is_waiting(monkeypatch):
         assert finished.wait(10)
 
 
-@pytest.mark.parametrize('actual_x,calibrated,stacked,expected', [(.5, True, False, 'passed'), (.55, True, False, 'failed'),
-    (.5, False, False, 'unknown'), (.55, False, False, 'failed'), (.5, True, True, 'not-passed'), (.5, False, True, 'not-passed')])
-def test_physical_sensor_observations_overrule_the_commanded_release_position(actual_x, calibrated, stacked, expected):
-    from steward.assets.generators import building, dining_table, printed_board
+@pytest.mark.parametrize('actual_x,calibrated,stacked,expected,kind', [(.5, True, False, 'passed', 'board'),
+    (.55, True, False, 'failed', 'board'), (.5, False, False, 'unknown', 'board'),
+    (.55, False, False, 'failed', 'board'), (.5, True, True, 'not-passed', 'board'),
+    (.5, False, True, 'not-passed', 'board'), (.5, False, False, 'passed', 'cup'),
+    (.5, False, True, 'not-passed', 'cup')])
+def test_physical_sensor_observations_overrule_the_commanded_release_position(actual_x, calibrated, stacked, expected, kind):
+    from steward.assets.generators import building, cup, dining_table, printed_board
     from steward.world.sim import WorldSim, PerceptionConfig
     from steward.ego.verification import VerificationConfig
-    entities = [f().to_dict() for f in (building, steward_bot, dining_table, printed_board)]
+    entities = [f().to_dict() for f in (building, steward_bot, dining_table, cup if kind == 'cup' else printed_board)]
     for ent, eid in zip(entities, ['w:room', 'w:robot', 'w:table', 'w:piece'], strict=True):
         ent['id'] = eid
     entities[2]['pose']['value']['p'] = [.7, 0, 0]
@@ -115,7 +118,8 @@ def test_physical_sensor_observations_overrule_the_commanded_release_position(ac
             r.estimator.config.process_noise = 1e-10
         # Seed the commanded pose, not the physical position. Only sensor updates can correct it.
         for eid, cat, pos, size in [('e:table', 'table', [.7, 0, .375], [1.2, .8, .75]),
-                                     ('e:piece', 'board', [.5, 0, .753], [.12, .12, .006])]:
+                                     ('e:piece', kind, [.5, 0, .8 if kind == 'cup' else .753],
+                                         [.08, .08, .1] if kind == 'cup' else [.12, .12, .006])]:
             r.estimator.tracks[eid] = Track(eid, {cat: 10}, np.array(pos), np.ones(3)*.02**2,
                                            0, .001, np.array(size), 10, 0, 0, existence=1)
         if stacked:
@@ -136,7 +140,7 @@ def test_physical_sensor_observations_overrule_the_commanded_release_position(ac
         physical_x = sim._entity_pose('w:piece')['p'][0]
         assert abs(physical_x - actual_x) < .005
         if stacked:
-            assert sim.entity_obb('w:piece').center[2] > .757
+            assert sim.entity_obb('w:piece').center[2] > (.803 if kind == 'cup' else .757)
         assert (result['status'] != 'passed' if expected == 'not-passed' else result['status'] == expected), result
     finally:
         r.stop()

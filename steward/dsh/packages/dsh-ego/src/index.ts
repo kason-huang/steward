@@ -265,6 +265,8 @@ export interface SkillJob {
     uncertaintyM?: number
     supportGapM?: number | null
     supportUncertaintyM?: number
+    /** Contact-height limit after applying the observed object-height fraction. */
+    supportToleranceM?: number
     observedSupport?: string | null
   }
   message: string
