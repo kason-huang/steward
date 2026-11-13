@@ -42,7 +42,8 @@ function receiptView(r: PredictionReceipt): JsonObject {
 }
 
 function jobView(job: SkillJob): JsonObject {
-  return { job: job.id, skill: job.skill, state: job.state, message: job.message, log: job.log.slice(-8) }
+  return { job: job.id, skill: job.skill, state: job.state, message: job.message, log: job.log.slice(-8),
+    ...(job.execution === undefined ? {} : { execution: job.execution, verification: job.verification }) }
 }
 
 /**
@@ -333,7 +334,10 @@ export function egoTools(ego: EgoService): ToolDefinition[] {
     defineTool({
       name: 'skill_run',
       description: 'Execute the plan of a receipt from ego_predict. Waits for the skill to finish unless wait is '
-        + 'false. The robot refuses receipts that are infeasible, expired, already used, or above the risk limit.',
+        + 'false. For place, waiting includes bounded post-release observation. state=succeeded means mechanical '
+        + 'execution completed: inspect verification separately. A failed or unknown verification must be resolved '
+        + 'before continuing dependent placements; use the measured errors to re-plan, or inspect from a better view. '
+        + 'The runtime never retries a placement automatically. The robot refuses receipts that are infeasible, expired, already used, or above the risk limit.',
       parameters: {
         receipt: { type: 'string', required: true, description: 'Receipt id returned by ego_predict.' },
         wait: { type: 'boolean', description: 'Wait for completion (default true).' },

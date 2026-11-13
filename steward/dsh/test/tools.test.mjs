@@ -219,3 +219,20 @@ test('a forgotten capability leaves the list and keeps its reason', async () => 
   const [file] = await readdir(join(root, 'forgotten'))
   assert.match(file, /^old_way-/)
 })
+
+test('skill_run and skill_status retain placement verification separately from mechanical success', async () => {
+  const ego = fakeEgo()
+  const result = { id: 'job-1', skill: 'place', receipt: 'rcpt-1', state: 'succeeded', execution: 'succeeded',
+    verification: { status: 'failed', checks: { support: 'failed' }, reason: 'object rests on another piece' },
+    message: 'motion completed', log: [] }
+  ego.wait = async () => result
+  ego.job = async () => result
+  const tools = egoTools(ego)
+  const waited = await tool(tools, 'skill_run').execute({ receipt: 'rcpt-1' }, exec('skill_run'))
+  const status = await tool(tools, 'skill_status').execute({ job: 'job-1' }, exec('skill_status'))
+  for (const value of [waited, status]) {
+    assert.equal(value.state, 'succeeded')
+    assert.equal(value.execution, 'succeeded')
+    assert.deepEqual(value.verification, result.verification)
+  }
+})

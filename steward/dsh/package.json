@@ -28,7 +28,8 @@
     "@steward/dsh-rgbd-video-gen-client": "workspace:*",
     "@steward/dsh-tool-rgbd-video-gen": "workspace:*",
     "@steward/dsh-novelanything-client": "workspace:*",
-    "@steward/dsh-tool-novelanything": "workspace:*"
+    "@steward/dsh-tool-novelanything": "workspace:*",
+    "@deepseek-ai/dsh-llm-replay": "0.2.1-rc.3"
   },
   "engines": {
     "node": "^22.19.0 || >=24.0.0"

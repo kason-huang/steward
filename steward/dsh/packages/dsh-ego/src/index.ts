@@ -249,7 +249,24 @@ export interface SkillJob {
   id: string
   skill: string
   receipt: string
+  /** Skill thread state; succeeded does not certify placement. Inspect verification separately. */
   state: 'running' | 'succeeded' | 'failed' | 'stopped'
+  /** Mechanical outcome, independent of post-placement observation. Absent on older providers and other skills. */
+  execution?: 'running' | 'succeeded' | 'failed' | 'stopped'
+  /** Placement evidence; unknown never certifies placement. No automatic retry motion is performed. */
+  verification?: {
+    status: 'pending' | 'passed' | 'failed' | 'unknown'
+    checks: Record<string, 'passed' | 'failed' | 'unknown'>
+    reason: string
+    object?: string
+    releasedAt?: number
+    observedAt?: number
+    positionErrorM?: number
+    uncertaintyM?: number
+    supportGapM?: number | null
+    supportUncertaintyM?: number
+    observedSupport?: string | null
+  }
   message: string
   log: string[]
 }
