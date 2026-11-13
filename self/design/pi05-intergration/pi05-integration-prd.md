@@ -1,6 +1,6 @@
 # Steward π0.5 接入 PRD
 
-日期：2026-11-09。状态：设计提案，尚未实现。本文定义产品目标和范围，技术细节见[接入设计](pi05-integration-design.md)，所有实现遵守 [Steward 设计说明](../../../steward.md)。
+需求基线：2026-11-09。2026-11-13 已完成指定汤罐场景初态 0 的单例完整链路，当前技术方案与验收边界由[接入设计](pi05-integration-design.md)维护。下述问题背景描述接入前状态，产品要求仍作为验收依据。本文定义产品目标和范围，技术细节见[接入设计](pi05-integration-design.md)，所有实现遵守 [Steward 设计说明](../../../steward.md)。
 
 ## Problem Statement
 

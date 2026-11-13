@@ -1,415 +1,411 @@
 # Steward π0.5 具身操作接入设计
 
-状态：设计提案，尚未实现。日期：2026-11-09。
+2026-11-13。本文是当前已实现方案的技术参考，覆盖模型、机器人、场景、感知、调用接口、执行与验收。汤罐初态 0 的完整能力链路已有成功证据；多物体入口已开放，固定场景中的任意目标抓放尚未验收通过。逐步实施与原始证据见[实施计划](pi05-integration-plan.md)和[结果索引](README.md)。产品范围见[PRD](pi05-integration-prd.md)，整体架构约束见[Steward 设计说明](../../../steward.md)。
 
-需求依据：[接入 PRD](pi05-integration-prd.md)。架构约束：[steward.md](../../../steward.md)。本文统一维护接入方案与单阶段完整任务验收的技术设计；所选权重、机器人资产和控制参数仍需通过独立基线核实。
+## 1. 当前目标与交付边界
 
-## 1. Problem Statement
+接入目标是让 Ego Harness（EH）从聊天理解任务，通过一个任务级 Job，由机器人侧 Ego Runtime（ER）调用真实 π0.5 持续生成动作，在现有 WorldSim（WSim）中完成接触式抓放。任务编排、策略推理、执行器控制和独立验收分别承担职责。
 
-- EH 已能编写、保存和复用组合工具的能力程序。ER 的基础技能由几何规划和手写控制流程生成运动，抓取采用几何捕获与理想附着；π0.5 的视觉闭环和接触操作仍需单独验证。
-- 现成 π0.5 权重依赖特定机器人、相机、状态与动作定义，旧本体的控制、感知和 ESim 不能直接复用。
-- 测量成功率还需要配套任务、可重置初态和独立成功判据，只有推理接口不足以开展评测。
+| 能力 | 当前实现 | 已知验收范围 |
+| --- | --- | --- |
+| 模型 | OpenPI 的 pi05_libero 预训练权重，独立 GPU WebSocket 服务 | 原始 LIBERO 基线和 WSim 汤罐任务已实测；未训练新模型 |
+| 机械臂 | OnTheGroundPanda，7 轴固定基座，Panda 双指夹爪，OSC_POSE | 固定动作、真实接触、停止和基线轨迹对照已有证据；无真机后端 |
+| 场景 | LIBERO 汤罐任务的地面、篮子、六种食品及初态 0–4 | 已接入现有 WSim；官方其他任务场景未自动导入 |
+| 观测 | 固定外部 RGB-D、腕部 RGB-D、关节/夹爪反馈、编码器 FK | 同步输入、模型预览和 Ego State 可视化已接通 |
+| 调用 | 聊天 → 真实 ego profile → 嵌套 run_code／能力程序 → Ego API → Panda Job | 汤罐初态 0 端到端、取消和推理故障有通过证据 |
+| 多物体 | pick(target)、libero_pick_place(target,on)，按当前 Ego ID 绑定目标 | 六类别程序准入和动态 prompt 通过；实际策略任意选物体抓放仍有限制 |
 
-## 2. Solution
+原始 LIBERO 的全量评测成绩、固定动作的物理通过、单例端到端成功和多物体程序测试是不同证据，不能合并成“Steward 全量 LIBERO 已通过”。
 
-- 复刻 LIBERO 中一个任务场景及其对应机器人、夹爪、控制器和传感器配置，保留旧本体。
-- 复用 π0.5-LIBERO 权重与配套场景，避免引入训练工程。模型配置为 `pi05_libero`，官方权重地址为 `gs://openpi-assets/checkpoints/pi05_libero/`（[官方说明](https://github.com/Physical-Intelligence/openpi/blob/main/examples/libero/README.md#results)）；具体任务与资产版本通过原始环境基线固定。
-- 经现有 EH 工具链提交一个完整任务，ER 持续执行观测、推理和受限动作；机器人依据自身观测判断完成，世界侧独立评估并统计成功率。
+## 2. 总体结构与进程部署
 
-## 3. 总体结构与修改范围
-
-```text
-EH → Ego 工具与安全守卫 → ctx.ego / Ego API → ER Job
-EH ↔ run_code / capability 工具 ↔ 机器人持久能力库
-ER → 机器人传感器 → π0.5 服务 → 动作检查 → 执行器 → WSim
-WSim → 世界侧 GT 评估 → 实验报告（不返回机器人）
+```mermaid
+flowchart TD
+  User[操作员聊天] --> EH[Ego Harness / LLM]
+  EH --> Program[嵌套 run_code / 能力程序]
+  Program --> Tools[Ego 工具 / ctx.ego]
+  Tools --> API[Ego API]
+  API --> ER[PandaEgoRuntime / PandaJobs]
+  ER --> Client[受控推理客户端子进程]
+  Client --> Policy[OpenPI pi05_libero 服务]
+  Policy --> Client
+  Client --> Check[候选动作检查]
+  Check --> Control[机器人端口 / PandaControl]
+  Control --> OSC[PandaOsc]
+  OSC --> World[WSim / MuJoCo]
+  World --> Sensor[同步相机与编码器]
+  Sensor --> ER
+  ER --> ES[Ego State / 机器人完成证据]
+  World --> Eval[世界侧独立物理评估与报告]
 ```
 
-ER 保持唯一执行控制权；π0.5 服务只返回候选动作，没有执行器或 WCA 权限。
+π0.5 服务只接收观测并返回候选动作，不持有机器人端口、执行器租约或 WCA 权限。ER 管理任务、检查和取消；世界侧拥有物理引擎与最终执行器状态。独立物理评估不把 GT 成功或物体真值回送给机器人作为决策输入。
+
+4090-2 当前部署中，World／控制台使用 7400，Panda 机器人端口为 7410，独立 ER 的 Ego API 为 7420，π0.5 服务为 18065。端口是部署值，Ego API 不是模型接口。CLI 根据本体注册表启动 `panda-ego` 子进程，Panda ER 与世界侧不共享内存或 OpenGL 上下文；复用的是 Ego API、工具与视图约定，Panda 执行栈本身由专用 Runtime 实现。
+
+## 3. 能力分层与模块职责
 
 ### 3.1 LLM 能力程序与 π0.5 动作策略
 
-现有能力库保存 LLM 编写的程序，程序通过 `run_code` 调用机器人工具，跨会话复用并可由模型修改后重新保存。`skill` 表示参数化的可复用操作，`recipe` 表示组合多个操作的任务流程。能力库实现和 Ego Harness 提示分别维护保存规则与复用方式。参见[能力库](../../../steward/dsh/packages/dsh-tool-ego-capabilities/src/index.ts)与[任务提示](../../../steward/src/steward/world/chat.py)。
-
-| 策略层 | 当前实现或拟接入实现 | 承担的决策 |
+| 层 | 负责的决定 | 不承担的职责 |
 | --- | --- | --- |
-| EH 与能力程序 | LLM 生成的工具调用、计算、条件与循环 | 选择任务和对象，组合操作，读取反馈并决定下一步 |
-| ER 基础技能 | ESim 规划与 SkillExecutor 控制，通过 Arm 适配本体 | 停靠、抓取、放置等动作计划及反馈控制 |
-| ER 策略 Job | 拟接入 π0.5 观测与动作循环 | 在已授权任务内根据图像和本体反馈持续生成动作 |
+| EH／LLM | 理解语言，从当前 Ego State 选择目标与篮子，调用工具，解释失败 | 不直接发送电机力矩，不从 World State 获取目标真值 |
+| 能力程序 | 固化 predict → run → 查询同一 Job → 检查终态的流程，可跨会话复用 | 能力库统计不替代物理成功率和任务验收 |
+| Panda ER Job | 绑定目标、预算、观测和权限；循环观测、推理、检查、执行、停止 | 不把一次模型返回当成任务完成 |
+| π0.5 policy | 根据两路 RGB、本体状态、prompt 输出一段七维动作 | 不理解 Ego ID、receipt 或租约；当前没有显式目标框／坐标输入 |
+| PandaControl／PandaOsc | 校验控制凭据，按控制周期更新末端目标和夹爪，计算力矩 | 不选择语义目标，不读取任务聊天 |
+| WSim／验收程序 | 模拟接触、重力和碰撞，独立评估物理结果 | 不将隐藏目标状态注入策略 |
 
-现有 Phase 配置选择感知实现。`phase0` 由世界侧生成带噪声检测，机器人侧融合为 ES；`phase1` 与 `phase1-sam` 使用 RGB-D 感知链路。π0.5 接入另外涉及观测编码、动作生成与执行检查，设计需显式固定供策略使用的图像、本体反馈及供安全检查使用的 ES 来源。参见 [Phase 配置](../../../steward/src/steward/phases.py)。
+通用候选模板为 [panda_pick.json](../../../steward/capabilities/panda_pick.json) 和 [panda_pick_place.json](../../../steward/capabilities/panda_pick_place.json)。模板装入真实 profile 的 `robot-home/steward-capabilities/`，由 capability_get 取出后在嵌套 run_code 内运行。已有 `libero_soup_to_basket` recipe 的历史 verified 状态只说明其原有汤罐用途；不能沿用为其他目标的成功认证。能力程序只在 Job 的三个终态字段全部满足成功条件时返回成功，未经真实操作验收的通用模板保持 candidate。
 
-例如 `flip_flat_objects_face_up` 能力逐个调用抓取和带 `flip: true` 的放置，具体翻面动作由底层技能执行。能力程序的存在说明机器人已具备代码化任务策略；评估 π0.5 时仍须记录实际进入策略 Job 的执行路径。
+### 3.2 代码归属
 
-首期由 EH 发起一个完整任务 Job，π0.5 在其中连续控制。已保存的能力只有在所选本体提供语义一致的基础技能时才能复用；任务级策略 Job 的能力说明需明确支持任务、参数、前置条件、完成证据和失败结果。选定任务通过真实 profile 的嵌套 `run_code` 调用也需验证，跨多个策略 Job 的 recipe 编排留待后续。
-
-能力库当前依据取用能力的 `run_code` 是否无错误结束统计成功。默认跨两个不同 Harness run 成功后标记 `verified`，连续三次失败后标记 `deprecated`；改动代码会递增版本并重置为 `candidate`。该统计用于能力复用，π0.5 的验收另按 §10.4 关联具体 Job、模型配置、机器人完成判断和世界侧评估。本文不以本地能力文件的计数声明任务已经验证。
-
-### 3.2 修改位置
-
-修改集中在下列现有模块，新增模块名称在实现时固定：
-
-| 位置 | 计划修改 |
+| 位置 | 当前职责 |
 | --- | --- |
-| `steward/src/steward/ego` | 增加 π0.5 策略适配、受限动作执行、观测完成判定与策略记录；扩展运行时配置 |
-| `steward/src/steward/ego/runtime.py`、`skills.py`、`arm.py`、`bodies.py`、`cobot_arm.py` | 复用共享 Ego Runtime 的单技能 Job、取消与结束通知；核对 Arm 的本体适配范围，接入策略执行与安全检查 |
-| `steward/src/steward/embodiments.py`、`cli.py` | 登记选定本体及对应 ER，沿用按 Scenario 启停独立 ER 的装配方式，增加配套配置校验 |
-| `steward/src/steward/ego/esim.py` | 增加所选本体与候选动作的风险检查，不能复用旧本体检查后直接放行 |
-| `steward/src/steward/world`、`scene`、`assets` | 加入匹配的本体与场景，补足传感器和执行器支持，增加世界侧验收 |
-| `steward/dsh` | 必要时扩展技能参数、结果字段与工具说明，并更新全部消费者、测试和配置快照 |
-| `steward/tests`、DSH 适配测试 | 覆盖新控制路径、故障、隔离、回放与既有本体回归 |
+| [embodiments/libero-panda.yaml](../../../steward/embodiments/libero-panda.yaml)、[embodiments.py](../../../steward/src/steward/embodiments.py)、[cli.py](../../../steward/src/steward/cli.py) | 本体登记、Scenario 装配、独立 ER 启停、策略配置传递 |
+| [scene/libero.py](../../../steward/src/steward/scene/libero.py) | 校验 LIBERO bundle，加载原生 MJCF、资产和命名初态，登记世界实体 |
+| [panda_sensors.py](../../../steward/src/steward/world/panda_sensors.py)、[sensor_cameras.py](../../../steward/src/steward/world/sensor_cameras.py) | 同步相机、编码器、标定和观测标识 |
+| [panda_control.py](../../../steward/src/steward/world/panda_control.py)、[panda_osc.py](../../../steward/src/steward/world/panda_osc.py) | Episode／租约／动作凭据、OSC 与停止确认 |
+| [panda_runtime.py](../../../steward/src/steward/ego/panda_runtime.py)、[panda_observation.py](../../../steward/src/steward/ego/panda_observation.py) | Ego API、机器人侧观测、FK、状态编码和发布 |
+| [panda_jobs.py](../../../steward/src/steward/ego/panda_jobs.py)、[panda_policy.py](../../../steward/src/steward/ego/panda_policy.py)、[panda_prediction.py](../../../steward/src/steward/ego/panda_prediction.py) | receipt、单个策略 Job、推理子进程、动作检查和取消 |
+| [panda_perception.py](../../../steward/src/steward/ego/panda_perception.py)、[panda_pick.py](../../../steward/src/steward/ego/panda_pick.py) | 汤罐专用证据、绑定目标的多物体抓放证据与准入 |
+| [panda_visual_model.py](../../../steward/src/steward/ego/panda_visual_model.py)、[visual_matching.py](../../../steward/src/steward/ego/visual_matching.py) | 静态类别资产、外观匹配和 Ego 视图补全 |
+| [dsh-tool-ego](../../../steward/dsh/packages/dsh-tool-ego/src/index.ts)、[dsh-ego](../../../steward/dsh/packages/dsh-ego/src/index.ts) | 工具参数、ctx.ego 到 HTTP 的适配、receipt／Job 展示 |
+| [openpi_step6_infer.py](../../../steward/scripts/openpi_step6_infer.py) | 固定格式请求文件到 OpenPI WebSocket 的实际客户端 |
 
-不修改上游 `packages/`、agent loop、会话格式、根工作区和上游检查脚本。ER、WSim、策略适配与场景模块不引入 DSH 依赖。EH 与 WH 仍通过各自命名 profile 启动，使用隔离的运行目录和权限。
+## 4. 模型、机械臂、场景与观测
 
-## 4. 先固定权重、本体和任务，再固定动作接口
+### 4.1 模型服务
 
-### 4.1 配套选型
+使用 OpenPI 配置 `pi05_libero`，配套权重位于 `gs://openpi-assets/checkpoints/pi05_libero/`。4090-2 的已验证代码版本、权重校验、客户端／服务端环境和 GPU 信息由 [Step 1 基线](steps/step1-results/README.md)维护；部署中的 `model_id` 为 `pi05_libero@215abfb217dbac7d5f1273282331b9b1866c0479`。该字符串标识配置与代码版本，完整权重身份仍需结合基线 checksum 清单核对。
 
-固定以下配套配置，并记录资产来源、许可与版本。
+模型服务与 WSim 分离。服务端加载权重一次并监听 loopback WebSocket；ER 每次启动受控客户端子进程调用该现有服务，客户端进程结束不卸载 GPU 模型。模型端和原始 LIBERO 客户端使用已锁定的独立 Python 环境，避免将 JAX、旧 robosuite 与 Steward 运行依赖混入同一环境。
 
-| 项目 | 必须固定的内容 | 不匹配时的处理 |
-| --- | --- | --- |
-| 模型 | 权重版本、推理代码版本、模型配置、归一化统计 | 停止加载，不能静默替换权重 |
-| 机器人 | 机构、关节顺序、关节与夹爪范围、工具坐标 | 更换匹配资产或明确新增适配，不补零伪装兼容 |
-| 相机 | 槽位、外参、内参、分辨率与预处理 | 必要相机缺失时拒绝执行 |
-| 本体状态 | 来源、顺序、单位、坐标系与时间戳 | 仅使用传感器可得数据，不补入 GT 物体状态 |
-| 动作 | 绝对或增量、关节或末端、参考坐标系、单位、夹爪含义 | 由本体适配器显式转换 |
-| 时序 | 策略调用节奏、动作间隔、预测长度、每次执行前缀长度 | 按已验证的配置执行，不凭网络返回速度定控制频率 |
-| 操作任务 | 支持指令、初始条件、机器人侧完成依据、世界侧目标 | 不支持的目标在执行前报告 |
+### 4.2 场景与资产
 
-OpenPI LIBERO 示例是选定路线的独立基线。独立运行该示例用于确认权重和任务能力；正式验收仍需通过 Steward 的 EH、ER 和世界侧通道完成。如果引入配套仿真组件，必须把它作为 Steward 管理的世界侧实现，提供相同的信息隔离和时钟行为，不能让 EH 直接驱动外部基准运行器。
+WSim 使用校验过的 LIBERO prepared bundle，直接保留原生 MJCF 与资产，通过 `MjcfBuild` 接入现有世界运行循环。线上世界不再运行一个外部 LIBERO 环境；原始 LIBERO 只用于导出、基线和隔离对照。bundle 加载会核对 SHA256SUMS，拒绝越界文件引用及校验不匹配，保留惯性、关节、碰撞和接触参数。
 
-基线报告固定 OpenPI commit、checkpoint 和归一化资产版本、运行环境、GPU、任务 ID、原始指令及初态集合。独立基线可以在世界侧使用基准成功信号；正式接入后，该信号仍只能用于世界侧评估。
+完整场景包含地面、篮子、alphabet_soup、salad_dressing、cream_cheese、milk、tomato_sauce、butter。篮子具有真实内部空间和底面承托。带 Panda 的场景名为 `libero-object-alphabet-soup-panda`，其他初态为同名加 `-init-1` 至 `-init-4`；无 Panda 的场景用于早期兼容性验证。所有这些初态仍属于汤罐任务。当前未实现根据 prompt 自动切换为官方奶酪／牛奶等任务场景。
 
-基线产物还需包含逐字段映射表：相机位姿与预处理、本体状态来源、末端位姿参考系、夹爪状态、动作顺序与单位、控制器输入和仿真周期。模型需要的末端位姿应从关节测量与已知运动学计算，不能从 GT 读回。用同一初态的静止、单轴平移、单轴旋转和夹爪开合核对映射，比较原始环境与 Steward 的动作方向、尺度、接触行为和相机输入。
+### 4.3 机械臂与物理抓取
 
-相机视角同样需要审查：基准视角必须能建模为允许的机器人传感器。不能为复用权重而开放任意世界观察视角。若改用合规视角，先重测独立基线；输入依赖 GT、缺少可执行的本地动作检查或无法建立机器人侧完成判定时，暂停该候选的集成。
+本体 `libero-panda` 为固定基座 OnTheGroundPanda，7 个 arm revolute joints，两个对向 finger joints，工具站点为 `gripper0_grip_site`。臂执行器接收 torque，双指执行器接收 position。机器人自有标定描述运动学链、工具、手部、相机和自碰撞／可见几何；从编码器计算 FK，不从世界对象位姿推算机器人观测。
 
-### 4.2 机器人与场景资产
+Panda 路径采用接触抓持。夹爪夹住物体依靠接触与摩擦，松爪后物体自然掉落或由篮底承托，不调用旧本体的理想附着。固定动作在原始 LIBERO 和 WSim 的独立复位对照见 [Step 3](steps/step3-results/README.md)和 [Step 4](steps/step4-results/README.md)。该物理通过证据不等于 π0.5 任意任务通过。
 
-- Scenario 引用配套本体、工作台、任务物体、容器、初态和世界侧成功规则；机器人资产包含连杆、关节、惯性、碰撞、执行器、限位及初始姿态。
-- 同步提供控制器、工具坐标、相机内外参、反馈映射、ER 自有运动学和策略配置，以标识与版本关联。ER 只加载机器人允许的配置，不加载含环境 GT 的完整场景。
-- 核对 `SceneState → MJCF` 对 mesh、关节耦合、执行器和接触参数的表达能力；必要特性无法保真时显式扩展，不能静默丢弃。容器须有真实开口和内部空间，抓持与释放使用物理接触。
+### 4.4 机器人观测与模型输入
 
-### 4.3 现有能力与本体适配差距
+机器人通过 `GET /sensors/panda/observation` 获取同一仿真步的两路 RGB／毫米深度、关节与夹爪反馈、Episode、step、stamp、calibrationId，以及机器人自有标定。策略执行时还带有 WSim 签发的 observationId。外部槽位 external 对应固定相机 overview，腕部槽位 wrist 对应 robot0_eye_in_hand，两路原始尺寸均为 256×256。
 
-| 现有位置 | 已有能力与限制 | 新本体接入方式 |
-| --- | --- | --- |
-| `WorldSim.command` | 除旧机构字段外，已支持 `joints` 关节目标和按抓取连杆寻址的多夹爪命令；尚无 LIBERO 策略动作适配 | 复用适用的关节寻址，接入配套控制器；分别校验策略动作、控制器输入和执行器输入 |
-| WSim 抓取与反馈 | 原有 `holding` 来源包含理想附着状态 | 新本体使用与基线匹配的夹爪和接触机制；机器人只获得可作为传感器建模的反馈，不直接获得被附着物体的 GT 身份 |
-| `EgoEstimator` 相机变换 | 已通过通用关节树和编码器计算连杆及相机位姿；Cobot 当前本体登记为头部双相机 | 复用运动学计算，验证 LIBERO 本体的关节映射、相机标定与采样同步；策略专用编码另行适配 |
-| `Esim`、`Arm` 与 `PiperArm` | ESim 已接受 Arm，Cobot 通过虚拟升降、伸出和手腕量及 IK 适配；规划仍使用移动底盘与平面臂假设 | 核对固定基座机器人和策略动作所需的运动学、可达性与候选动作检查 |
-| 共享 `EgoRuntime` 与 `SkillExecutor` | 两种本体共用预测、执行、查询与控制权接口；Cobot 的脚本运行时另有独立入口 | 复用适用的 Job 生命周期，为选定本体接入策略动作循环、授权与停止流程 |
-| CLI、Scenario 与运行时装配 | 本体注册表按 Scenario 启动独立 ER；`_start_ego` 经 `bodies.py` 加载对应模型、Arm 和配置 | 登记 LIBERO 本体与运行时配置，复用进程装配；校验本体、控制器、相机与策略配置一致性 |
+ER 将图像解码为 RGB，并按已核对方向水平翻转，缩放为 224×224；毫米深度转换为米，供 Ego State 和动作检查使用。深度不进入当前 pi05_libero 模型。WSim 的方向处理与原始 LIBERO 图像数组旋转的实现不同，输入对照与误差见 [Step 5](steps/step5-results/README.md)。
 
-这些适配按确实存在差异的职责拆分，不先建设面向所有机器人的插件平台。固定基座机器人不应被要求提供虚构的移动里程计；ER 的自有坐标系、初始定位知识与反馈来源必须明确声明。世界侧知道其真实安装位姿，不等于机器人可以查询任意 GT 位姿。
+| 模型字段 | 格式与来源 |
+| --- | --- |
+| observation/image | external 的 RGB uint8，224×224×3 |
+| observation/wrist_image | wrist 的 RGB uint8，224×224×3 |
+| observation/state | 8 个有限数值：[工具站点世界系 xyz，Panda 手部世界朝向轴角 xyz，finger_joint1 位置，finger_joint2 位置]；位置为米，轴角为弧度 |
+| prompt | 从 receipt 绑定类别生成，例如 pick up the cream cheese and place it in the basket |
 
-控制器属于世界侧执行器实现；策略动作、控制器输入和 MuJoCo 执行器输入分别定义，转换关系见 §4.5。末端状态提供给策略时由机器人运动学与反馈计算，动作提交仍经过授权、安全检查和控制代次校验。
-
-### 4.4 新机器人的接入与装配
-
-现有[本体注册表](../../../steward/src/steward/embodiments.py)和 CLI 已支持按 Scenario 选择本体及独立 ER，但不提供任意机器人所需的控制器、策略与技能接口。以下路径复用该装配方式，首期只适配选定的 LIBERO 机器人及配套资产与控制器。
-
-```text
-LIBERO 固定任务与机器人资产
-  → Steward 资产导入 + Scenario（世界侧）
-  → WSim 加载本体、控制器、相机与机器人端口
-  ↔ RobotLink（观测、命令、时钟、停止）
-  ↔ ER 加载对应本体描述、估计器、ESim 与策略适配
-  ← Ego API / EH 提交任务
-```
-
-| 接入环节 | 实施位置与要求 | 接通后的结果 |
-| --- | --- | --- |
-| 资产导入 | 在 `assets/` 保存或引用固定版本的机器人、夹爪、mesh、关节与接触参数；扩展 `scene/schema.py`、`scene/validate.py` 和 `scene/mjcf.py` 中不能表达的必要特性 | Scenario 能加载并重置完整物理机器人，关节与执行器名称可追踪到导入资产 |
-| 世界侧控制 | 在 `world/sim.py` 按本体配置选择控制实现；新本体接入配套控制器，旧本体保留原命令和理想夹爪路径 | ER 的已检查动作经控制器转换为执行器输入，物体运动由接触动力学产生 |
-| 机器人端口 | 沿 `RobotLink` 现有传感器、图像、命令和时钟通道扩展新本体所需字段，明确单位、顺序、参考系、采样时刻与版本 | 机器人端只能获得允许的图像、本体反馈和控制状态，不获得场景 GT 或隐藏成功信号 |
-| ER 本体适配 | 在登记的本体 ER 中装配估计器、预测器与策略执行实现；复用关节树运动学并补齐策略所需的末端与相机编码 | ES、策略观测和动作预测使用同一份本体定义，不调用旧机器人的升降/伸缩假设 |
-| 启动装配 | 在 `embodiments.py` 登记本体及 ER 子命令，复用 `cli.py` 的 `EgoSupervisor` 与 `_EgoProcess`；新 ER 加载自己的机器人描述和策略配置 | 世界侧与 ER 使用一致的本体、控制器和相机版本；配置不匹配时拒绝启动策略能力 |
-
-部署配置必须关联 Scenario、机器人资产版本、ER 本体描述、控制器、策略配置及机器人端口。世界侧加载完整场景；ER 单独加载机器人自有描述和允许的定位知识，不能为匹配配置而读取完整世界场景。启动先核对关节、执行器、相机和动作表示，再开放技能；重置时同步失效旧 Episode 的控制命令与策略结果。
-
-资产导入实现仍需通过原始基线确定：优先迁入现有 WSim；若现有场景编译无法保留必要动力学，应先列出扩展成本，再决定是否将配套仿真组件纳入 Steward 世界侧管理。两种实现都必须提供上述机器人端口、时钟仲裁和信息隔离，不能直接把 LIBERO 运行器暴露给 EH。固定版本的机器人型号、资产文件、控制器参数以及新增配置键名仍需在实施时落定。
+日志中的 `target`、episodeId、step 用于追踪与检查；当前客户端发给模型的只有上述四个字段。Ego ID、目标三维位置、目标框、World State 和任务成功标志均不作为模型输入。具名目标将类别中的下划线换为空格；unknown 使用 selected object，这种通用指令的模型操作能力尚未验收。
 
 ### 4.5 π0.5、机器人控制器与 MuJoCo 如何交互
 
-导入机器人资产后，还需接入其配套控制器。π0.5 根据观测生成动作序列，ER 决定哪些动作允许执行，控制器把动作转换为执行器输入，MuJoCo 计算运动、接触与传感器结果。
+模型当前每次返回 10×7 的 actions，ER 每次执行前 5 个动作后重新观测和推理。原始输出、裁剪值和实际应用回执分别保存。每项有限数值按 [-1,1] 裁剪，再进入预测与执行检查。
 
-| 层次 | 输入与输出 | 责任 |
-| --- | --- | --- |
-| EH | 任务目标 → 技能请求 | 预测、启动、查询与停止任务，不生成每个控制周期的执行器输入 |
-| π0.5 服务 | 任务指令、图像、本体状态 → 一段预测动作 | 生成动作，不直接访问执行器或仿真状态 |
-| ER | 预测动作 → 经过检查的有限动作前缀 | 预处理、推理调用、授权与安全检查、调度、取消及记录 |
-| 配套机器人控制器 | 策略动作与本体反馈 → 执行器输入 | 按基线的动作表示、单位、参考系和控制周期计算控制量 |
-| WSim / MuJoCo | 执行器输入 → 物理运动和新观测 | 应用控制量、推进物理、计算接触并渲染传感器 |
+| 动作分量 | PandaOsc 映射 |
+| --- | --- |
+| 0–2 | 世界系末端增量 xyz，每轴缩放为 ±0.05 m，叠加到应用时测得的当前工具站点位置 |
+| 3–5 | 世界系增量轴角，每轴缩放为 ±0.5 rad，其旋转矩阵左乘当前工具旋转 |
+| 6 | 符号驱动双指开合；负为打开，正为闭合，具体位置由夹爪驱动器限幅 |
 
-```text
-任务指令 + 相机图像 + 本体状态
-  → π0.5 推理 → 动作序列
-  → ER 校验与预测 → 有限动作前缀
-  → RobotLink → WSim 配套控制器
-  → MuJoCo data.ctrl → mj_step → 物理运动
-  → 传感器采样 → RobotLink → ER → 下一轮推理
-```
+控制频率为 20 Hz，每个策略动作覆盖 25 个 0.002 s MuJoCo 子步，即 0.05 s；力矩控制在 500 Hz 物理循环执行。OSC 使用末端误差、雅可比、质量矩阵、阻尼和姿态恢复项计算 arm torque，并按执行器范围限幅。π0.5 不直接输出这些关节力矩。一个候选动作只有收到 matching sequence、controlGeneration、startStep、plannedEndStep 和 endStep 的实际完成回执后才计入 actionsApplied。
 
-MuJoCo 提供底层执行器控制：向 `data.ctrl` 写入控制量，再通过 `mj_step()` 推进仿真；也可使用控制回调。控制量表示位置、速度还是力，取决于模型中的执行器定义。MuJoCo 不自动将任务指令或任意末端动作转换成机器人控制量，见 [MuJoCo 仿真循环说明](https://mujoco.readthedocs.io/en/stable/programming/simulation.html#simulation-loop)。
+### 4.6 Ego State 与可视化
 
-在 [OpenPI LIBERO 示例](https://github.com/Physical-Intelligence/openpi/blob/main/examples/libero/main.py)中，客户端通过 WebSocket 发送两路预处理图像、末端位置与姿态、夹爪状态和任务指令，读取 `infer(...)["actions"]`，取有限前缀逐步调用 `env.step(action)`，之后重新观测与推理。`env.step` 内的环境和控制器负责衔接 MuJoCo；策略动作不能据此视为 `data.ctrl` 的直接输入。
+Panda ER 将机器人自模型和观测对象发布成普通 SceneState，继续使用共享的 Ego 视图渲染机制。机械臂由关节反馈恢复姿态；已识别对象用静态类别 mesh／纹理补全外观，位姿与可见性仍来自相机。未识别对象保留观测表面或外观候选，不能从 World State 复制整场景。
 
-Steward 接入时，由 ER 的策略适配承担上述模型客户端职责，世界侧复用选定 LIBERO 机器人的控制器与动作语义。若输出为末端位移或姿态变化，由配套控制器转换为执行器控制量；若输出为关节目标，也需核对关节顺序、单位及执行器模式，不能直接复制动作数组。策略调用周期、机器人控制周期与物理步长分别配置和记录，不能以网络响应速度决定仿真推进。
-
-当前 [`WorldSim.command`](../../../steward/src/steward/world/sim.py) 将旧本体字段或通用 `joints` 目标经 `_set_ctrl` 写入 `data.ctrl`，多夹爪可按抓取连杆寻址，但闭合仍调用理想附着逻辑。新本体需接入配套控制器调度与动作映射，补齐本体反馈，让夹爪执行器通过接触完成抓持。控制器类型、动作维度、增量尺度、参考系、夹爪符号、限幅及频率均随固定 LIBERO 配置核实；资产加载成功不能作为控制接入完成的证据。
-
-### 4.6 新本体的独立验收
-
-接入真实 π0.5 前，先在机器人端口层验证本体与控制实现：初始姿态和关节顺序正确；单轴平移、旋转或关节运动的方向与尺度正确；夹爪开合、接触和释放与基线一致；相机随运动变化的渲染与机器人侧外参一致；停止、控制租约到期和 Episode 重置能使旧命令失效。
-
-验证本体测量与前向运动学一致，且策略输入中没有 GT 对象身份或真实目标位姿。不能仅靠世界侧理想附着标记来声称机器人已经确认抓取。完成这些检查后，才进入真实策略的完整任务验收；同时运行原有本体的相关回归，确认新增控制实现没有改变其行为。
+当前汤罐／篮子使用任务专用 RGB-D 检测；其他五种食品由可见表面、颜色和高度匹配静态类别模板。类别可标为 inferred，recognitionScore 是匹配误差，不能解释为校准概率。绑定对象暂时遮挡时保留其身份和最近观测，防止抓的是 soup 却显示 butter；这不等于被遮挡时仍能确认抓放成功。静态资产可以用于类别外观和已知机器人模型，不允许把场景 GT 物体名称、布局或实时姿态注入机器人。
 
 ## 5. EH 调用的是什么
 
-### 5.1 保留预测、执行、查询和停止
+### 5.1 技能接口与工具调用
 
-两种现有本体均登记 `skills: true`，通过共享 [Ego API](../../../steward/src/steward/ego/server.py)提供完整技能入口。`cobot_server.py` 的只读 API 属于独立的脚本运行路径。新本体需验证下述接口与安全守卫，并明确其支持的技能集合。现有调用链以注册表、`bodies.py` 和 `_start_ego` 的装配为准。
+Panda 的当前 supported skills 以 `ego_state` 返回的 skills 为准：`pick` 仅接受 target；`libero_pick_place` 接受 target、on，on 必须为当前观察到的篮子。旧名字 libero_pick_place 现已支持不同目标，不意味着已导入所有 LIBERO 任务。单独 place、navigate、pour、open、close 未接到 Panda 栈，不能因通用工具枚举中存在就调用。
 
-```text
-EH 读取 ego_state / 必要时观察
-  → ego_predict（受支持技能、目标参数）
-  → receipt（可行性、风险、授权条件）
-  → skill_run（receipt）
-  → ER Job
-  → 等待或 skill_status
-  → 机器人侧结果与更新后的 ES
+具名可选目标为当前六种食品；同样的准入也允许尺寸适合、可见的新鲜 unknown 物体。目标必须是本轮 Ego 对象，lastSeenAgoS≤0.5，尺寸有限且大于 3 mm、最大尺寸≤0.22 m、较窄水平边≤0.08 m，并排除篮子、机器人和环境。篮子也需满足最近真实检测的新鲜度。已有抓持、策略故障锁、控制占用或未确认停止时拒绝新任务。具体入口说明见 [Panda 抓放接口](../../../steward/docs/panda-pick.md)。
+
+下例为能力程序中的嵌套 run_code 内容，选择当前轮 ID；对奶酪能通过程序检查，但实际模型成功尚有限制。示例使用工具返回的 receipt／job 字段，不能与裸 HTTP 的 id 混用。
+
+```javascript
+const state = await tools.ego_state({});
+if (state.body !== 'libero-panda' || !state.skills.includes('libero_pick_place')) {
+  throw new Error('当前本体未开放 Panda 抓放');
+}
+const targets = state.objects.filter(o => o.category === 'cream_cheese' && o.graspable);
+const baskets = state.objects.filter(o => o.category === 'basket' && o.lastSeenAgoS <= 0.5);
+if (targets.length !== 1 || baskets.length !== 1) throw new Error('目标或篮子不唯一／不可见');
+const pred = await tools.ego_predict({
+  skill: 'libero_pick_place', target: targets[0].id, on: baskets[0].id,
+});
+if (!pred.feasible || !pred.withinRiskLimit) throw new Error(JSON.stringify(pred));
+let last = await tools.skill_run({receipt: pred.receipt, wait: true, timeoutS: 240});
+const job = last.job;
+for (let n = 0; n < 60 && last.state === 'running'; n++) {
+  await new Promise(resolve => setTimeout(resolve, 5000));
+  last = await tools.skill_status({job});
+}
+if (last.state !== 'succeeded' || last.goalStatus !== 'achieved' || last.stopStatus !== 'confirmed') {
+  throw new Error(JSON.stringify({job, ...last}));
+}
+return last;
 ```
 
-若候选权重可以独立完成现有技能，复用原技能名称；若它只能完成一个更完整的操作，则显式增加任务级技能。具体名称在任务核实后确定，不在此假定 `pick` 和 `place` 都天然可用。
+工具 `body_stop` 对应 Ego API 的 `/skill/stop`；不要将 HTTP 路径误写成工具名。等待超时只返回同一个 Job 的当前状态，不取消 Job，也不应新建第二个 Job。能力失败后结束依赖步骤并向操作员报告，策略预测拒绝后需由操作员 Reset 解除本轮故障锁。
 
-新增技能的语义是“在支持范围内完成指定操作”，参数包含目标描述、必要的 ES 对象引用和执行约束。模型端点、张量维度、归一化配置与控制频率由部署配置选择，EH 不负责填写。
+### 5.2 Ego HTTP API
 
-技能参数需要同时参与预测与执行。receipt 绑定已经解析的请求，`skill_run` 不再另收一份可能与预测不一致的自然语言目标。改变目标、对象、策略配置或授权条件，需要重新预测。
+以下为裸 HTTP，供机器人服务适配和调试使用。EH 正常走工具和 ctx.ego，不通过 shell 绕过权限。API 基址在当前部署为 `http://127.0.0.1:7420`。
 
-### 5.2 运行时所需的记录
-
-下面是拟新增记录的语义字段，尚不是现有 Ego API 或 OpenPI 的线协议。实现时优先复用既有标识与字段，只为缺失语义增加字段。
-
-| 记录 | 必需信息 |
+| 方法与路径 | 参数／响应要点 |
 | --- | --- |
-| 已解析技能请求 | 技能、操作目标、ES 对象引用、策略配置标识、完成判定配置、执行限制 |
-| receipt | Episode、机器人、请求绑定、本体与控制配置版本、依据的 ES 版本与观测时间、风险、提交有效期、授权范围、执行预算与失效条件 |
-| 技能执行 | ER Job、Episode 代次、独占控制归属、控制代次、运行阶段、当前动作序号 |
-| 策略请求 | 关联 Job、Episode 与控制代次、请求序号、观测序号与时间、实际图像和状态的记录引用 |
-| 策略结果 | 请求关联、模型与配置标识、动作表示、候选动作序列、接收时间 |
-| 技能结果 | 既有终态、目标判断、机器人侧证据引用、结束原因、最后确认的执行状态 |
+| GET /ego/summary | body、episodeId、objects、self.holding、skills、judgment 和 job |
+| GET /ego/query?category=cream_cheese | objects 中的当前 Ego 引用；禁止复制旧轮 ID |
+| GET /ego/observation | 当前模型预览，8 维状态与两路 Base64 PNG，不触发模型推理 |
+| POST /ego/predict | 请求 skill 和 params；返回原始 receipt，标识字段为 id |
+| GET /ego/receipt?id=… | 查询 used、expired、plan、issues 等 |
+| GET／POST /ego/control | 查看控制 owner；POST 使用 action=acquire／release 和 owner |
+| POST /skill/run | 请求 receipt，可带 owner；返回原始 Job，标识字段为 id |
+| GET /skill/status?job=… | 查询同一 Job |
+| POST /skill/wait | job、timeoutS；等待上限允许 0–600 s，超时可仍为 running |
+| POST /skill/stop | 撤销当前任务，返回 stopped、stopStatus 和可选 job |
+| GET／POST /ego/view、GET /ego/view/frame | Ego 视图配置、状态与帧；未配置时没有正常画面 |
+| POST /ego/alert、GET /ego/alerts | 将失败、当前步骤和诊断报告给操作员 |
 
-推理协议不一定回显所有关联字段。若官方客户端只返回动作，关联关系由 ER 的请求句柄维护；不能假设服务已经提供执行代次保护。跨进程记录使用明确的标识类型和版本，不直接复用无含义的裸字符串集合。
+例如预测请求体为 `{"skill":"libero_pick_place","params":{"target":"本轮目标ID","on":"本轮篮子ID"}}`，运行请求体为 `{"receipt":"返回的receipt.id"}`。工具层将预测的 id 投影为 receipt、Job 的 id 投影为 job，并保留 goalStatus、stopStatus、reasonCode、evidence 等结果，当前不对 EH 展示完整原始 plan 的全部字段。
+
+### 5.3 receipt 与 Job 数据
+
+receipt 保存 skill、params、episodeId、controlGeneration、calibrationId、sourceStep、modelId、风险与预算、used 状态；plan 保存选中对象快照 object、目标篮子 destination、完整 prompt、目标 ID、接触支持 ID、覆盖说明和执行前缀限制。准入时只检查当前观测及静止动作的初步覆盖，不预测未生成的整段模型轨迹；运行期间继续逐前缀和逐动作检查。
+
+receipt 一次性使用，默认墙钟有效期 30 s。expiresAt 展示值来自仿真 stamp 加有效期，真正失效同时使用 monotonic deadline、Episode、控制代次和运行前的精确 sourceStep／标定核对；不能只看展示时间。run 在校验后创建 Job、获得执行器租约并绑定观测目标。HTTP 与工具结果的字段差异不能改变这些执行校验。
+
+### 5.4 ER 到机器人端口
+
+机器人端口在当前部署为 7410。该接口只由 ER 管理，不作为 EH 的通用 HTTP／shell 工具开放；Panda 的普通 `/command` 会拒绝控制请求，必须使用专用控制通道。
+
+| 方法与路径 | 参数与语义 |
+| --- | --- |
+| GET /sensors/panda/observation | 可带 episode、after；未变化返回 unchanged，否则返回同一步 RGB-D、编码器、标定与策略观测标识 |
+| GET /control/status | 当前 Episode、controlGeneration、lease 状态、step、pending、lastApplied／lastCompleted、stopState 与速度反馈 |
+| POST /control/acquire | 当前 episodeId／controlGeneration、ttlS、policy=libero-task；获取新一代 leaseId |
+| POST /control/renew | episodeId、controlGeneration、leaseId、ttlS，维持墙钟租约 |
+| POST /control/action | 同组凭据、递增 sequence、七维 action、当前策略 observationId；接受进 pending 不等于动作完成 |
+| POST /control/stop | 使用当前凭据撤销代次和未完成动作，物理停稳需继续查询观察 |
+| POST /clock/wait | hold、until（仿真秒）、timeoutS 等，协调固定步数推进；不授予执行器权限 |
+| POST /clock/renew、POST /clock/release | 维护／释放时钟 hold，不替代 control lease |
+| POST /telemetry | 发布带当前 episodeId 的 Ego SceneState，世界侧仅将其用于观察和展示 |
+
+世界侧对陈旧 Episode／代次、错误 lease、重复 sequence、占满的 pending 槽和过期 observationId 返回冲突；非法动作或参数返回参数错误。有效 observationId 的仿真步覆盖范围最多对应当前授权前缀，且另有墙钟期限。ER 以完成回执而非提交成功作为执行计数依据。
 
 ## 6. ER 如何执行一次技能
 
 ### 6.1 单次执行流程
 
-1. 在同一控制临界区检查当前没有冲突技能、策略与本体配置匹配，核验 receipt，取得独占控制并消费 receipt；准入失败不提交动作，也不发布已启动的 Job。
-2. 取得同一 Episode、同一时间语义下的相机与本体观测；使用机器人观测和 ES 解析目标。必要输入缺失或过期时不发起动作。
-3. 策略适配器完成图像处理、状态编码和模型调用，记录原始观测引用与实际推理输入的对应关系。
-4. 在等待结果时继续接受停止请求和必要的本体反馈。首期每个 Job 最多保留一个在途推理请求，避免未实现调度就引入并行推理和结果覆盖。
-5. 检查结果属于仍有效的执行与观测，解析数值与动作定义，转换为候选控制序列。
-6. 基于当前 ES、本体反馈及授权条件检查即将执行的短前缀。被拒绝时不下发该前缀，结束当前 Job 的执行并进入停止流程，返回需要重新预测的条件。
-7. 按仿真时钟执行通过检查的前缀；每个控制周期检查停止、反馈新鲜度和本体限位。WSim 接收命令时再次核验 Episode、控制代次与有效租约，并记录实际应用时刻。消费前缀后丢弃本批次未消费的候选动作，重新观测。
-8. 取得新观测，更新 ES 和完成判断。已确认达成则结束；未达成且仍在限制内则从第 2 步继续；证据不足或达到限制则以明确原因结束。
-9. 丢弃剩余动作，确认停止或保持状态，释放资源与控制占用，再发布最终结果。停止确认失败时报告执行状态未知，禁止自动接续下一技能。
+1. 从机器人端口读取同步观测，更新 Ego State；按 target／on 选择当前对象，并形成 receipt 与动态 prompt。
+2. run 复核 receipt、owner、Episode、sourceStep、标定、故障锁和空闲状态，建立唯一活动 Job，获取执行器租约并持有仿真时钟。
+3. 读取并记录观测，启动推理客户端；在模型等待期间维持时钟 hold 和执行器租约。
+4. 验证模型输出为有限七维动作序列，裁剪后检查前缀，再在每个实际控制 tick 前用当前观测复查该动作。
+5. 提交一条动作，等待精确的 25 个子步及实际完成回执，计数并记录新观测。执行至多五条后丢弃余下预测，重新推理。
+6. 目标证据达成、操作员取消、预算耗尽或错误时撤销控制，继续观察物理停稳，并复查抓持／放置是否保持。
+7. 发布 Job 的终态、目标结论、停止结论、原因和证据，写入记录，释放时钟和执行线程。
 
-前缀长度是配置项。较长前缀减少推理开销，但增加开环时间；首期不默认执行完整预测序列。具体值必须根据所选策略的基线表现与安全检查成本确定。
+每个 Runtime 只允许一个活动策略 Job。控制 owner 的逻辑占用、世界侧执行器 lease、时钟 hold 是三种不同机制：分别约束谁可发起任务、哪一代动作可应用、仿真是否推进，不能相互替代。
 
-### 6.2 时钟与延迟
+### 6.2 如何调用 π0.5
 
-复用现有 `RobotLink` 的仿真时钟协调，不用墙钟 `sleep` 模拟控制周期。相机和本体状态携带时间戳，ER 检查它们的时间差及相对当前状态的年龄。
+ER 的 `panda_policy.infer` 将同步输入写入 `prefix-NNN/observation.json`，图像在该文件中编码为 Base64 PNG，随后以参数数组启动配置中的 client_command，并追加 policy port、observation 路径、inference 输出路径。当前命令为 pi05-step1/client.sh 包裹 openpi_step6_infer.py；client.sh 选择锁定的 OpenPI 客户端环境。
 
-首期的可复现实验配置采用加速或步进模式：ER 在动作批次交界获得一致观测，采样和推理等待期间持有有期限的世界时钟占用，按既有租约机制续租，并在所有出口释放。续租使用独立于推理调用的执行路径，不能被阻塞的模型请求阻止。续租失败使当前策略结果失效，当前 Job 进入停止流程。
+客户端验证并解码输入，实际通过 OpenPI WebsocketClientPolicy 发送 NumPy 数组。下例说明模型调用接口；它只做推理，不执行机器人动作，依赖已安装的固定版 openpi_client：
 
-实时模式不自动持有冻结世界的时钟占用，也不以冻结世界掩盖 GPU 延迟。观测过期时丢弃结果，按配置的次数和总预算重新取样；反复过期时失败并报告。报告明确使用的时钟模式，不能把冻结推理时间的结果解释为实时性能。
+```python
+import numpy as np
+from openpi_client.websocket_client_policy import WebsocketClientPolicy
 
-网络等待超时使用单调墙钟，动作与任务的仿真耗时使用仿真时钟；两者分别记录。急停和网络截止时间不依赖被冻结的仿真时间推进。
+policy = WebsocketClientPolicy('127.0.0.1', 18065)
+reply = policy.infer({
+    'observation/image': external_rgb_224,       # uint8, shape (224, 224, 3)
+    'observation/wrist_image': wrist_rgb_224,    # uint8, shape (224, 224, 3)
+    'observation/state': np.asarray(state8, dtype=np.float64),
+    'prompt': 'pick up the alphabet soup and place it in the basket',
+})
+actions = np.asarray(reply['actions'])          # 当前权重为 (10, 7)
+```
 
-### 6.3 取消与迟到结果
+这里是 OpenPI 的 WebSocket／NumPy 协议，不是 HTTP `/infer`，也不是直接发送 Base64 JSON。ER 目前配置的是本机 loopback 端口；跨机器部署模型、TLS、鉴权、连接池和并发推理调度尚未实现为产品接口。正常路径由 ER 管理子进程超时和取消，EH 不直接调用模型服务。
 
-现有世界时钟 hold 租约只管理仿真推进，不提供执行器失联停止保证。当前 `RobotLink.command` 经机器人端口直接调用 `WorldSim.command`，尚无 Episode、控制代次与执行器租约校验。下述控制撤销、失联停止和确认机制均需新增，并与时钟租约分别验证。
+### 6.3 时钟、取消与迟到响应
 
-停止请求先撤销本次执行的动作提交资格，清空未执行序列，再发送本体停止或保持指令。推理请求能取消则取消；不能取消也必须在返回时丢弃。
+当前验证使用 freeze-idle 时钟：没有活动 hold 时世界冻结；策略推理阶段世界不为等待 GPU 而自由前进，每条动作仍覆盖固定物理时间。speed=1 不等于持续实时推理验证。hold 和 lease 由独立 keeper 续期；策略租约 TTL 为 30 s。
 
-撤销还必须在世界侧生效：WSim 使当前控制代次失效，清除尚未应用的命令，并按本体控制器定义保持或制动。动作接收与控制撤销使用同一仲裁，覆盖已经发出但尚未到达 WSim 的请求。执行器租约到期后的停止策略由 WSim 执行，不依赖 ER 还能成功发送停止消息。
+取消会先设置 Job 的取消事件并撤销控制代次，清除未应用动作；推理子进程被终止，必要时 kill。迟到回复和旧 observationId 不能继续提交。停止清理在墙钟 stop_wall_s 内推进物理观察；当前至少观察约 1 s 仿真时间，并可继续至最多约 5 s 的观察窗口，最终以速度条件判断停稳。stopStatus 未确认时阻止后续控制。
 
-新技能使用新的执行代次。旧请求即使稍后成功返回，也不能向新技能或已停止的本体提交动作。动作下发前再次核对代次与停止状态，不能只在开始推理时检查一次。
-
-若本体通信中断，ER 不能声称动作已停止。它应禁止新技能、报告最后已确认状态与未确认范围；独立的执行器侧失联停止机制需在新本体接入时验证，不能用一个本地取消标志代替。
-
-只有收到 WSim 的控制撤销确认，且机器人侧遥测满足配置的停止阈值，才报告停止已确认。请求或确认超时则保留原始故障与最后可确认动作，标记停止未知；重新确认控制和本体状态前，不允许新 Job 接管。Episode 重置同样使旧 receipt、控制代次和在途请求失效，旧 Job 必须释放其时钟占用和其他资源。
+Episode Reset 使旧代次、lease、receipt 和对象引用失效，并重新建立 ER 观测与初始场景。Reset 是操作员世界侧动作，不是允许 EH 为绕过故障锁自行清除状态的工具。
 
 ## 7. 动态动作如何经过安全检查
 
-当前 receipt 对应的是一个显式技能计划。π0.5 根据新观测连续生成动作，因此“开始时检查过一次 receipt”不等于后续所有动作都安全。
+| 层 | 当前检查与责任 |
+| --- | --- |
+| 输入／观测 | 必需两路 RGB、本体状态、同步 Episode 和 step、标定标识；检查缺帧与状态有限性 |
+| receipt | 当前目标与支持面、观测新鲜度、owner、一次性使用、有效期、风险与初步覆盖 |
+| 模型回复 | 非空、足够长、七维、有限值；保留 raw 输出再裁剪 |
+| PandaPrediction | 编码器 FK、差分关节预测、关节限位、每次关节预测变化上限、可见自由空间、点云障碍与 arm/tool sweep |
+| 任务授权 | 末端范围 x/y∈[-0.32,0.32] m、z∈[0.025,0.43] m；单前缀累计平移命令≤0.25 m；接触豁免仅对应选中目标和目标篮子区域 |
+| 世界侧执行 | episodeId、controlGeneration、leaseId、TTL、sequence、observationId、新鲜观测覆盖的动作步数和执行预算 |
+| 结束与恢复 | 撤销后无旧动作续跑；物理停稳窗口，检查时钟／keeper／线程清理；不确认则锁住控制 |
 
-本设计采用两层检查，均属于 ER 的职责，EH 侧守卫仍保留：
+机器人可见点云先去除标定的自身可见几何，再用近似 FK 线段与点云检查扫掠；不是整个场景的精确动力学规划。当前风险分数依据观测 clearance 计算并受 0.35 上限约束，不是经统计校准的碰撞概率，也不能代表整轮成功概率。原生碰撞实体仍由 MuJoCo 模拟。
 
-| 检查 | 时机 | 检查内容 |
-| --- | --- | --- |
-| 技能授权 | `skill_run` 开始前 | 请求绑定、有效期、使用状态、ES 依据、操作范围、执行限制及本体适配 |
-| 动作检查 | 每个待执行前缀之前，以及执行过程中的控制周期 | 动作表示和数值、关节/夹爪限位、速度与增量、观测新鲜度、停止状态、基于 ES 的短时预测 |
+`prediction_rejected` 会记录同一 Episode 的策略故障锁，后续 pick 与复合抓放都拒绝，需 Reset 后重新开始；调用 stop 只处理停止，不解除该锁。其他错误仍按 blocked、租约和观测状态决定是否可重新预测，不能将所有失败都解释为同一恢复动作。
 
-技能授权中应明确允许操作的对象与空间范围、持续条件和必须重新预测的变化。receipt 的提交有效期用于准入，Job 内执行期限与之独立计算；技能开始后依据已解析的执行限制和授权条件持续检查，不能每次控制都把“已使用 receipt”当成可重复调用的凭据。Episode 重置、控制权变化、执行超预算或观测失效均可终止 Job 内授权。
-
-实际动作检查覆盖关节与工作区限制、速度与位移预算、预测扫掠范围及可观测障碍。接触操作只允许技能指定区域内的预期接触，空间证据不足以执行检查时拒绝运动。新本体预测器随 receipt 返回实际支持的风险检查能力，不能沿用旧本体的风险数值来暗示检查已经成立。
-
-ESim 对候选前缀从当前 ES 和本体状态预测，使用已实现的风险检查；不读取 WSim 的真实碰撞场景。不具备新本体或动作表示的预测能力时，该组合不进入正式技能验收。机械限位与数值校验可以先帮助调通通信，但不能被描述为已满足预测要求。
-
-预测条件失效时，ER 丢弃未执行序列并安全结束当前技能，由 EH 获取新状态后重新调用 `ego_predict`。不在 ER 内悄悄扩大授权或更换目标。当前 ESim 简化实现与设计中的完整物理预测仍有差距，验收报告必须列出实际覆盖的风险及未覆盖项。
+奶酪诊断确认本次下一动作存在保守误拦：近似预测拒绝，而隔离的真实 OSC／碰撞几何重放没有产生接触。该已知差距尚未修改算法修复；不能因为模型走错目标就放宽全局阈值。细节见[原始 LIBERO 与 Steward 对照](steps/multi-object-pick-place-results/diagnosis/README.md)。
 
 ## 8. 结束、成功与失败分别表示什么
 
-### 8.1 保留现有 Job 终态，补充目标判断
+### 8.1 Job 状态
 
-不把策略动作执行完毕直接映射为 `succeeded`。保留现有 Job 状态，增加独立的目标结论 `achieved / not_achieved / unconfirmed`，携带机器人侧证据、观测时间与稳定原因码。需要停止时，另外返回 `confirmed / unknown` 的停止处置结论；具体字段名在实现接口时固定。
+Job 对象继承 id、skill、receipt、state、message 等字段，并补充 episodeId、phase、goalStatus、stopStatus、reasonCode、evidence、actionsApplied。运行阶段包括 starting、waiting_inference、checking_actions、executing_actions、stopping、finished。
 
-| 情况 | Job 状态 | 目标判断 | 后续行为 |
-| --- | --- | --- | --- |
-| 机器人观测确认目标达成，执行资源已释放 | `succeeded` | `achieved` | EH 可以考虑依赖的下一步 |
-| 资源正常释放，但结束条件证据不足 | `failed` | `unconfirmed` | EH 重新观察或报告，不直接推进 |
-| 明确未达成，达到步数或时长限制 | `failed` | `not_achieved` | 返回最后证据和结束原因 |
-| 策略通信或动作检查失败 | `failed` | 根据已有证据填写，不猜测 | 停止依赖工作，返回结构化原因 |
-| 操作员停止且本体停止已确认 | `stopped` | 保留停止前判断 | 不自动继续该技能 |
-| 停止或执行器状态无法确认 | `failed` | 未确认或最后判断 | 标记执行状态未知，禁止新技能 |
+| 字段 | 取值与含义 |
+| --- | --- |
+| state | running／succeeded／failed／stopped；stopped 表示取消后确认停止，不表示目标达成 |
+| goalStatus | achieved／not_achieved／unconfirmed；缺乏证据保留未确认 |
+| stopStatus | unknown／confirmed；任务终止与物理停稳分别记录 |
+| reasonCode | goal_achieved、cancelled、prediction_rejected、invalid_action、inference_timeout、execution_limit、episode_changed、lease_lost 等具体原因 |
 
-如果结果增加更细的运行阶段，阶段只描述 `等待观测 / 等待推理 / 检查动作 / 执行动作 / 结束清理`，不替代 Job 终态。已有工具结果和所有读取者同步更新，不让旧消费者把“未确认”误读为成功。
-
-只有采样证据能够说明目标不成立时返回 `not_achieved`；单纯达到预算但看不清结果时返回 `unconfirmed`。失败或停止后的目标结论可以保留作诊断，但不能独立于 Job 终态授权下一步。同步等待与异步查询返回同一份终态记录，不各自推断成功。
+只有 `state=succeeded`、`goalStatus=achieved`、`stopStatus=confirmed` 全部满足，能力程序才能返回成功。错误停止后仍需报告目标和停止两个结论。停止观察期间丢失原先已达成的抓持／放置证据，会改为未确认，不能沿用停止前的成功。
 
 ### 8.2 机器人如何确认完成
 
-每个受支持任务必须提供基于机器人可得信息的结束条件。它可以使用 ES 中的对象关系、本体反馈和必要的重新观察；不能调用 benchmark 的隐藏成功函数。
+汤罐复合任务保留专用证据：外部 RGB-D 的罐体抬升与末端耦合、开爪释放、腕视角可见罐顶位于篮沿之下、撤爪及稳定窗口。它与通用目标跟踪器的条件不同，不能将汤罐专用 lid 检测用于所有物体。
 
-例如放置类任务可要求：目标仍可识别、夹爪反馈已释放、ES 中物体与目标支撑关系持续成立，并且证据足够新。抓取类任务可要求夹爪或力觉反馈与所选目标的观测关联一致。持续时长、置信度和反馈来源由任务及本体配置给出；机器人看不清或反馈不足时返回未确认。
+单独 pick 和非汤罐复合任务绑定 receipt 中的对象。抓起要求固定外部相机的真实目标连通区域抬升、非空闭合宽度、目标与工具运动一致、稳定相对位置及至少两帧独立深度变化；腕相机继续进入 policy，但不单独确认多物体抓起。重复帧、静止同色表面、手部扫过目标和遮挡不足以确认抓持。只 pick 的成功表示停止后仍持有目标。
 
-这些是完成判定的设计方式，不代表现有 `succeeded` 已具备上述全部检查，也不保证单靠一种传感器能确认任意任务。若一个候选任务只能靠 GT 判断结束，应先补足机器人侧观测能力或换任务。
+非汤罐放置要求此前已确认抓起，再开爪、撤离、目标持续可见且稳定、篮子当前可见且与绑定对象一致；按当前篮子位置与 rim、目标尺寸和底部高度估计判断落在篮内。相对任务初始深度需要新增占据证据，防止用篮内原有同色物体替代丢失目标。该识别已通过合成 RGB-D 正负例和系统接口测试，仍需要更多真实模型回合、遮挡、旋转和物体组合验收。
 
 ### 8.3 世界侧独立验收
 
-世界侧按 Scenario 的目标规则核对 GT，记录真实完成情况，再与机器人自己的判断比较。GT 目标结果仅提供给实验员、WH 和观察界面，不能进入 Ego API、EH 会话、策略输入或重试决策。
-
-机器人判断成功而世界侧失败，是需要保留的误判；不能把世界侧结果回写给机器人“修正成功”。机器人判断未确认而世界侧已成功，同样记录为两种不同结论。
+世界侧记录双指接触、物体抬升与搬运、松爪、篮内位置、篮底接触、撤爪后的稳定承托和控制停止。它可以读取真实物体状态用于实验对照，但不能回送为机器人证据。官方 LIBERO 的 check_success、世界侧物理成功和 ER 自动目标结论要分别保存，尤其不能用基准终止时的 success 替代撤爪后承托验证。
 
 ### 8.4 失败分类与处理
 
-| 原因类别 | 拟定原因码 | 处理责任与保证 |
-| --- | --- | --- |
-| 配置或本体不兼容 | `configuration_invalid` | 加载或最早可核实阶段拒绝，报告缺失项 |
-| 不支持的目标 | `unsupported_goal` | 预测/准入时拒绝，不启动运动 |
-| 凭据被拒或控制冲突 | `receipt_rejected`、`control_busy` | 拒绝启动，返回重新预测或查询现有 Job 的条件 |
-| 观测缺失或过期 | `observation_missing`、`observation_stale` | 不执行依赖该观测的动作；重取次数受配置限制 |
-| 推理超时、断连、响应无效 | `inference_timeout`、`inference_unavailable`、`invalid_action` | 使在途结果失效，停止后报告；先前批次可能已经改变场景 |
-| 动作越界或预测拒绝 | `action_outside_authorization`、`prediction_rejected` | 不提交被拒动作，返回具体原因 |
-| 时钟租约失效 | `clock_lease_lost` | 废弃当前结果，停止 Job，释放其余资源 |
-| 取消或 Episode 改变 | `cancelled`、`episode_changed` | 使在途结果失效，结束旧 Job，释放其时钟和控制资源 |
-| 完成未确认或执行超限 | `goal_unconfirmed`、`execution_limit` | 有界结束，保留证据，不报告成功 |
-| 停止未确认 | `stop_unconfirmed` | 保留原始故障与最后确认动作，报告未知状态并锁住后续执行准入 |
+- 观测缺失、目标过期或识别歧义：不发起运动，等待可用的机器人观测。
+- receipt／控制凭据失效：拒绝运行或提交动作，不能复用旧轮 ID 与观测标识。
+- 模型超时、不可用或输出非法：结束依赖执行，撤销当前控制并检查停止。
+- 预测拒绝：记录拒绝点和模型动作，停止并锁住本轮策略，保留现场供诊断。
+- 未抓起、掉落、篮外或证据不足：如实返回 failed／not_achieved／unconfirmed 的组合，不自动宣称完成。
+- 停止或清理未知：保持 blocked，先确认物理和执行线程状态，再允许后续控制。
 
-原因码用于区分失败类别，详细消息保存具体上下文；停止未知作为附加处置结果保留，不能覆盖最先触发停止的原始故障。
-
-EH 仍可依据自己的 ES、工具记录和 blockers 重新观察、调整计划或调用 `report_problem`。现有家务脚本的清障、自救和活锁策略不会自动套用到新策略。本次不增加无限自动重试，也不把固定重试次数写成通用产品规则。
-
-首期完整任务验收采用有界的失败处置：终态失败、取消、停止未知或 Episode 改变时结束当前任务，报告已经确认的物理效果与未知状态，不自动重做可能已产生效果的动作。Job 内可以在预算中补充观测以确认目标；一旦以未确认结束，不因后来观察到目标达成而改写该 Job 的失败终态或继续原任务。后续重新规划属于另一次明确记录的尝试。
-
-## 9. 配置、日志与重放
+## 9. 配置、部署、日志与重放
 
 ### 9.1 配置分工
 
-配置分为机器人/策略配置和运行限制两部分。下表是需要提供的配置语义，不是已经支持的键名；实现时沿用现有配置文件和校验方式。
+| 配置 | 所属与作用 |
+| --- | --- |
+| Scenario／prepared bundle | 世界侧资产、物理模型、任务布局、初态和校验清单 |
+| libero-panda 本体登记 | 机构、执行栈、传感器槽位及仿真支持；real_backend=none |
+| Panda 标定 | 机器人运动学、相机内参外参、自几何和工具站点 |
+| policy.toml | ER 调用哪个客户端与模型端口，以及前缀、动作／时间预算 |
+| World／robot harness home | WH／EH 命名 profile、会话与持久能力库；与模型权重目录分离 |
 
-| 配置组 | 内容 | 验证时机 |
+当前策略配置如下；路径是 4090-2 的部署示例，迁移机器时应修改配置并重新核对版本与资产，不把这些路径硬编码到能力程序。
+
+```toml
+[policy]
+client_command = ["bash", "/home/huawei/hqk/workspace/pi05-step1/client.sh", "/home/huawei/hqk/workspace/steward/steward/scripts/openpi_step6_infer.py"]
+port = 18065
+model_id = "pi05_libero@215abfb217dbac7d5f1273282331b9b1866c0479"
+request_timeout_s = 15.0
+max_actions = 280
+max_wall_s = 420.0
+prefix_size = 5
+receipt_wall_s = 30.0
+stop_wall_s = 20.0
+```
+
+省略 policy 配置时，Panda ER 为观测／展示模式，不开放可执行策略技能。当前 CLI 启动装配方式如下，执行前确认这些端口空闲；对正在运行的服务应通过已有管理流程停止后再启动，不重复占用端口。
+
+```sh
+cd /home/huawei/hqk/workspace/steward/steward
+live=$(cat var/pi05-live-current.txt)
+MUJOCO_GL=egl OPENBLAS_NUM_THREADS=1 .venv/bin/python -u -m steward.cli \
+  --root var/step4/wsim-root up \
+  --scenario libero-object-alphabet-soup-panda \
+  --wca-port 7400 --robot-port 7410 --api-port 7420 \
+  --panda-policy-config "$live/policy.toml" \
+  --world-harness "$PWD/var/dsh/world" \
+  --robot-harness "$live/robot-home" \
+  --freeze-idle --no-dispatch-task --seed 0 --speed 1
+```
+
+原始 OpenPI 服务与权重的安装启动方法由 [Step 1 复现手册](steps/step1-results/REPRODUCE.md)维护。当前 18065 是已经单独启动的模型服务，以上 up 命令不会代为加载模型；DeepSeek key 用于 EH／WH 的 LLM 调用，与本地 π0.5 权重推理分开。机密不进入配置样例、能力程序或提交的日志。
+
+本机访问使用 `ssh -N -L 17400:127.0.0.1:7400 rtx-4090-2`，打开 `http://127.0.0.1:17400/console`。该转发只提供控制台访问，不把模型或机器人内部端口额外暴露给外部。
+
+### 9.2 记录与动作重放
+
+每个 ER 输出目录包含 API 输入与 policy-jobs/<Job ID>/。Job 内保存 receipt.json、job.json、每个 prefix 的 observation.json／inference.json／prediction.json／client.log、actions.jsonl、submissions.jsonl、observations.jsonl、latest-judgment.json、stop.json、external／wrist 原始 PNG，以及 sensors 的 RGB-D／编码器／标定快照。实际文件由运行进度决定：在推理或预测失败前未到达的阶段可能没有对应文件。
+
+actionsApplied 只计实际完成动作，不能用请求数或输出 chunk 长度推断。动作复放须固定相同场景 bundle、初态、控制器、物理步长和已应用动作；仅重新调用模型不能保证复现同一随机轨迹。世界侧 GT、双机位录像和评估报告另存并关联 Job。原始运行目录与报告路径应明确记录，不依赖一个 live-current 指针查找历史结果。
+
+## 10. 验收口径与当前结果
+
+### 10.1 原始环境基线
+
+原始 LIBERO 用于证明权重、任务与本体配套可运行，并测量模型在官方各自场景下的成绩。历史官方奶酪任务为 50/50；当前同一服务的两次官方奶酪对照均成功。它们不构成 Steward 固定汤罐布局的奶酪成功记录。
+
+### 10.2 已完成的分层验证
+
+| 阶段 | 实测证据 | 对结论的限制 |
 | --- | --- | --- |
-| 策略身份 | 后端类型、checkpoint、推理代码与预处理版本、归一化配置 | 加载及首次可确认模型身份时 |
-| 服务连接 | 端点、认证引用、连接与请求超时 | 加载；服务能力在连接时确认 |
-| 本体观测 | 相机映射、状态顺序、单位、坐标系与时间差限制 | 加载模型及首次传感器帧 |
-| 动作映射 | 输出表示、维度、坐标转换、夹爪映射、时间间隔 | 加载及每次外部响应 |
-| 执行限制 | 前缀长度、最大步数、任务时间、反馈新鲜度、速度与工作范围 | 加载及每次执行 |
-| 完成判定 | 支持任务、ES 目标条件、证据时效和稳定要求 | 配置加载与目标解析 |
-| 日志与运行模式 | 输出位置、记录策略、实时/加速模式下的时钟等待 | 启动 |
+| Step 1 | [原生基线与固定批次](steps/step1-results/README.md) | 官方任务布局，非 Steward 运行成绩 |
+| Step 2–3 | [兼容性](steps/step2-results/README.md)、[Panda／OSC](steps/step3-results/README.md) | 资产、运动与控制匹配，不代表策略完成任务 |
+| Step 4–5 | [固定动作物理](steps/step4-results/README.md)、[观测和 Ego State](steps/step5-results/README.md) | 真实接触和同步输入；非模型成功率 |
+| Step 6–7 | [真实闭环](steps/step6-results/README.md)、[聊天／能力／取消／故障](steps/step7-results/README.md) | 指定汤罐场景，冻结推理时钟 |
+| Step 8 | [初态 0 单例端到端](steps/step8-results/README.md) | smoke-03 通过；多初态稳定成功率与全量识别负例仍待验收 |
+| 多物体 | [pick](steps/multi-object-pick-results/README.md)、[抓放与原生对照](steps/multi-object-pick-place-results/diagnosis/README.md) | 程序入口开放；固定布局任意目标实际能力未通过 |
 
-缺少必要配置即拒绝相应能力，不回退到旧本体或旧策略。认证内容不写入模型输入、日志或文档。只有部署相关选择可调；传输格式、动作表示的必要字段与信息隔离规则不能靠配置关闭。
+### 10.3 模型能力与集成问题分开报告
 
-### 9.2 需要保留的执行证据
-
-- Episode、机器人、ER Job、策略配置与模型版本的关联。
-- 实际使用的观测及时间、模型输入预处理版本和记录引用。
-- 每次候选动作、检查结果、实际执行的前缀及 WSim 确认的各动作应用时刻。
-- 目标判断、机器人侧证据、停止确认与结束原因。
-- 世界侧另存的 GT 核对结果，保持与机器人运行目录隔离。
-
-现有 Ego API 输入记录只能重放高层请求。对 π0.5 路径还需保存实际策略输出、已应用动作与仿真时刻，以及控制撤销、取消和停止的边界。重放只消费已应用动作，不把候选但被拒绝或取消的动作重新执行。重新调用同一个模型属于另一次实验，不能替代执行记录重放，也不能保证相同 GPU 推理逐位一致。
-
-EH 看到的目标、预测摘要与技能结果仍通过已有工具和会话记录保存。连续策略输入只进入机器人侧专用记录，不把每帧图像塞进 LLM 历史。完整 MCAP Recorder 是设计方向，首期可以采用版本明确的自有记录格式，不声称它已经实现。
-
-## 10. 单阶段完整任务实施与验收
-
-### 10.1 候选任务与开工条件
-
-首个候选任务是使用一条基准原始指令，将单个物体抓起并放入指定容器。整个抓放过程作为一个技能 Job 执行，ER 在预算内持续观测、推理和应用动作。具体任务 ID、物体、容器、指令和初态集合通过第 4 节的独立基线后冻结；只有经过基线的组合才登记为 Steward 技能，不直接开放任意 prompt。
-
-ER 从 ES 解析对象引用，再由技能配置生成已经验证的模型指令。完成条件要求夹爪已释放，且机器人视觉或 ES 在配置的连续观测窗内确认目标物体位于容器内；遮挡或关联歧义不能报告已达成。世界侧使用独立的目标规则核对实际包含关系。
-
-### 10.2 实施与验收顺序
-
-1. 冻结候选基线和逐字段映射表，验证新增本体的传感器、动作、时钟与旧本体回归。
-2. 接入 ER 策略执行和世界侧控制仲裁，以可控推理替身通过 Ego API、真实工具和守卫验证正常及故障路径。
-3. 经真实 ego profile 调用 π0.5，验证从预测、技能提交到物理效果的完整链路。
-4. 在真实路径额外运行一次执行中取消和一次推理故障，核对停止证据与后续动作。
-
-### 10.3 功能通过与验收材料
-
-由 EH 通过现有技能工具链启动一个选定任务，ER 真实调用 π0.5，并驱动 Steward 内的新增本体。一次动作调用成功、脚本控制成功或离线输出动作张量，都不能代替这个验收。
-
-一次功能通过要求同一 Episode 同时满足：Job 为 `succeeded`、机器人目标结论为 `achieved`、世界侧确认目标达成、动作检查生效且信息隔离成立。世界成功但机器人未确认的 Episode 分别计为物理成功和机器人未确认，不计为功能通过。
-
-验收材料包括固定模型、本体、映射表、场景与预算配置，机器人侧证据、世界侧目标结果、预测和动作记录，以及可检查的图像或录像。验收前冻结场景、种子、墙钟和仿真执行预算。保存一次完整任务成功的证据，并保留全部尝试、两侧判断分歧与故障记录。
+原生汤罐布局改奶酪指令及奶酪目标判据，在原始 LIBERO 中六次均未成功，其中五次详细记录都显示汤罐入篮、奶酪未入篮。这个问题不依赖 Steward 的碰撞检查；模型在这组场景／语言组合中没有正确切换目标。WSim 中另有下一动作预测偏保守的独立问题。完整数据、八段对照录像和复现脚本见[奶酪诊断](steps/multi-object-pick-place-results/diagnosis/README.md)。
 
 ### 10.4 成功率评测口径
 
-成功率评测属于首期交付。先在原始 LIBERO 环境中运行选定任务，再在 Steward 复刻场景中运行同一任务；两侧固定并记录权重、任务指令、初态集合、种子、控制配置和执行预算，报告仿真与安全限制等差异。原始基线用于确认组合可用并定位迁移差距，不能用官方整套基准成绩代替本地测量。
+运行前固定任务、场景／初态、种子、模型及代码身份、时钟模式、动作与墙钟预算、次数和计数规则。分别统计官方基准成功、WSim 世界侧物理成功、ER 目标证据、停止确认和完整能力链路成功；失败、异常、超时、人工干预全部保留在原批次分母，故障注入与取消单列。
 
-- 评测前冻结 Episode 总数 N（N > 1）、初态列表、每次墙钟与仿真预算、终止条件及计数规则；具体 N 在运行配置中确定，不在看到结果后挑选或删减样本。
-- 世界侧物理成功率 = 世界侧确认目标达成的 Episode 数 / N；完整链路功能通过率 = 满足 §10.3 全部条件的 Episode 数 / N。分别报告分子、分母和百分比，保留机器人与世界判断不一致的记录。
-- 每次 Episode 从预定初态重置；超时、推理故障、安全停止、完成未确认或人工干预均保留，并按失败计入功能通过率。人工干预后不能记为自主物理成功；重试另记 Episode，不能覆盖原失败。额外注入的取消和故障测试单独报告，不混入正常策略评测。
-- 无法加载、重置或取得可信世界侧判定的运行标记为评测无效，保留原因，不据此发布完整批次成功率；修复后重新执行冻结的批次。
-- 报告关联每个 Episode 的配置、种子、Job 终态、两侧完成判断、失败原因及轨迹或录像。世界侧成功信号只供离线统计，不参与机器人停止、重试或恢复决策。
+一次端到端成功只证明该组合贯通。能力库的 verified、静态／合成测试通过、空动作测试策略和原始 LIBERO 成绩不能替代真实 π0.5 的本地重复批次。当前 Step 8 按用户确认收敛为初态 0，未约定稳定成功率最低阈值，也未完成多初态／多目标通用成功率验收。
 
-验收要求评测可重复运行、统计完整且有真实完整任务成功证据；尚未约定最低成功率，也不承诺复刻结果达到官方基准成绩。单次成功只证明链路贯通，不能替代此评测。
+## 11. 维护与验证入口
 
-## 11. 自动化测试与真实 GPU 验证
+修改模型适配时核对两路真实模型输入、8 维状态、动作单位和模型身份；修改本体／场景时先运行原始对照和固定动作验证；修改 Job／工具时覆盖所有者、凭据、取消、Reset、超时、轨迹拒绝和停止；修改识别时覆盖遮挡、同色替身、静止表面、空抓、篮外和新增占据证据。GUI 展示按普通 SceneState 渲染路径验证，不用 GT 复刻 Ego 场景。
 
-| 测试位置 | 主要断言 | 现有先例 |
-| --- | --- | --- |
-| 策略外部响应适配 | 维度、单位、非有限数、模型配置不匹配、请求关联错误被拒绝 | 现有网络与服务适配测试方式 |
-| ER + 可控策略替身 + WSim 已应用动作记录 | 取消与动作接收竞态、迟到响应、越界、超时、前缀调度、未知停止不产生后续动作 | ER 技能、停止和独占控制测试 |
-| Ego API 与 `ctx.ego` 工具 | 预测→执行→查询的行为，结果字段和默认等待语义一致 | 工具测试与端到端测试 |
-| 真实 ego profile | 嵌套 PTC 调用仍受守卫约束，不新增通用计算机工具 | 真实组合与配置快照测试 |
-| 能力程序与策略 Job | `run_code` 中调用任务级技能仍执行预测与安全检查；失败或未确认阻止依赖步骤，能力运行计数与物理验收分别记录 | 能力库与工具执行测试 |
-| WSim 机器人端口与 Observer | 无 WCA 路由、无 GT 输入、世界评估不回流 | 端到端隔离与 ES 泄漏测试 |
-| 新本体动作记录重放 | 固定动作与应用时刻可重现对应物理执行 | 现有倍率与输入重放测试 |
-| 真实 GPU Episode | π0.5 完成一次选定的完整任务，保存成功、误判、耗时和故障证据 | 单独执行，不由替身测试冒充 |
+当前相关回归与工具入口：
 
-故障测试补充覆盖凭据被拒、非法输出、旧观测、时钟租约失效与 Episode 重置；既要核对 Job 和原因码，也要断言 WSim 实际应用了哪些动作，以及时钟与控制资源是否释放。新技能结果须经真实 profile 进入会话记录，旧本体、普通任务和未知技能继续按原有规则处理。
+```sh
+cd /home/huawei/hqk/workspace/steward/steward
+MUJOCO_GL=egl OPENBLAS_NUM_THREADS=1 .venv/bin/python -m pytest \
+  tests/test_panda_pick.py tests/test_panda_jobs.py -q
+cd dsh
+export PATH=/home/huawei/hqk/workspace/steward/steward/var/dsh-toolchain/bin:/home/huawei/hqk/workspace/steward/steward/var/dsh-toolchain/node/bin:$PATH
+pnpm run build
+node --test test/tools.test.mjs test/panda-pick.test.mjs test/panda-pick-place.test.mjs
+```
 
-使用固定场景与初态集合验证完整任务并按 §10.4 重复测量成功率，另行演练取消和推理故障，保留全部尝试及人工干预记录。全量 LIBERO 基准与跨任务泛化留待后续。当前没有真实运行结果。
+真实 GPU 复现命令由各步结果与诊断报告维护；不要为提交文档而重复模型评测。检查结果应报告实际执行的命令和范围，不能将已知旧场景基线失败或全仓文档问题标为通过。
 
-## 12. 实施与待核实项
+## 12. 后续设计与未完成项
 
-实施顺序见[实施计划](pi05-integration-plan.md)。开工前固定 GPU 环境、OpenPI 与 checkpoint 版本、LIBERO 任务与资产、观测和动作映射、完成条件及评测配置。新本体的感知与 ESim 覆盖不足时先补足，不默认转入训练或替换整体仿真系统。
-
-原有本体与技能保持原实现；新增字段同步更新全部 Steward 消费者与配置、工具和组合测试。涉及外部可见的不兼容变更时明确迁移方式。当前尚无真实 GPU 验收结果。
-
-## 参考
-
-- [Steward 设计说明](../../../steward.md)：信息隔离、分层控制、预测凭据、零侵入与实现进度。
-- [Steward README](../../../steward/README.md)：当前运行入口与开发检查。
-- [技能执行器](../../../steward/src/steward/ego/skills.py)、[Ego Runtime](../../../steward/src/steward/ego/runtime.py)、[ESim](../../../steward/src/steward/ego/esim.py)、[机器人本体生成器](../../../steward/src/steward/assets/generators.py)。
-- [Ego 工具](../../../steward/dsh/packages/dsh-tool-ego/src/index.ts)、[安全守卫](../../../steward/dsh/packages/dsh-robot-safety/src/index.ts)、[Ego bundle](../../../steward/dsh/packages/dsh-bundle-ego/cordis.patch.yml)。
-- [本体注册](../../../steward/src/steward/embodiments.py)、[运行时本体配置](../../../steward/src/steward/ego/bodies.py)、[Arm](../../../steward/src/steward/ego/arm.py)、[PiperArm](../../../steward/src/steward/ego/cobot_arm.py)。
-- [现有端到端测试](../../../steward/tests/test_e2e.py)、[工具测试](../../../steward/dsh/test/tools.test.mjs)、[真实组合测试](../../../steward/dsh/test/integration.test.mjs)、[倍率与重放测试](../../../steward/tests/test_speed.py)。
-- [OpenPI 官方项目](https://github.com/Physical-Intelligence/openpi)、[LIBERO 示例](https://github.com/Physical-Intelligence/openpi/blob/main/examples/libero/README.md)、[远程推理说明](https://github.com/Physical-Intelligence/openpi/blob/main/docs/remote_inference.md)。
+1. 将官方奶油奶酪等任务的对应场景和初态导入 WSim，建立同任务、同布局的模型对照，避免仅换 prompt 就宣称支持了整个任务集。
+2. 用实际碰撞几何、OSC 控制响应和负例校准 PandaPrediction，解决近似扫掠误拦；继续保留执行凭据、停止确认和可观测障碍约束。
+3. 为固定场景任意目标操作单独验证语言目标定位；若引入目标框、坐标或其他条件输入，需要匹配支持该输入的策略和训练／适配方案，不能只把额外 JSON 字段传给现有模型。
+4. 扩展真实多目标、多初态、遮挡及目标旋转的证据验收，补齐独立 place 和跨多个策略 Job 的编排后再声明对应技能支持。
+5. 独立验证持续实时推理时钟、跨机器模型部署、并发与鉴权；真机控制后端另行设计，当前不提供实机部署能力。

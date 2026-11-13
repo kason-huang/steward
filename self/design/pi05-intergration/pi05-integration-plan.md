@@ -1,6 +1,6 @@
 # Steward π0.5 接入实施计划
 
-日期：2026-11-09。状态：待实施。目标与技术要求分别见 [接入 PRD](pi05-integration-prd.md)和[接入设计](pi05-integration-design.md)，待核实事项见[差距分析](pi05-integration-gaps.md)。
+初稿：2026-11-09，状态更新：2026-11-13。Step 1–7 已有分层实施证据，Step 8 完成初态 0 单例链路；多初态稳定成功率与固定布局任意目标操作仍待验收。当前实现与接口以[整体设计](pi05-integration-design.md)为准。目标与技术要求分别见 [接入 PRD](pi05-integration-prd.md)和[接入设计](pi05-integration-design.md)，待核实事项见[差距分析](pi05-integration-gaps.md)。
 
 本计划围绕一个交付目标展开：使用 π0.5-LIBERO，将 LIBERO 中一个任务场景及对应机器人复刻到 Steward；EH 每次发起一个技能 Job，由 ER 使用真实 π0.5 完成完整任务，并在固定批次中测量成功率。以下八步是实现进度检查点。实现、运行配置、场景资产和测试集中在 `steward/`，每一步保留可重复运行的入口、固定配置和截图或录像。复用已有权重与配套组合，首期不开展数据采集或训练；路线与范围见 [PRD Solution](pi05-integration-prd.md#solution)。
 

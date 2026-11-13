@@ -1,17 +1,27 @@
 # π0.5 接入设计文档
 
-本目录保存 Steward π0.5 接入的需求、技术设计与差距分析，共同遵循 [Steward 设计说明](../../../steward.md)中的架构约束。2026-11-09 按本地实现核对，当前接入方案仍为待实施提案。
+2026-11-13。Steward 已接通真实 pi05_libero、LIBERO Panda、汤罐任务场景、机器人观测、Ego API 和聊天能力程序。汤罐初态 0 完整流程已有通过证据；固定场景任意目标抓放尚未通过。本文为文档导航，技术现状统一由[接入设计](pi05-integration-design.md)维护，遵循[Steward 架构约束](../../../steward.md)。
 
-| 文档 | 回答的问题 | 主要内容 |
+| 文档 | 用途 |
+| --- | --- |
+| [当前整体设计](pi05-integration-design.md) | 模型／机器人／场景补齐，模块与进程，π0.5 输入动作协议，EH 工具与 HTTP API，receipt／Job、控制和停止、部署与验证边界 |
+| [接入 PRD](pi05-integration-prd.md) | 产品需求和原始范围，问题背景描述接入前基线 |
+| [实施计划](pi05-integration-plan.md) | 八步实施顺序、交付物和结果入口，Step 8 收敛为初态 0 |
+| [开工前差距分析](pi05-integration-gaps.md) | 2026-11-09 方案选择前的缺口，保留用于理解选型依据 |
+| [多物体接口说明](../../../steward/docs/panda-pick.md) | pick 与复合抓放的使用、限制和候选能力安装 |
+| [奶油奶酪对照诊断](steps/multi-object-pick-place-results/diagnosis/README.md) | 官方任务与固定汤罐布局的区别、抓错目标和碰撞预测保守问题、复现脚本、逐回合数据与录像 |
+
+## 实测入口
+
+| 阶段 | 方案 | 结果 |
 | --- | --- | --- |
-| [接入 PRD](pi05-integration-prd.md) | 为什么做、要做到什么程度？ | 用户需求、目标、范围、产品约束和验收要求 |
-| [接入设计](pi05-integration-design.md) | 具体怎么实现和验证？ | 模块修改、接口与数据、执行流程、安全检查、失败处理、日志重放，以及 单阶段完整任务实施方案 |
-| [差距分析](pi05-integration-gaps.md) | 实施前还缺哪些规格与证据？ | 本体、世界侧路线、控制器、感知、安全检查与前置实验 |
-| [实施计划](pi05-integration-plan.md) | 按什么顺序推进、每一步能看到什么？ | 八个实现检查点、交付物、可见进展与通过条件 |
-| [第 1 步操作方案](steps/step1.md) | 如何建立原始 LIBERO 基线？ | GPU 环境、官方示例试跑、任务固定、输入动作核对与批次评测 |
+| 1 原始模型基线 | [Step 1](steps/step1.md) | [基线与固定批次](steps/step1-results/README.md) |
+| 2 场景与物理兼容 | [Step 2](steps/step2.md) | [兼容性结果](steps/step2-results/README.md) |
+| 3 Panda／夹爪／OSC | [Step 3](steps/step3.md) | [控制结果](steps/step3-results/README.md) |
+| 4 真实接触抓放 | [Step 4](steps/step4.md) | [固定动作结果](steps/step4-results/README.md) |
+| 5 相机、本体状态与 Ego State | [Step 5](steps/step5.md) | [观测结果](steps/step5-results/README.md) |
+| 6 π0.5 闭环 | [Step 6](steps/step6.md) | [策略结果](steps/step6-results/README.md) |
+| 7 聊天、能力与 Job | [Step 7](steps/step7.md) | [工具链与故障结果](steps/step7-results/README.md) |
+| 8 初态 0 端到端验收 | [Step 8](steps/step8.md) | [单例验收结果](steps/step8-results/README.md) |
 
-先读 PRD 确认目标，再读设计文档理解实现方式。首期确定使用 π0.5-LIBERO，复刻 LIBERO 中一个场景及对应机器人。每次由 EH 发起一个技能 Job，策略在其中持续观测与执行，完成选定的完整任务，并通过重复运行测量成功率。需求范围见 [PRD 方案](pi05-integration-prd.md#solution)，技术与统计要求见[接入设计](pi05-integration-design.md#104-成功率评测口径)。
-
-需求或范围变化时更新 PRD，实现方式变化时更新接入设计。两者同时受影响时同步更新，避免维护互相矛盾的要求。文档中的提案与待核实事项不代表功能已经实现。
-
-现有 EH 已能编写并保存能力程序，两种本体也已共用 Ego Runtime 和技能入口。π0.5 在本方案中提供任务 Job 内的视觉动作策略，能力程序与基础技能的关系见[设计 §3.1](pi05-integration-design.md#31-llm-能力程序与-π05-动作策略)。
+模型在官方基准的成功、程序接口支持、单例完整流程通过和固定布局多目标成功率分别验收。使用接口前先核对[技能范围](pi05-integration-design.md#51-技能接口与工具调用)，统计结论按[评测口径](pi05-integration-design.md#104-成功率评测口径)。
