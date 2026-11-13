@@ -1,0 +1,138 @@
+{
+  "robot": "OnTheGroundPanda",
+  "gripper": "PandaGripper",
+  "controller": "OperationalSpaceController",
+  "joint_names": [
+    "robot0_joint1",
+    "robot0_joint2",
+    "robot0_joint3",
+    "robot0_joint4",
+    "robot0_joint5",
+    "robot0_joint6",
+    "robot0_joint7"
+  ],
+  "initial_qpos": [
+    0.0,
+    -0.161037389,
+    0.0,
+    -2.44459747,
+    0.0,
+    2.2267522,
+    0.7853981633974483
+  ],
+  "input_min": [
+    -1.0,
+    -1.0,
+    -1.0,
+    -1.0,
+    -1.0,
+    -1.0
+  ],
+  "input_max": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+  ],
+  "output_min": [
+    -0.05,
+    -0.05,
+    -0.05,
+    -0.5,
+    -0.5,
+    -0.5
+  ],
+  "output_max": [
+    0.05,
+    0.05,
+    0.05,
+    0.5,
+    0.5,
+    0.5
+  ],
+  "control_hz": 20,
+  "physics_step_seconds": 0.002,
+  "controller_uses_delta": true,
+  "controller_controls_orientation": true,
+  "controller_end_effector": "gripper0_grip_site",
+  "gripper_joints": [
+    "gripper0_finger_joint1",
+    "gripper0_finger_joint2"
+  ],
+  "gripper_dof": 1,
+  "rendering": "EGL",
+  "cameras": {
+    "agentview": {
+      "body": "world",
+      "local_position": [
+        0.8965773716836134,
+        5.216182733499864e-07,
+        0.65
+      ],
+      "local_quaternion_wxyz": [
+        0.6182166363517068,
+        0.3432307224633757,
+        0.3432314079167274,
+        0.6182176496305745
+      ],
+      "vertical_fov_degrees": 45.0,
+      "world_position_at_reset": [
+        0.8965773716836134,
+        5.216182733499864e-07,
+        0.65
+      ],
+      "world_rotation_at_reset": [
+        -1.7233905013069872e-06,
+        -0.5287697435529835,
+        0.8487653140297038,
+        0.9999999999985034,
+        -7.823149652530503e-07,
+        1.5430955956352577e-06,
+        -1.5194045527300304e-07,
+        0.848765314031093,
+        0.5287697435535403
+      ],
+      "source_resolution": [
+        256,
+        256
+      ]
+    },
+    "robot0_eye_in_hand": {
+      "body": "robot0_right_hand",
+      "local_position": [
+        0.05,
+        0.0,
+        0.0
+      ],
+      "local_quaternion_wxyz": [
+        0.0,
+        0.7071067811865475,
+        0.7071067811865475,
+        0.0
+      ],
+      "vertical_fov_degrees": 75.0,
+      "world_position_at_reset": [
+        -0.08276603306928898,
+        0.001757106120616877,
+        0.3731039589424328
+      ],
+      "world_rotation_at_reset": [
+        0.008241468405826957,
+        0.9999498597353029,
+        0.005688252267715919,
+        -0.9999212243976947,
+        0.00818711164930952,
+        0.009514000307657103,
+        0.009466952916758132,
+        -0.0057662135051660575,
+        0.9999385619048213
+      ],
+      "source_resolution": [
+        256,
+        256
+      ]
+    }
+  }
+}

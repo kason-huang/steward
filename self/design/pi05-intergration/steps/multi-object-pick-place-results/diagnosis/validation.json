@@ -1,0 +1,43 @@
+{
+  "pythonCodeRegression": {
+    "passed": 53,
+    "source": "unchanged code commit 4ab988addf, prior focused module logs in parent directory"
+  },
+  "toolsRegression": {
+    "passed": 17,
+    "source": "unchanged code commit 4ab988addf, prior tools-final.log"
+  },
+  "archivedReproductionScript": {
+    "nativeTrials": 4,
+    "officialCreamSuccess": 1,
+    "soupLayoutCreamFailure": 3,
+    "output": "reproduction-run/comparison.json"
+  },
+  "offlineScriptReplay": {
+    "prediction": "same rejection reproduced",
+    "physicsReplayErrorM": 0,
+    "rejectedNextActionSoupContacts": 0
+  },
+  "archiveValidation": {
+    "*.py": 6,
+    "*.json": 40,
+    "*.jsonl": 8
+  },
+  "videos": 8,
+  "relativeLinks": "passed",
+  "secretScan": "passed",
+  "repositoryDocSync": {
+    "passed": 38,
+    "failed": 5,
+    "sameFailuresBeforeNewDocs": true,
+    "failures": [
+      "doc-typecheck: npm not found",
+      "translation pairing",
+      "repository references",
+      "concrete terms",
+      "agent note format"
+    ],
+    "rawLog": "/home/huawei/hqk/workspace/steward/steward/var/pi05-generic-place/doc-sync-publish.log",
+    "scope": "existing repository items; report-specific JSON, syntax, links and native reproduction validated separately"
+  }
+}

@@ -1,0 +1,278 @@
+{
+  "conclusion": "Two observed problems: wrong-object execution in the soup-task layout under a cream-cheese instruction, and a conservative collision predictor rejection. Current policy can complete the original cream-cheese task.",
+  "nativeCreamCheeseControl": {
+    "outcome": "success",
+    "steps": 123,
+    "port": 18065,
+    "video": "/home/huawei/hqk/workspace/steward/steward/var/pi05-generic-place/diagnosis-cream-cheese/native-cream-cheese-init0/episode.mp4"
+  },
+  "nativeSoupLayoutWithCreamInstructionAndCreamGoal": [
+    {
+      "attempt": "native-soup-layout-cream-goal",
+      "result": "failure",
+      "steps": 280,
+      "soupInBasketEver": null,
+      "creamInBasketEver": null,
+      "video": "/home/huawei/hqk/workspace/steward/steward/var/pi05-generic-place/diagnosis-cream-cheese/native-soup-layout-cream-goal/episode.mp4"
+    },
+    {
+      "attempt": "native-soup-layout-cream-repeat1",
+      "result": "failure",
+      "steps": 280,
+      "soupInBasketEver": true,
+      "creamInBasketEver": false,
+      "video": "/home/huawei/hqk/workspace/steward/steward/var/pi05-generic-place/diagnosis-cream-cheese/native-soup-layout-cream-repeat1/episode.mp4"
+    },
+    {
+      "attempt": "native-soup-layout-cream-repeat2",
+      "result": "failure",
+      "steps": 280,
+      "soupInBasketEver": true,
+      "creamInBasketEver": false,
+      "video": "/home/huawei/hqk/workspace/steward/steward/var/pi05-generic-place/diagnosis-cream-cheese/native-soup-layout-cream-repeat2/episode.mp4"
+    }
+  ],
+  "offlinePredictionAndTrajectory": {
+    "trajectory": [
+      {
+        "actionCount": 0,
+        "tool": [
+          -0.152564205990392,
+          -0.006272675972043295,
+          0.2484394383626053
+        ],
+        "distanceToCreamM": 0.2480193204733708,
+        "distanceToSoupM": 0.30498071889234507
+      },
+      {
+        "actionCount": 5,
+        "tool": [
+          -0.14993860560088484,
+          -0.008957806122724923,
+          0.24567043459833862
+        ],
+        "distanceToCreamM": 0.24605990954445603,
+        "distanceToSoupM": 0.30083003937563674
+      },
+      {
+        "actionCount": 10,
+        "tool": [
+          -0.13272664971706313,
+          -0.03399095232202825,
+          0.24168513882936946
+        ],
+        "distanceToCreamM": 0.2509725993850188,
+        "distanceToSoupM": 0.2774947114400977
+      },
+      {
+        "actionCount": 15,
+        "tool": [
+          -0.10337941007205192,
+          -0.07274787143853699,
+          0.2402555831604366
+        ],
+        "distanceToCreamM": 0.2699776216505626,
+        "distanceToSoupM": 0.24810687705151738
+      },
+      {
+        "actionCount": 20,
+        "tool": [
+          -0.07134419694873416,
+          -0.11705678495525187,
+          0.2371897701053638
+        ],
+        "distanceToCreamM": 0.29850535981347587,
+        "distanceToSoupM": 0.22148557196403545
+      },
+      {
+        "actionCount": 25,
+        "tool": [
+          -0.04912128552893493,
+          -0.1628783974641697,
+          0.23304468162637723
+        ],
+        "distanceToCreamM": 0.3307860904533041,
+        "distanceToSoupM": 0.20158871986008522
+      },
+      {
+        "actionCount": 30,
+        "tool": [
+          -0.04096316601724402,
+          -0.20074583631459336,
+          0.21564097798303566
+        ],
+        "distanceToCreamM": 0.3490520808174739,
+        "distanceToSoupM": 0.1774122925115247
+      },
+      {
+        "actionCount": 35,
+        "tool": [
+          -0.037012662852527904,
+          -0.21508572437134627,
+          0.16752575546550968
+        ],
+        "distanceToCreamM": 0.33583839821610234,
+        "distanceToSoupM": 0.13484183068648303
+      },
+      {
+        "actionCount": 39,
+        "tool": [
+          -0.041553563284912776,
+          -0.2212397749852682,
+          0.12217565251270572
+        ],
+        "distanceToCreamM": 0.3207212796922866,
+        "distanceToSoupM": 0.09650979694642518
+      }
+    ],
+    "rejectedAction": [
+      -0.3624825716952086,
+      -0.11871125646048786,
+      -0.8553916114664077,
+      -0.002476732951369909,
+      -0.02332030586422909,
+      -0.01669491715396068,
+      -0.9997262308897376
+    ],
+    "predictionReplay": {
+      "code": "prediction_rejected",
+      "message": "Observed obstacle intersects predicted arm sweep: segment=6, clearance=0.030701, point=[-0.08736804019432298, -0.23836401315870662, 0.06966915262833773]"
+    },
+    "target": {
+      "id": "e:4:seen-4",
+      "category": "cream_cheese",
+      "role": "cream_cheese",
+      "position": [
+        -0.15040287164002797,
+        0.05841835863805695,
+        0.009015166403863913
+      ],
+      "sizeM": [
+        0.08287224699564734,
+        0.04256462912685492,
+        0.019384920118715225
+      ],
+      "extentM": [
+        0.08287224699564734,
+        0.04256462912685492,
+        0.019384920118715225
+      ],
+      "existence": 1.0,
+      "lastSeenAgoS": 0,
+      "on": null,
+      "categories": {
+        "cream_cheese": 1.0
+      },
+      "uncertaintyM": 0.015,
+      "categorySource": "inferred",
+      "recognitionScore": 0.26818518545525694,
+      "graspable": true
+    },
+    "support": {
+      "id": "e:4:basket",
+      "category": "basket",
+      "role": "basket",
+      "position": [
+        0.01895450326769401,
+        0.2519253364444003,
+        0.07084331712156966
+      ],
+      "sizeM": [
+        0.15,
+        0.16,
+        0.13
+      ],
+      "extentM": [
+        0.15,
+        0.16,
+        0.13
+      ],
+      "existence": 1.0,
+      "lastSeenAgoS": 0,
+      "on": null,
+      "categories": {
+        "basket": 1.0
+      },
+      "uncertaintyM": 0.015,
+      "categorySource": "observed",
+      "recognitionScore": null,
+      "graspable": false
+    }
+  },
+  "isolatedPhysicsReplay": {
+    "scope": "isolated WSim, recorded 39 actions plus the single rejected 40th action; live service untouched",
+    "replayedActions": 40,
+    "maximumToolPositionErrorMForAccepted39": 0,
+    "soupRobotContacts": [],
+    "finalToolPosition": [
+      -0.04500082036074487,
+      -0.22285867429959266,
+      0.11157559207243425
+    ],
+    "meshClearances": [
+      {
+        "actionCount": 39,
+        "nearestRobotSoupGeometry": [
+          0.0502274884224219,
+          "gripper0_finger1_collision",
+          "alphabet_soup_1_g11"
+        ],
+        "soupCollisionGeometries": 21
+      },
+      {
+        "actionCount": 40,
+        "nearestRobotSoupGeometry": [
+          0.04026667155071009,
+          "gripper0_finger1_collision",
+          "alphabet_soup_1_g11"
+        ],
+        "soupCollisionGeometries": 21
+      }
+    ]
+  },
+  "promptOnlyProbes": {
+    "count": 18,
+    "summary": "/home/huawei/hqk/workspace/steward/steward/var/pi05-generic-place/diagnosis-cream-cheese/prompt-only/summary.json",
+    "limitation": "Stochastic sampling was not held fixed; repeats establish qualitative response differences, not a deterministic causal estimate."
+  },
+  "interpretation": {
+    "confirmed": [
+      "Correct cream-cheese prompt reaches the real policy.",
+      "Policy executes toward soup rather than selected cream cheese in the tested WSim layout.",
+      "In original LIBERO soup layout, cream goal fails 3/3; both instrumented repeats place soup in basket instead of cream.",
+      "Original LIBERO cream task succeeds in current same policy service in 123 actions.",
+      "Isolated replay matches accepted 39 actions exactly and rejected 40th action has no soup-robot contact, nearest collision-geometry clearance 0.0402667m."
+    ],
+    "inferences": [
+      "The policy has inadequate instruction-to-object grounding/generalization for this scene combination. Task-specific layouts differ; this is not evidence the model cannot manipulate cream cheese in its original task.",
+      "The 35mm approximate kinematic sweep check overestimates risk for this particular next action; no claim that an entire unchecked rollout would be collision-free."
+    ],
+    "notEstablished": [
+      "The model architecture or checkpoint is intrinsically incapable of general object selection.",
+      "All WSim rendering/adaptation differences are ruled out.",
+      "Relaxing the collision threshold would make the cream-cheese task succeed."
+    ]
+  },
+  "recommendedNextSteps": [
+    "Integrate the original cream-cheese LIBERO task and initial state into WSim as a matched control.",
+    "Correct/calibrate collision prediction using actual collision geometry and executed OSC motion, preserving stop and obstacle checks.",
+    "For arbitrary targets in one fixed scene, separately validate instruction grounding or add an appropriate grounded-policy interface; changing entry validation alone is insufficient."
+  ],
+  "liveService": "No live reset, policy motion or safety-threshold modification during diagnosis; all additional execution in isolated environments.",
+  "evidenceDirectory": "/home/huawei/hqk/workspace/steward/steward/var/pi05-generic-place/diagnosis-cream-cheese",
+  "publicationReproduction": "reproduction-run/comparison.json",
+  "combinedCurrentPolicyTrials": {
+    "officialCreamCheese": {
+      "success": 2,
+      "total": 2
+    },
+    "soupLayoutCreamGoal": {
+      "success": 0,
+      "total": 6
+    },
+    "instrumentedWrongSoupPlacement": {
+      "true": 5,
+      "totalInstrumented": 5
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "scope": "isolated WSim, recorded 39 actions plus the single rejected 40th action; live service untouched",
+  "replayedActions": 40,
+  "maximumToolPositionErrorMForAccepted39": 0,
+  "soupRobotContacts": [],
+  "finalToolPosition": [
+    -0.04500082036074487,
+    -0.22285867429959266,
+    0.11157559207243425
+  ],
+  "meshClearances": [
+    {
+      "actionCount": 39,
+      "nearestRobotSoupGeometry": [
+        0.0502274884224219,
+        "gripper0_finger1_collision",
+        "alphabet_soup_1_g11"
+      ],
+      "soupCollisionGeometries": 21
+    },
+    {
+      "actionCount": 40,
+      "nearestRobotSoupGeometry": [
+        0.04026667155071009,
+        "gripper0_finger1_collision",
+        "alphabet_soup_1_g11"
+      ],
+      "soupCollisionGeometries": 21
+    }
+  ]
+}

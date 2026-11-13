@@ -30,3 +30,5 @@ node --test test/tools.test.mjs test/panda-pick.test.mjs test/panda-pick-place.t
 ```
 
 人工交互复现：打开本地转发后的控制台，先 Reset 到初态 0，等待 Ego State 完成六物体识别，再向机器人聊天发送上述指令。物体 ID 由当前轮 Ego State 查询，不能复制报告中的旧 ID。预测拒绝后先 Reset 再发起下一次任务。
+
+后续原始 LIBERO 对照确认：官方奶酪任务成功，而汤罐布局改奶酪指令仍抓放了汤罐；本次下一动作的碰撞预测也偏保守。对照结果、复现命令、8段录像与逐回合数据见[奶油奶酪诊断报告](diagnosis/README.md)。程序准入解除与固定场景任意目标的模型能力分别验收。
