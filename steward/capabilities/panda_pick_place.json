@@ -1,0 +1,23 @@
+{
+  "name": "panda_pick_place",
+  "layer": "skill",
+  "description": "Pick up the selected visible graspable object and place it in the observed basket using pi05. Bind target and on from current Ego State. No automatic retry; reset after rejected policy motion.",
+  "requires": "Body libero-panda supports libero_pick_place; args.target is a fresh graspable object id and args.on is a fresh basket id in the current Ego State; gripper is empty.",
+  "ensures": "Returns succeeded/achieved/confirmed only after observed grasp, release in the basket, withdrawal and stable placement, followed by confirmed stopping; otherwise throws the terminal result.",
+  "parameters": {
+    "target": "Current Ego-State id of the selected graspable object",
+    "on": "Current Ego-State id of the destination basket"
+  },
+  "code": "if (!args.target || !args.on) throw new Error('panda_pick_place requires args.target and args.on');\nconst pred = await tools.ego_predict({skill: 'libero_pick_place', target: args.target, on: args.on});\nif (pred.feasible !== true || pred.withinRiskLimit !== true) throw new Error('pick not feasible: ' + JSON.stringify(pred));\nconst run = await tools.skill_run({receipt: pred.receipt, wait: true, timeoutS: 240});\nconst job = run.job ?? run.jobId ?? run.id;\nif (!job) throw new Error('pick returned no Job');\nlet last = run;\nfor (let n = 0; n < 60 && (last.state === 'running' || last.state === 'queued'); n++) {\n  await new Promise(r => setTimeout(r, 5000));\n  last = await tools.skill_status({job});\n}\nconst result = {job, state: last.state, goalStatus: last.goalStatus, stopStatus: last.stopStatus, reasonCode: last.reasonCode, evidence: last.evidence};\nif (last.state !== 'succeeded' || last.goalStatus !== 'achieved' || last.stopStatus !== 'confirmed') throw new Error('pick not confirmed: ' + JSON.stringify(result));\nreturn result;",
+  "version": 1,
+  "status": "candidate",
+  "runs": {
+    "succeeded": 0,
+    "failed": 0,
+    "failedInARow": 0,
+    "succeededIn": []
+  },
+  "createdAt": "2026-11-13T00:00:00.000Z",
+  "updatedAt": "2026-11-13T00:00:00.000Z",
+  "uses": 0
+}

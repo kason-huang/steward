@@ -185,3 +185,82 @@ def test_stopping_waits_for_catalog_load_and_never_publishes_after_stop(monkeypa
     finally:
         release.set()
         runtime.stop()
+
+
+@pytest.mark.parametrize('mode', ['inside', 'outside', 'unreleased', 'occluded', 'near_tool', 'moving', 'no_grasp', 'no_basket', 'preexisting_object', 'shifted_basket'])
+def test_selected_object_placement_requires_grasp_release_stability_and_withdrawal(monkeypatch, mode):
+    import steward.ego.panda_pick as module
+    support = dict(target('basket'), id='e:1:basket', position=[0, 0, .065], sizeM=[.15, .16, .13])
+    selected = dict(target('cream_cheese'), position=[0, 0, .01], sizeM=[.08, .04, .02])
+    evidence = PickEvidence(selected, frame(0, .02), support)
+    evidence.ever_confirmed = mode != 'no_grasp'
+    evidence.new_occupancy = mode != 'preexisting_object'
+    monkeypatch.setattr(module, 'external_objects', lambda *args: (None, None if mode == 'no_basket' else (np.array([.024 if mode == 'shifted_basket' else 0, 0]), .13)))
+    for index in range(9):
+        obs = frame(100 + index * 25, .02, .3 if mode != 'near_tool' else .03)
+        evidence.position = np.array([.2 if mode == 'outside' else (-.02 if mode == 'shifted_basket' else (.015 * index if mode == 'moving' else 0)), 0, .01])
+        evidence.result = evidence.judgment(obs, 'testing', 0, 36)
+        evidence.update_placement(obs, .04 if mode == 'unreleased' else .08, None if mode == 'occluded' else (evidence.position, .02, 36, False))
+    assert (evidence.result['placement'] == 'confirmed') == (mode == 'inside')
+    if mode == 'outside':
+        assert evidence.result['placement'] == 'failed'
+
+
+def test_basket_support_requires_fresh_basket_geometry():
+    from steward.ego.panda_pick import basket_support
+    assert basket_support(target('basket'))
+    assert not basket_support(target('milk'))
+    assert not basket_support(dict(target('basket'), lastSeenAgoS=1))
+    assert not basket_support(dict(target('basket'), position=[float('nan'), 0, 0]))
+
+
+def test_preexisting_same_colour_object_is_not_selected_target_placement(monkeypatch):
+    import steward.ego.panda_pick as module
+    support = dict(target('basket'), id='e:1:basket', position=[.06, 0, .065], sizeM=[.15, .16, .13])
+    selected = dict(target('cream_cheese'), position=[-.1, 0, .01], sizeM=[.08, .04, .02])
+    def scene(index):
+        obs = frame(index * 25, .02, .3 if index > 8 else .05 + index * .005)
+        for role in ('external', 'wrist'):
+            depth, rgb = obs['depth'][role], obs['images'][role]
+            depth[:] = 1; rgb[:] = 0
+            entries = [(.06, .03)]
+            if index <= 8:
+                entries.append((-.1 + index * .015, .02 + index * .005))
+                obs['tool']['p'] = [-.1 + index * .015, 0, .05 + index * .005]
+            for x, height in entries:
+                column = round(x * 200 / (1-height) + 32)
+                depth[29:35, column-2:column+3] = 1-height
+                rgb[29:35, column-2:column+3] = [210, 20, 10]
+        return obs
+    monkeypatch.setattr(module, 'external_objects', lambda *args: (None, (np.array([.06, 0]), .13)))
+    evidence = PickEvidence(selected, scene(0), support)
+    for index in range(9):
+        result = evidence.update(scene(index), .04)
+    assert evidence.ever_confirmed
+    for index in range(9, 19):
+        result = evidence.update(scene(index), .08)
+        assert result['placement'] != 'confirmed'
+
+
+def test_rgbd_selected_cream_cheese_lift_transport_release_and_stable_placement(monkeypatch):
+    import steward.ego.panda_pick as module
+    support = dict(target('basket'), id='e:1:basket', position=[.02, 0, .065], sizeM=[.15, .16, .13])
+    selected = dict(target('cream_cheese'), position=[-.1, 0, .01], sizeM=[.08, .04, .02])
+    def scene(index):
+        x = -.1 + min(index, 8) * .015
+        z = .01 + index * .005 if index <= 8 else max(.01, .05 - (index-8)*.01)
+        obs = frame(index * 25, z+.01)
+        obs['tool']['p'] = [x, 0, z+.03 if index <= 12 else .2]
+        column = round(x * 200 / (1-z-.01) + 32)
+        for role in ('external', 'wrist'):
+            obs['depth'][role][:] = 1; obs['images'][role][:] = 0
+            obs['depth'][role][29:35, column-2:column+3] = 1-z-.01
+            obs['images'][role][29:35, column-2:column+3] = [210, 20, 10]
+        return obs
+    monkeypatch.setattr(module, 'external_objects', lambda *args: (None, (np.array([.02, 0]), .13)))
+    evidence = PickEvidence(selected, scene(0), support)
+    for index in range(23):
+        result = evidence.update(scene(index), .04 if index <= 12 else .08)
+    assert evidence.ever_confirmed
+    assert result['grasp'] == result['placement'] == 'confirmed'
+    assert result['target'] == selected['id'] and result['basket'] == support['id']

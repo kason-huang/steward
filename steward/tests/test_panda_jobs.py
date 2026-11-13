@@ -144,6 +144,16 @@ def test_pick_admits_all_visible_objects_and_binds_milk_instruction_over_real_ht
             assert r['plan']['object']['id'] == obj['id']
             assert r['plan']['prompt'] == 'pick up the ' + category.replace('_', ' ')
         basket = next(o for o in objects if o['category'] == 'basket')
+        for category, obj in groceries.items():
+            composite = call('POST', url + '/ego/predict', {'skill': 'libero_pick_place',
+                'params': {'target': obj['id'], 'on': basket['id']}})
+            assert composite['feasible'], (category, composite['issues'])
+            assert composite['plan']['prompt'] == 'pick up the ' + category.replace('_', ' ') + ' and place it in the basket'
+            assert composite['plan']['object']['id'] == obj['id']
+            assert composite['plan']['destination']['id'] == basket['id']
+        wrong_support = call('POST', url + '/ego/predict', {'skill': 'libero_pick_place',
+            'params': {'target': groceries['cream_cheese']['id'], 'on': groceries['milk']['id']}})
+        assert not wrong_support['feasible']
         denied = call('POST', url + '/ego/predict', {'skill': 'pick', 'params': {'target': basket['id']}})
         assert not denied['feasible']
         r = call('POST', url + '/ego/predict', {'skill': 'pick', 'params': {'target': groceries['milk']['id']}})
@@ -182,7 +192,8 @@ def test_pick_stop_interrupts_inference_and_confirms_stationary_control(panda):
     off_main(host, check)
 
 
-def test_rejected_pick_prefix_requires_reset_before_automatic_retry(panda, monkeypatch):
+@pytest.mark.parametrize('skill', ['pick', 'libero_pick_place'])
+def test_rejected_pick_prefix_requires_reset_before_automatic_retry(panda, monkeypatch, skill):
     host, runtime, url, _ = panda
     from steward.ego.panda_visual_model import PandaVisualModel
     runtime.visual_prior = PandaVisualModel(Path(__file__).parents[1] / 'var/step4/wsim-root/libero-step3')
@@ -193,12 +204,16 @@ def test_rejected_pick_prefix_requires_reset_before_automatic_retry(panda, monke
     def check():
         runtime.observe(force=True); runtime.observe_surfaces()
         selected = call('GET', url + '/ego/query?category=milk')['objects'][0]
-        r = call('POST', url + '/ego/predict', {'skill': 'pick', 'params': {'target': selected['id']}})
+        params = {'target': selected['id']}
+        if skill != 'pick':
+            params['on'] = call('GET', url + '/ego/query?category=basket')['objects'][0]['id']
+        r = call('POST', url + '/ego/predict', {'skill': skill, 'params': params})
         monkeypatch.setattr(PandaPrediction, 'check', reject_prefix)
         job = call('POST', url + '/skill/run', {'receipt': r['id']})
         final = call('POST', url + '/skill/wait', {'job': job['id'], 'timeoutS': 15})
         assert final['reasonCode'] == 'prediction_rejected' and final['actionsApplied'] == 0
         assert final['stopStatus'] == 'confirmed'
+        assert final['evidence']['target'] == selected['id']
         monkeypatch.setattr(PandaPrediction, 'check', original)
         for _ in range(2):
             denied = call('POST', url + '/ego/predict', {'skill': 'pick', 'params': {'target': selected['id']}})
@@ -491,3 +506,57 @@ def test_depth_renderer_preserves_metric_edges_and_rgb_msaa():
         assert abs(measured - fixture["corruptedDepthM"]) > .08
     finally:
         worker.close()
+
+
+def test_cream_cheese_place_sends_full_selected_prompt_and_never_succeeds_on_noop(panda):
+    host, runtime, url, _ = panda
+    from steward.ego.panda_visual_model import PandaVisualModel
+    runtime.visual_prior = PandaVisualModel(Path(__file__).parents[1] / 'var/step4/wsim-root/libero-step3')
+    def check():
+        runtime.observe(force=True)
+        runtime.observe_surfaces()
+        objects = call('GET', url + '/ego/summary')['objects']
+        target = next(o for o in objects if o['category'] == 'cream_cheese')
+        basket = next(o for o in objects if o['category'] == 'basket')
+        receipt = call('POST', url + '/ego/predict', {'skill': 'libero_pick_place',
+            'params': {'target': target['id'], 'on': basket['id']}})
+        assert receipt['feasible'], receipt['issues']
+        job = call('POST', url + '/skill/run', {'receipt': receipt['id']})
+        final = call('POST', url + '/skill/wait', {'job': job['id'], 'timeoutS': 15})
+        assert final['state'] == 'failed' and final['goalStatus'] != 'achieved'
+        assert final['stopStatus'] == 'confirmed'
+        assert final['evidence']['target'] == target['id']
+        assert final['evidence']['basket'] == basket['id']
+        request = json.loads((runtime.executor.out / job['id'] / 'prefix-000/observation.json').read_text())
+        assert request['prompt'] == 'pick up the cream cheese and place it in the basket'
+        assert request['target']['id'] == target['id']
+        assert not host.sim._holds
+    off_main(host, check)
+
+
+def test_basket_freshness_uses_last_real_detection(panda, monkeypatch):
+    host, runtime, url, _ = panda
+    import steward.ego.panda_perception as perception
+    original = perception.external_objects
+    def hidden_basket(*args):
+        can, _ = original(*args)
+        return can, None
+    def check():
+        valid = receipt(url)
+        seen = runtime.evidence.basket_seen_stamp
+        assert seen is not None
+        monkeypatch.setattr(perception, 'external_objects', hidden_basket)
+        # Keep RGB-D target observations while advancing the real simulator.
+        hold = 'test-hidden-basket'
+        runtime.link.arm(hold, 0)
+        try:
+            call('POST', runtime.link.url + '/clock/wait', {'hold': hold, 'until': .7,
+                 'timeoutS': 5, 'rank': 0, 'pulls': True}, timeout=6)
+            runtime.observe(force=True)
+        finally:
+            runtime.link.release(hold)
+        basket = next(o for o in runtime.summary()['objects'] if o['category'] == 'basket')
+        assert basket['lastSeenAgoS'] >= .5
+        denied = call('POST', url + '/ego/predict', {'skill': 'libero_pick_place', 'params': valid['params']})
+        assert not denied['feasible'] and any('basket' in issue for issue in denied['issues'])
+    off_main(host, check)

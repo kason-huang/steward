@@ -119,7 +119,8 @@ class PandaEgoRuntime:
                     entities.append(Entity(identifier, "object", exact(category),
                                            exact({"p": list(point), "q": [1, 0, 0, 0]}),
                                            RigidTree(exact("fixed"), [observed_box("observed", size)]),
-                                           state_vars={"size": exact(size)}))
+                                           state_vars={"size": exact(size), **({"observedAt": exact(self.evidence.basket_seen_stamp)}
+                                               if category == "basket" else {})}))
             entities.extend(self.visible_objects)
             pick_judgment = None
             if self.pick_evidence is not None:
@@ -134,6 +135,7 @@ class PandaEgoRuntime:
                 entities = [e for e in entities if e.id != selected['id']]
                 entities.append(Entity.from_dict(selected))
                 grasp = pick_judgment['grasp']
+                placement = pick_judgment['placement']
             robot.state_vars.update({"grasp": exact(grasp), "placement": exact(placement)})
             scene = SceneState("ego", entities=entities, self_id=robot.id,
                                version=observation["step"], stamp=observation["stamp"])
@@ -204,14 +206,15 @@ class PandaEgoRuntime:
                 self.scene['entities'].append(selected)
             self.link.telemetry(self.scene | {'episodeId': key[0]})
 
-    def bind_pick(self, target):
+    def bind_pick(self, target, support=None):
         """Bind an immutable receipt target to observed pick evidence for this episode."""
         with self.lock:
             selected = next((e for e in self.scene['entities'] if e['id'] == target['id']), None)
             if selected is None:
                 raise ValueError('Selected pick target is no longer tracked')
             entity = copy.deepcopy(selected)
-            evidence = PickEvidence(target, self.sensor.observation)
+            evidence = (PickEvidence(target, self.sensor.observation) if support is None
+                        else PickEvidence(target, self.sensor.observation, support))
             self.pick_entity, self.pick_evidence = entity, evidence
 
     def bind_legacy_task(self):
@@ -229,7 +232,8 @@ class PandaEgoRuntime:
     def task_positions(self):
         with self.lock:
             if self.pick_evidence is not None:
-                return self.pick_evidence.position.copy(), None
+                return self.pick_evidence.position.copy(), (np.asarray(self.pick_evidence.support['position'])
+                    if self.pick_evidence.support is not None else None)
             if self.evidence.last_can is None or self.evidence.basket is None:
                 raise ValueError("Task objects have insufficient visual evidence")
             return self.evidence.last_can.copy(), np.array([*self.evidence.basket[0], self.evidence.basket[1] - .065])
@@ -249,7 +253,7 @@ class PandaEgoRuntime:
                     "position": entity["pose"]["value"]["p"], "sizeM": size, "extentM": size,
                     "existence": 1.0, "lastSeenAgoS": max(0, self.scene['stamp'] -
                         entity.get('stateVars', {}).get('observedAt', {}).get('value', self.scene['stamp'])),
-                    "on": (self.latest["judgment"]["basket"] if category == "alphabet_soup"
+                    "on": (self.latest["judgment"]["basket"] if entity["id"] == self.latest["judgment"]["target"]
                            and self.latest["judgment"]["placement"] == "confirmed" else None),
                     "categories": {category: 1.0}, "uncertaintyM": .015,
                     'categorySource': entity['category'].get('src', 'observed'),

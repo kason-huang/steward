@@ -95,6 +95,7 @@ class PandaEvidence:
     def __init__(self):
         self.last_can = None
         self.basket = None
+        self.basket_seen_stamp = None
         self.start_can = None
         self.min_width = .08
         self.last_held = None
@@ -130,6 +131,7 @@ class PandaEvidence:
         can, basket = external_objects(images["external"], external, self.last_can)
         if basket is not None and (self.basket is None or np.linalg.norm(basket[0] - self.basket[0]) < .05):
             self.basket = basket
+            self.basket_seen_stamp = stamp
         self.min_width = min(self.min_width, width)
         if can is not None:
             self.last_can = can

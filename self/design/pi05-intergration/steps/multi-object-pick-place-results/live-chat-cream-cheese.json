@@ -1,0 +1,59 @@
+{
+  "message": "pick up the cream_cheese and place it in the basket",
+  "systemBindingCheck": "passed",
+  "job": {
+    "id": "panda-job-b3824d784f4b419896bf44673eb54c1e",
+    "skill": "libero_pick_place",
+    "receipt": "panda-receipt-bce944ae666e483f993e957c73e7b0f7",
+    "state": "failed",
+    "message": "Observed obstacle intersects predicted arm sweep: segment=6, clearance=0.028940, point=[-0.08995286643224931, -0.22787438500977797, 0.06814463768535317]",
+    "started": 0.0,
+    "finished": 2.9499999999998967,
+    "log": [],
+    "episodeId": 1,
+    "phase": "finished",
+    "goalStatus": "unconfirmed",
+    "stopStatus": "confirmed",
+    "reasonCode": "prediction_rejected",
+    "evidence": {},
+    "actionsApplied": 39
+  },
+  "operatorActionLimit": 40,
+  "operatorStopped": false,
+  "request": {
+    "episodeId": 1,
+    "step": 0,
+    "prompt": "pick up the cream cheese and place it in the basket",
+    "target": {
+      "id": "e:1:seen-4",
+      "category": "cream_cheese",
+      "role": "cream_cheese",
+      "position": [
+        -0.15040287164002797,
+        0.05841835863805695,
+        0.009015166403863913
+      ],
+      "sizeM": [
+        0.08287224699564734,
+        0.04256462912685492,
+        0.019384920118715225
+      ],
+      "extentM": [
+        0.08287224699564734,
+        0.04256462912685492,
+        0.019384920118715225
+      ],
+      "existence": 1.0,
+      "lastSeenAgoS": 0,
+      "on": null,
+      "categories": {
+        "cream_cheese": 1.0
+      },
+      "uncertaintyM": 0.015,
+      "categorySource": "inferred",
+      "recognitionScore": 0.26818518545525694,
+      "graspable": true
+    }
+  },
+  "rawJobDirectory": "/home/huawei/hqk/workspace/steward/steward/var/step4/wsim-root/runs/20261113-115354/ego-panda/policy-jobs/panda-job-b3824d784f4b419896bf44673eb54c1e"
+}

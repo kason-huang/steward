@@ -196,7 +196,7 @@ export function egoTools(ego: EgoService): ToolDefinition[] {
         + '(pick it, place it at a parking spot), then predict the original skill again. A receipt can be run once '
         + 'and expires. A configured LIBERO Panda supports "pick" with a fresh graspable target id from ego_state; '
         + 'the selected object determines the policy instruction, and success means observed lift retained after stopping. '
-        + 'It also retains "libero_pick_place" for the alphabet-soup-to-basket task with target and on. '
+        + 'It supports "libero_pick_place" for any fresh graspable target and an observed basket on; the policy prompt names the selected object. Placement needs post-release visual evidence. For non-soup objects use the panda_pick_place candidate or direct tools; verification of the soup recipe applies only to soup. '
         + 'Check the body\'s supported skills before predicting. A successful pick keeps holding the object.',
       parameters: {
         skill: { type: 'string', enum: ['navigate', 'pick', 'place', 'pour', 'open', 'close', 'libero_pick_place'], required: true, description: 'Skill to predict.' },

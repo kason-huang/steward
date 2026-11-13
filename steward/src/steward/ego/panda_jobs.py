@@ -13,7 +13,7 @@ import uuid
 import numpy as np
 
 from steward.ego.panda_policy import SKILL, PolicyFailure, infer, write_json
-from steward.ego.panda_pick import PICK, pick_prompt, pickable
+from steward.ego.panda_pick import PICK, pick_prompt, pickable, basket_support
 from steward.ego.panda_prediction import PandaPrediction
 from steward.ego.skills import Job
 from steward.glrender import encode_image
@@ -112,9 +112,9 @@ class PandaJobs:
         else:
             if skill != SKILL or set(params) != {"target", "on"}:
                 issues.append("Supported Panda skills are pick(target) and libero_pick_place(target, on)")
-            if target is None or target["category"] != "alphabet_soup":
-                issues.append("The soup can needs a current unambiguous Ego-State reference")
-            if basket is None or basket["category"] != "basket":
+            if target is None or not pickable(target):
+                issues.append("Pick-place needs a fresh graspable Ego-State object reference")
+            if basket is None or not basket_support(basket):
                 issues.append("The basket needs a current unambiguous Ego-State reference")
         previous_pick = self.runtime.pick_evidence
         width = abs(observation['encoders']['gripper0_finger_joint1']['position']
@@ -125,7 +125,7 @@ class PandaJobs:
             issues.append('The gripper already holds an object; release it or reset before a new pick')
         status = self.status()
         if self.policy_fault is not None and self.policy_fault['episodeId'] == observation['episodeId']:
-            issues.append('A pick motion was rejected; reset the episode before further policy motion: '
+            issues.append('A policy motion was rejected; reset the episode before further policy motion: '
                           + self.policy_fault['job'])
         if status["leased"] or self.blocked or self.current and self.current.state == "running":
             issues.append("Panda control is busy or stopping is unconfirmed")
@@ -136,7 +136,7 @@ class PandaJobs:
             try:
                 coverage = PandaPrediction(observation, target["position"],
                     None if picking else basket["position"],
-                    target_size=target['sizeM'] if picking else None).check(
+                    target_size=target['sizeM']).check(
                     [[0, 0, 0, 0, 0, 0, -1]])
             except PolicyFailure as exc:
                 issues.append(str(exc))
@@ -152,9 +152,11 @@ class PandaJobs:
                 "coverage": coverage, "prefixSize": self.config.prefix_size, "maxActions": self.config.max_actions,
                 "maxWallS": self.config.max_wall_s},
         }
-        if picking and target is not None:
+        if target is not None:
             receipt['plan']['object'] = copy.deepcopy(target)
-            receipt['plan']['prompt'] = pick_prompt(target)
+            receipt['plan']['prompt'] = pick_prompt(target) + ('' if picking else ' and place it in the basket')
+            if not picking and basket is not None:
+                receipt['plan']['destination'] = copy.deepcopy(basket)
         with self.lock:
             self.receipts[identifier] = receipt
             self.deadlines[identifier] = time.monotonic() + self.config.receipt_wall_s
@@ -175,7 +177,7 @@ class PandaJobs:
         with self.lock:
             receipt = self.receipt(identifier)
             if self.policy_fault is not None and self.policy_fault['episodeId'] == observation['episodeId']:
-                raise PermissionError('A pick motion was rejected; reset the episode before further policy motion')
+                raise PermissionError('A policy motion was rejected; reset the episode before further policy motion')
             if self.owner is not None and owner != self.owner:
                 raise PermissionError("Panda is controlled by another owner")
             if self.blocked or self.current and self.current.state == "running":
@@ -203,8 +205,10 @@ class PandaJobs:
             try:
                 if job.skill == PICK:
                     self.runtime.bind_pick(receipt['plan']['object'])
-                else:
+                elif receipt['plan']['object']['category'] == 'alphabet_soup':
                     self.runtime.bind_legacy_task()
+                else:
+                    self.runtime.bind_pick(receipt['plan']['object'], receipt['plan']['destination'])
                 self.link.arm(self.hold, observation["stamp"])
                 self.thread = threading.Thread(target=self._execute, args=(job,), name=job.id, daemon=True)
                 self.thread.start()
@@ -377,12 +381,12 @@ class PandaJobs:
                         break
                     job.phase = "waiting_inference"
                     task = self.receipts[job.receipt]['plan']
-                    options = ({'prompt': task['prompt'], 'target': task['object']} if job.skill == PICK else {})
+                    options = {'prompt': task['prompt'], 'target': task['object']}
                     actions, reply = infer(self.config, observation, folder / f"prefix-{prefix_index:03d}", self.cancelled, **options)
                     prefix = np.clip(actions[:min(self.config.prefix_size, self.config.max_actions - job.actionsApplied)], -1, 1)
                     objects = self.runtime.task_positions()
                     job.phase = "checking_actions"
-                    size = task['object']['sizeM'] if job.skill == PICK else None
+                    size = task['object']['sizeM']
                     prediction = PandaPrediction(observation, *objects, target_size=size).check(prefix)
                     write_json(folder / f"prefix-{prefix_index:03d}" / "prediction.json", prediction)
                     source = observation
@@ -429,8 +433,7 @@ class PandaJobs:
                 if job.goalStatus != "achieved":
                     if job.skill == PICK or judgment["placement"] == "failed":
                         job.goalStatus = "not_achieved"
-                    if job.skill == PICK:
-                        job.evidence = judgment
+                    job.evidence = judgment
         except PolicyFailure as exc:
             with self.lock:
                 reason = job.reasonCode or exc.code
@@ -456,10 +459,15 @@ class PandaJobs:
                         break
                 job.stopStatus = "confirmed" if not status["leased"] and status["stopState"] == "stopped" else "unknown"
                 write_json(folder / "stop.json", status)
+                job.evidence.update(judgment)
                 if job.skill == PICK and job.goalStatus == 'achieved' and judgment['grasp'] != 'confirmed':
                     job.goalStatus = 'unconfirmed'
                     job.evidence = judgment
                     reason = 'grasp_not_retained'
+                if job.skill != PICK and job.goalStatus == 'achieved' and judgment['placement'] != 'confirmed':
+                    job.goalStatus = 'unconfirmed'
+                    job.evidence = judgment
+                    reason = 'placement_not_retained'
             except Exception as exc:
                 job.stopStatus = "unknown"
                 job.evidence["stopError"] = str(exc)
@@ -477,7 +485,7 @@ class PandaJobs:
             with self.lock:
                 self.blocked = self.blocked or job.stopStatus != "confirmed"
                 job.reasonCode = reason
-                if job.skill == PICK and reason == 'prediction_rejected':
+                if reason == 'prediction_rejected':
                     self.policy_fault = {'episodeId': job.episodeId, 'job': job.id, 'reasonCode': reason}
                 job.state = ("succeeded" if reason == "goal_achieved" and not self.blocked else
                              "stopped" if reason == "cancelled" and not self.blocked else "failed")

@@ -1,0 +1,63 @@
+.............................F.................                          [100%]
+=================================== FAILURES ===================================
+_____ test_pick_stop_interrupts_inference_and_confirms_stationary_control ______
+
+panda = (<steward.world.server.StewardHost object at 0x754370a00950>, <steward.ego.panda_runtime.PandaEgoRuntime object at 0x7...020>, 'http://127.0.0.1:33705', PosixPath('/tmp/pytest-of-huawei/pytest-56/test_pick_stop_interrupts_infe0/policy.py'))
+
+    def test_pick_stop_interrupts_inference_and_confirms_stationary_control(panda):
+        host, runtime, url, client = panda
+        from steward.ego.panda_visual_model import PandaVisualModel
+        runtime.visual_prior = PandaVisualModel(Path(__file__).parents[1] / 'var/step4/wsim-root/libero-step3')
+        client.write_text(client.read_text().replace('time.sleep(0.05)', 'time.sleep(8)'))
+        def check():
+            runtime.observe(force=True); runtime.observe_surfaces(); runtime.start()
+            selected = call('GET', url + '/ego/query?category=milk')['objects'][0]
+            receipt = call('POST', url + '/ego/predict', {'skill': 'pick', 'params': {'target': selected['id']}})
+            job = call('POST', url + '/skill/run', {'receipt': receipt['id']})
+            deadline = time.monotonic() + 5
+            while call('GET', url + '/skill/status?job=' + job['id'])['phase'] != 'waiting_inference':
+                assert time.monotonic() < deadline
+                time.sleep(.01)
+            started = time.monotonic()
+            stopped = call('POST', url + '/skill/stop', {}, timeout=12)
+            assert time.monotonic() - started < 4
+            assert stopped['stopStatus'] == 'confirmed'
+            assert stopped['job']['state'] == 'stopped' and stopped['job']['actionsApplied'] == 0
+            assert not host.sim._holds
+>       off_main(host, check)
+
+tests/test_panda_jobs.py:192:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/test_panda_jobs.py:29: in off_main
+    return work.result()
+           ^^^^^^^^^^^^^
+../../../../.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/concurrent/futures/_base.py:449: in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+../../../../.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/concurrent/futures/_base.py:401: in __get_result
+    raise self._exception
+../../../../.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/concurrent/futures/thread.py:59: in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def check():
+        runtime.observe(force=True); runtime.observe_surfaces(); runtime.start()
+        selected = call('GET', url + '/ego/query?category=milk')['objects'][0]
+        receipt = call('POST', url + '/ego/predict', {'skill': 'pick', 'params': {'target': selected['id']}})
+        job = call('POST', url + '/skill/run', {'receipt': receipt['id']})
+        deadline = time.monotonic() + 5
+        while call('GET', url + '/skill/status?job=' + job['id'])['phase'] != 'waiting_inference':
+            assert time.monotonic() < deadline
+            time.sleep(.01)
+        started = time.monotonic()
+        stopped = call('POST', url + '/skill/stop', {}, timeout=12)
+>       assert time.monotonic() - started < 4
+E       assert (330783.964607424 - 330779.913238544) < 4
+E        +  where 330783.964607424 = <built-in function monotonic>()
+E        +    where <built-in function monotonic> = time.monotonic
+
+tests/test_panda_jobs.py:188: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_panda_jobs.py::test_pick_stop_interrupts_inference_and_confirms_stationary_control
+1 failed, 46 passed in 108.62s (0:01:48)

@@ -1,0 +1,25 @@
+✔ Panda composite capability binds both observed ids and requires confirmed terminal success (0.96052ms)
+✔ generic Panda pick capability binds the current target and requires all terminal fields (0.863566ms)
+✔ ego tools expose the robot vocabulary without World State concepts (3.004453ms)
+✔ ego_predict forwards only the given parameters and hides the raw path (1.40775ms)
+✔ skill_run waits for completion by default (0.656233ms)
+✔ policy job outcomes survive both synchronous and asynchronous tool projections (0.639158ms)
+✔ world_edit maps floor and support placements to World Control API edits (1.018499ms)
+✔ report_problem forwards the goal, step, diagnosis and message to the operator alert (0.494399ms)
+✔ safety policy denies skill_run without a receipt, with an unknown one, or above the risk limit (0.235272ms)
+✔ ego_predict passes a placing heading, a flip and a clearance; pour is a skill (0.595736ms)
+✔ ego_inspect and ego_annotate reach the Ego service (0.902239ms)
+✔ ego_forget passes the object and the reason to the Ego service (0.551527ms)
+✔ ego_candidates forwards the sought name and size to the Ego service (0.559352ms)
+✔ a saved capability is listed without its code, fetched with it, and survives a new store (5.104433ms)
+✔ code naming objects of one task or holding many decimal constants is not saved (0.25398ms)
+✔ runs of a fetched capability are counted from the program that fetched it (1.689391ms)
+✔ a forgotten capability leaves the list and keeps its reason (1.112103ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 72.550044
