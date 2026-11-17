@@ -1,6 +1,6 @@
 # Steward π0.5 具身操作接入设计
 
-2026-11-13。本文是当前已实现方案的技术参考，覆盖模型、机器人、场景、感知、调用接口、执行与验收。汤罐初态 0 的完整能力链路已有成功证据；多物体入口已开放，固定场景中的任意目标抓放尚未验收通过。逐步实施与原始证据见[实施计划](pi05-integration-plan.md)和[结果索引](README.md)。产品范围见[PRD](pi05-integration-prd.md)，整体架构约束见[Steward 设计说明](../../../steward.md)。
+2026-11-17。本文是当前已实现方案的技术参考，覆盖模型、机器人、场景、感知、调用接口、执行与验收。汤罐初态 0 的完整能力链路已有成功证据；多物体入口已开放，固定场景中的任意目标抓放尚未验收通过。逐步实施与原始证据见[实施计划](pi05-integration-plan.md)和[结果索引](README.md)。产品范围见[PRD](pi05-integration-prd.md)，整体架构约束见[Steward 设计说明](../../../steward.md)。
 
 ## 1. 当前目标与交付边界
 
@@ -92,6 +92,16 @@ WSim 使用校验过的 LIBERO prepared bundle，直接保留原生 MJCF 与资�
 本体 `libero-panda` 为固定基座 OnTheGroundPanda，7 个 arm revolute joints，两个对向 finger joints，工具站点为 `gripper0_grip_site`。臂执行器接收 torque，双指执行器接收 position。机器人自有标定描述运动学链、工具、手部、相机和自碰撞／可见几何；从编码器计算 FK，不从世界对象位姿推算机器人观测。
 
 Panda 路径采用接触抓持。夹爪夹住物体依靠接触与摩擦，松爪后物体自然掉落或由篮底承托，不调用旧本体的理想附着。固定动作在原始 LIBERO 和 WSim 的独立复位对照见 [Step 3](steps/step3-results/README.md)和 [Step 4](steps/step4-results/README.md)。该物理通过证据不等于 π0.5 任意任务通过。
+
+### 4.3.1 抓取方式由本体配置选择
+
+WorldSim 现在实际读取注册本体 YAML 的 `mechanical.grasp.sim`，按机器人选择 ideal-attach 或 contact，与 Panda 身份及其控制器装配分开。ideal-attach 保留已有捕获、理想跟随和释放；contact 只允许关节与物理接触，禁止理想附着、物体跟随、碰撞屏蔽和把手牵引。Panda 专用 OSC／租约仍由控制执行栈负责，π0.5 仍由 policy 配置选择。
+
+模式在新世界／Episode 加载时解析，普通编辑重建沿用当前模式；Reset 校验新的配置后再替换世界，配置不合法时保持原 Episode。当前每台机器人上的夹爪使用同一模式，同场景不同机器人可以不同。未知模式或有抓取点却无注册本体配置时明确拒绝，不静默退回理想抓取。YAML 随 wheel 分发，源码与安装包均能读取配置。
+
+默认 steward-bot／cobot-magic 使用 ideal-attach，libero-panda 使用 contact。物理模式要求每只夹爪均有独立指关节、驱动与有效碰撞；可用 mechanical.grippers[].finger_joints 声明 prepared MJCF 关节，但不能遗漏普通实体的其他夹爪。当前 Cobot 手指为 visual-only，不能仅改 contact 就获得物理抓取；这是明确拒绝的配置，不是本次交付的新物理本体。
+
+字段约束、打包与自定义本体迁移见[抓取仿真配置](../../../steward/docs/grasp-simulation.md)。16 项新配置／隔离测试、75 项既有回归、安装包配置读取及初态 0 Panda 固定动作抓放验证见[抓取模式验证报告](steps/grasp-sim-config-results/README.md)。模式选择不替代真实抓取证据，也不改变前述 π0.5 固定场景目标泛化边界。
 
 ### 4.4 机器人观测与模型输入
 

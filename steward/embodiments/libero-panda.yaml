@@ -5,7 +5,7 @@ mechanical:
   arms:
     - {id: arm, model: OnTheGroundPanda, dof: 7}
   grippers:
-    - {arm: arm, type: parallel-2f, control: physical-position}
+    - {arm: arm, type: parallel-2f, control: physical-position, finger_joints: [gripper0_finger_joint1, gripper0_finger_joint2]}
   grasp:
     sim: contact
 sensors:

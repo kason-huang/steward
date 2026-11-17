@@ -90,7 +90,7 @@ execution_stack:         # all services run locally on the agilex workstation RT
 
 sim2real:
   real_backend: piper_sdk   # pip package, SocketCAN can0 @1Mbps; no ROS dependency
-  safety: [hardware e-stop REQUIRED before any motion, "--allow-motion" software interlock, joint velocity caps]
+  safety: [hardware e-stop REQUIRED before any motion, '--allow-motion software interlock', joint velocity caps]
   calibration: [head camera intrinsics, head-to-arm extrinsics, arm mount transforms]  # MEASURE, replaces placeholders above
   observer_gt: apriltag + head camera
   wh_role: operator console; human perturbations

@@ -1,6 +1,6 @@
 # π0.5 接入设计文档
 
-2026-11-13。Steward 已接通真实 pi05_libero、LIBERO Panda、汤罐任务场景、机器人观测、Ego API 和聊天能力程序。汤罐初态 0 完整流程已有通过证据；固定场景任意目标抓放尚未通过。本文为文档导航，技术现状统一由[接入设计](pi05-integration-design.md)维护，遵循[Steward 架构约束](../../../steward.md)。
+2026-11-17。Steward 已接通真实 pi05_libero、LIBERO Panda、汤罐任务场景、机器人观测、Ego API 和聊天能力程序。汤罐初态 0 完整流程已有通过证据；固定场景任意目标抓放尚未通过。本文为文档导航，技术现状统一由[接入设计](pi05-integration-design.md)维护，遵循[Steward 架构约束](../../../steward.md)。
 
 | 文档 | 用途 |
 | --- | --- |
@@ -8,6 +8,7 @@
 | [接入 PRD](pi05-integration-prd.md) | 产品需求和原始范围，问题背景描述接入前基线 |
 | [实施计划](pi05-integration-plan.md) | 八步实施顺序、交付物和结果入口，Step 8 收敛为初态 0 |
 | [开工前差距分析](pi05-integration-gaps.md) | 2026-11-09 方案选择前的缺口，保留用于理解选型依据 |
+| [抓取仿真配置](../../../steward/docs/grasp-simulation.md) | mechanical.grasp.sim 的后端选择、能力校验、打包与自定义本体迁移 |
 | [多物体接口说明](../../../steward/docs/panda-pick.md) | pick 与复合抓放的使用、限制和候选能力安装 |
 | [奶油奶酪对照诊断](steps/multi-object-pick-place-results/diagnosis/README.md) | 官方任务与固定汤罐布局的区别、抓错目标和碰撞预测保守问题、复现脚本、逐回合数据与录像 |
 

@@ -7,6 +7,8 @@ the ``steward`` subcommand that runs its Ego Runtime, and the five-layer profile
 ``steward/embodiments/``. Like :mod:`steward.phases`, one entry per implementation; a body the
 registry does not know is shown by its asset id and gets no Ego Runtime.
 
+The profile mechanical.grasp.sim field selects WSim grasp behavior independently of its controller.
+
 Switching bodies is never a live switch: the body is compiled into the world model, so another
 body means a new episode and another Ego Runtime process. A scenario names the body it was built
 with, but any registered body can take it (:func:`with_body`).
@@ -15,6 +17,10 @@ with, but any registered body can take it (:func:`with_body`).
 from __future__ import annotations
 
 import copy
+from dataclasses import dataclass
+from pathlib import Path
+
+import yaml
 
 EMBODIMENTS: dict[str, dict] = {
     "libero-panda": {
@@ -120,3 +126,44 @@ def with_body(scenario: dict, embodiment_id: str) -> dict:
         body.update({"id": ent["id"], "pose": copy.deepcopy(ent["pose"]), "asset": {"id": embodiment_id}})
         entities[i] = body
     return out
+
+
+@dataclass(frozen=True)
+class SimulationGrasp:
+    """One body's simulation backend and optional compiled finger-joint groups."""
+    mode: str
+    finger_joints: tuple[tuple[str, ...], ...] = ()
+
+
+def simulation_grasp(embodiment_id: str) -> SimulationGrasp:
+    """Load mechanical.grasp.sim from the registered body's packaged/source YAML.
+
+    Unknown, missing and malformed declarations fail before simulation starts.
+    The result is resolved per robot at episode load, not on each physics tick.
+    """
+    entry = EMBODIMENTS[embodiment_id]
+    directory = Path(__file__).parent / 'embodiment_profiles'
+    if not directory.is_dir():
+        directory = Path(__file__).resolve().parents[2] / 'embodiments'
+    path = directory / entry['profile']
+    try:
+        profile = yaml.safe_load(path.read_text())
+    except (OSError, yaml.YAMLError) as exc:
+        raise ValueError(f'Cannot read embodiment profile {path}: {exc}') from exc
+    if not isinstance(profile, dict) or profile.get('id') != embodiment_id:
+        raise ValueError(f'Embodiment profile identity does not match {embodiment_id}: {path}')
+    mechanical = profile.get('mechanical')
+    grasp = mechanical.get('grasp') if isinstance(mechanical, dict) else None
+    mode = grasp.get('sim') if isinstance(grasp, dict) else None
+    if mode not in ('ideal-attach', 'contact'):
+        raise ValueError(f'{embodiment_id}: mechanical.grasp.sim must be ideal-attach or contact')
+    grippers = mechanical.get('grippers', [])
+    if not isinstance(grippers, list) or any(not isinstance(g, dict) for g in grippers):
+        raise ValueError(f'{embodiment_id}: mechanical.grippers must be a list of mappings')
+    groups = [g.get('finger_joints') for g in grippers]
+    if any(g is not None for g in groups):
+        if any(not isinstance(g, list) or len(g) < 2 or any(not isinstance(j, str) or not j for j in g)
+               for g in groups):
+            raise ValueError(f'{embodiment_id}: finger_joints must name physical fingers for every gripper')
+        return SimulationGrasp(mode, tuple(tuple(g) for g in groups))
+    return SimulationGrasp(mode)

@@ -3,7 +3,7 @@
 WorldSim owns the MuJoCo model built from a World State scene, advances it at a fixed timestep
 (paced against wall time by ``speed``, ``math.inf`` for as fast as possible, or stepped explicitly),
 keeps the clock robot control loops and client inputs wait on (:meth:`WorldSim.wait_until`), executes robot actuator commands,
-performs Phase 0 ideal grasping, generates each robot's sensor readings, and reads the physics
+selects embodiment-configured ideal or contact grasping, generates each robot's sensor readings, and reads the physics
 state back as a World State ``SceneState``.
 
 Phase 0 perception is an *ideal detector*: for every entity (or environment link) visible from a
@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 import mujoco
 import numpy as np
 
+from steward.embodiments import SimulationGrasp, embodiment_of, simulation_grasp
 from steward.glrender import close_renderer, encode_image, free_camera
 from steward.math3d import matrix_from_quat, pose_compose, pose_inverse, quat_from_yaw, quat_mul, quat_normalize, yaw_from_quat
 from steward.scene.extent import entity_body_ids, entity_obb
@@ -149,7 +150,7 @@ class _Hold:
 
 @dataclass
 class _GripState:
-    """Per-gripper ideal-grasp state; a robot has one entry per ``grasp-point`` link."""
+    """Per-gripper closure and optional ideal-grasp state; one entry per ``grasp-point`` link."""
     closed: bool = False
     attached: str | None = None
     rel: dict | None = None
@@ -160,6 +161,7 @@ class _GripState:
 @dataclass
 class _RobotState:
     entity_id: str
+    grasp: SimulationGrasp | None = None
     grippers: dict[str, _GripState] = field(default_factory=dict)
 
     def holding_any(self, entity_id: str) -> bool:
@@ -195,7 +197,13 @@ def _finger_joints(ent, gripper_link: str) -> list[tuple[str, float, float]]:
 
 
 def _robot_state(ent) -> _RobotState:
-    return _RobotState(ent.id, {lid: _GripState() for lid in _gripper_links(ent)})
+    grippers = {lid: _GripState() for lid in _gripper_links(ent)}
+    body = embodiment_of(ent.to_dict())
+    if body is None:
+        if grippers:
+            raise ValueError(f'{ent.id}: a grasp-capable robot requires a registered embodiment profile')
+        return _RobotState(ent.id)
+    return _RobotState(ent.id, simulation_grasp(body), grippers)
 
 
 class WorldSim:
@@ -234,16 +242,20 @@ class WorldSim:
 
     # ------------------------------------------------------------------ setup
     def _load(self, scene_dict: dict) -> None:
-        self.episode = next(_EPISODES)
-        self.template = SceneState.from_dict(scene_dict)
-        self.build = self._prepared_build or build_mjcf(
-            self.template, timestep=self.timestep, extra_cameras=[self._overview or self._default_overview()],
+        # Prepare and validate before publishing a replacement episode. Invalid
+        # profile changes must not leave an existing controller on a partial model.
+        template = SceneState.from_dict(scene_dict)
+        robots = {e.id: _robot_state(e) for e in template.entities if e.role == "robot"}
+        build = self._prepared_build or build_mjcf(
+            template, timestep=self.timestep, extra_cameras=[self._overview or self._default_overview(template)],
             appearance=self.appearance)
-        self.model = self.build.compile()
-        self.timestep = float(self.model.opt.timestep)
-        self.data = mujoco.MjData(self.model)
-        self.build.apply_initial(self.model, self.data)
-        self.robots = {e.id: _robot_state(e) for e in self.template.entities if e.role == "robot"}
+        model = build.compile()
+        data = mujoco.MjData(model)
+        build.apply_initial(model, data)
+        self._validate_grasps(template, build, model, robots)
+        self.episode = next(_EPISODES)
+        self.template, self.build, self.model, self.data, self.robots = template, build, model, data, robots
+        self.timestep = float(model.opt.timestep)
         for renderer in getattr(self, "_renderers", {}).values():
             close_renderer(renderer)
         self._epoch = getattr(self, "_epoch", 0) + 1
@@ -260,6 +272,49 @@ class WorldSim:
 
             self.panda = PandaControl(self.model, self.data, self.build.panda_initial, self.episode)
 
+    @staticmethod
+    def _validate_grasps(template, build, model, robots) -> None:
+        """Reject a backend whose compiled robot cannot support its declared grasp."""
+        for rs in robots.values():
+            if rs.grasp is None:
+                continue
+            if rs.grasp.mode == 'ideal-attach':
+                if not rs.grippers:
+                    raise ValueError(f'{rs.entity_id}: ideal-attach requires grasp-point links')
+                continue
+            names = build.names[rs.entity_id]
+            entity = template.entity(rs.entity_id)
+            inferred = tuple(tuple(joint for joint, _, _ in _finger_joints(entity, link))
+                             for link in rs.grippers)
+            declared = rs.grasp.finger_joints
+            if declared and rs.grippers and (
+                    len(declared) != len(inferred)
+                    or {frozenset(group) for group in declared} != {frozenset(group) for group in inferred}):
+                raise ValueError(f'{rs.entity_id}: physical fingers must match every grasp-point gripper')
+            groups = declared or inferred
+            if not groups or any(len(group) < 2 for group in groups):
+                raise ValueError(f'{rs.entity_id}: contact grasp requires actuated physical fingers')
+            robot_bodies = set(entity_body_ids(model, names))
+            for group in groups:
+                if len(set(group)) != len(group):
+                    raise ValueError(f'{rs.entity_id}: physical fingers must name distinct joints')
+                for joint in group:
+                    name = names.joints.get(joint)
+                    jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, name) if name else -1
+                    if (jid < 0 or model.jnt_type[jid] != mujoco.mjtJoint.mjJNT_SLIDE
+                            or int(model.jnt_bodyid[jid]) not in robot_bodies
+                            or not np.any((model.actuator_trntype == mujoco.mjtTrn.mjTRN_JOINT)
+                                          & (model.actuator_trnid[:, 0] == jid))):
+                        raise ValueError(f'{rs.entity_id}: contact grasp requires actuated physical fingers: {joint}')
+                    descendants = {int(model.jnt_bodyid[jid])}
+                    for body in range(model.nbody):
+                        if int(model.body_parentid[body]) in descendants:
+                            descendants.add(body)
+                    collision = np.isin(model.geom_bodyid, list(descendants)) & (
+                        (model.geom_contype != 0) | (model.geom_conaffinity != 0))
+                    if not np.any(collision):
+                        raise ValueError(f'{rs.entity_id}: physical fingers require collision geometry: {joint}')
+
     def _index_bodies(self) -> None:
         self._body_entity: dict[int, str] = {}
         self._body_link: dict[int, str] = {}
@@ -269,9 +324,9 @@ class WorldSim:
             for link_id, body_name in names.bodies.items():
                 self._body_link[mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, body_name)] = link_id
 
-    def _default_overview(self) -> dict:
+    def _default_overview(self, scene=None) -> dict:
         span = 6.0
-        for ent in self.template.entities:
+        for ent in (scene if scene is not None else self.template).entities:
             if ent.category.value == "building":
                 xs = [abs(j.origin.value["p"][0]) for j in ent.rigid.joints]
                 ys = [abs(j.origin.value["p"][1]) for j in ent.rigid.joints]
@@ -457,7 +512,8 @@ class WorldSim:
                 self.data.ctrl[a] = ctrl[name]
         self.data.time = sim_time
         self._index_bodies()
-        self.robots = {e.id: robots.get(e.id, _robot_state(e)) for e in scene.entities if e.role == "robot"}
+        self.robots = {e.id: robots[e.id] if e.id in robots else _robot_state(e) for e in scene.entities if e.role == "robot"}
+        self._validate_grasps(self.template, self.build, self.model, self.robots)
         for rs in self.robots.values():
             for g in rs.grippers.values():
                 g.saved_contacts = {}
@@ -708,11 +764,13 @@ class WorldSim:
                     if action == "close" and not g.closed:
                         g.closed = True
                         self._set_fingers(rs, link_id, closed=True)
-                        self._try_attach(rs, g, link_id)
+                        if rs.grasp is not None and rs.grasp.mode == "ideal-attach":
+                            self._try_attach(rs, g, link_id)
                     elif action == "open" and g.closed:
                         g.closed = False
                         self._set_fingers(rs, link_id, closed=False)
-                        self._release(rs, g)
+                        if rs.grasp is not None and rs.grasp.mode == "ideal-attach":
+                            self._release(rs, g)
             return {"ok": True, "t": self.time}
 
     @staticmethod
@@ -772,6 +830,8 @@ class WorldSim:
         it, or that close to its box: a large object is taken by its edge) that has nothing resting on or
         in it (the top of a stack) or is a pourable container (carried with what lies in it), or else
         grasp the nearest drawer handle."""
+        if rs.grasp is None or rs.grasp.mode != 'ideal-attach':
+            return
         grip = np.asarray(self.grasp_point(rs.entity_id, gripper_link)["p"])
         relations = [r for r in self._relations() if r.type == "supported-by"]
         supporting = {r.b["entity"] for r in relations if self.template.entity(r.a["entity"]).rigid.root.value == "free"}
@@ -831,6 +891,8 @@ class WorldSim:
     def _suspend_contacts(self, rs: _RobotState, g: _GripState) -> None:
         """A carried object moves with the gripper and stops colliding, so it never snags on what it
         is lifted from; a pourable container keeps colliding, so what lies in it stays in it."""
+        if rs.grasp is None or rs.grasp.mode != 'ideal-attach':
+            return
         if g.attached is None or _is_pourable(self.template.entity(g.attached)):
             return
         for gid in range(self.model.ngeom):
@@ -882,6 +944,8 @@ class WorldSim:
     def _drive_handles(self) -> None:
         """A grasped drawer follows the gripper along its slide axis (PD force on the slide joint)."""
         for rs in self.robots.values():
+            if rs.grasp is None or rs.grasp.mode != 'ideal-attach':
+                continue
             for g in rs.grippers.values():
                 h = g.handle
                 if h is None:
@@ -899,6 +963,8 @@ class WorldSim:
         g.handle = None
 
     def _release(self, rs: _RobotState, g: _GripState) -> None:
+        if rs.grasp is None or rs.grasp.mode != 'ideal-attach':
+            return
         if g.handle is not None:
             self._release_handle(rs, g)
         if g.attached is None:
@@ -915,6 +981,8 @@ class WorldSim:
         """Move each held object rigidly with its gripper. It also takes the gripper's velocity, so
         contacts carry what lies in a held container instead of letting it pass through."""
         for rs in self.robots.values():
+            if rs.grasp is None or rs.grasp.mode != 'ideal-attach':
+                continue
             for gripper_link, g in rs.grippers.items():
                 if g.attached is None:
                     continue

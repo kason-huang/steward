@@ -1,0 +1,20 @@
+{
+  "newTestsPassed": 16,
+  "regressionTestsPassed": 75,
+  "physicalGrasp": true,
+  "physicalPlacement": true,
+  "wheelInstallProfileRead": "passed",
+  "review": {
+    "spec": "no remaining important findings",
+    "standards": "no remaining important findings"
+  },
+  "documentation": {
+    "focusedLinksExamplesSyntax": "passed",
+    "docSync": {
+      "passed": 38,
+      "failed": 5,
+      "scope": "same existing repository documentation issues and npm missing",
+      "log": "/home/huawei/hqk/workspace/steward/steward/var/grasp-sim-config/doc-sync.log"
+    }
+  }
+}

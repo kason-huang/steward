@@ -1,0 +1,10 @@
+{
+  "steward/src/steward/embodiments.py": "8e3677396e651f77adeae11c3e94f91093572c3d1b5a42494cd525881ec70699",
+  "steward/src/steward/world/sim.py": "18eb97ccbc6b4dce5e67e9d09a766840510e0d118a9aa6c21e88fd3d2204f51b",
+  "steward/embodiments/libero-panda.yaml": "3bd3da1dca084cba3e145254a44687a1ef12172875f85636778fb6b110afb45a",
+  "steward/embodiments/cobot-magic.yaml": "c5e929fa8d60ae558d2007668f7af9f6bb4eab333d610415355728ac0aed6ce0",
+  "steward/embodiments/steward-bot.yaml": "6bbb28886284abb21cd9b5dc9fbdee64e949bbeef7d0b9c2deff804d4bbb254f",
+  "steward/pyproject.toml": "5905839e11d7a5fd002372020073cc4a16758146e6c5e309fa77a3cb8dc1ffec",
+  "steward/uv.lock": "62cebffdc1641e2eee60d074c064d519cdbb49166a87e3b63e82d83201ac6a3b",
+  "steward/tests/test_grasp_mode.py": "b861d940c74ad609e6db3e6f7a826910f9b4ec20321ad23ea933408df0fbd1a7"
+}
