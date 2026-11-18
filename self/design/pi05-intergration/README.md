@@ -4,6 +4,7 @@
 
 | 文档 | 用途 |
 | --- | --- |
+| [CaP 与 VLA 后续设计](../vla-cap-integration/design.md) | 待实现的互补关系、能力发现与程序内 policy_* 契约；不改变本文现状及验收结论 |
 | [当前整体设计](pi05-integration-design.md) | 模型／机器人／场景补齐，模块与进程，π0.5 输入动作协议，EH 工具与 HTTP API，receipt／Job、控制和停止、部署与验证边界 |
 | [接入 PRD](pi05-integration-prd.md) | 产品需求和原始范围，问题背景描述接入前基线 |
 | [实施计划](pi05-integration-plan.md) | 八步实施顺序、交付物和结果入口，Step 8 收敛为初态 0 |

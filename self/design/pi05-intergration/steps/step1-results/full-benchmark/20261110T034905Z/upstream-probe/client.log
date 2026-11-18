@@ -1,0 +1,179 @@
+[robosuite WARNING] No private macro file found! (macros.py:53)
+[robosuite WARNING] It is recommended to use a private macro file (macros.py:54)
+[robosuite WARNING] To setup, run: python /home/huawei/hqk/workspace/pi05-step1/client-mirror-venv/lib/python3.8/site-packages/robosuite/scripts/setup_macros.py (macros.py:55)
+[info] using task orders [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+INFO:root:Task suite: libero_spatial
+INFO:root:Waiting for server at ws://127.0.0.1:18016...
+  0%|          | 0/10 [00:00<?, ?it/s][Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+[Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+/home/huawei/hqk/workspace/pi05-step1/client-mirror-venv/lib/python3.8/site-packages/numba/np/arraymath.py:3845: DeprecationWarning: `np.MachAr` is deprecated (NumPy 1.22).
+  @overload(np.MachAr)
+
+  0%|          | 0/1 [00:00<?, ?it/s][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 1...
+INFO:root:Success: True
+INFO:root:# episodes completed so far: 1
+INFO:root:# successes: 1 (100.0%)
+
+100%|██████████| 1/1 [00:13<00:00, 13.65s/it][A100%|██████████| 1/1 [00:13<00:00, 13.65s/it]
+INFO:root:Current task success rate: 1.0
+INFO:root:Current total success rate: 1.0
+ 10%|█         | 1/10 [00:14<02:13, 14.87s/it][Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+[Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+
+  0%|          | 0/1 [00:00<?, ?it/s][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 1...
+INFO:root:Success: True
+INFO:root:# episodes completed so far: 2
+INFO:root:# successes: 2 (100.0%)
+
+100%|██████████| 1/1 [00:05<00:00,  5.27s/it][A100%|██████████| 1/1 [00:05<00:00,  5.27s/it]
+INFO:root:Current task success rate: 1.0
+INFO:root:Current total success rate: 1.0
+ 20%|██        | 2/10 [00:20<01:16,  9.58s/it][Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+[Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+
+  0%|          | 0/1 [00:00<?, ?it/s][AINFO:root:
+Task: pick up the black bowl from table center and place it on the plate
+INFO:root:Starting episode 1...
+INFO:root:Success: True
+INFO:root:# episodes completed so far: 3
+INFO:root:# successes: 3 (100.0%)
+
+100%|██████████| 1/1 [00:05<00:00,  5.59s/it][A100%|██████████| 1/1 [00:05<00:00,  5.59s/it]
+INFO:root:Current task success rate: 1.0
+INFO:root:Current total success rate: 1.0
+ 30%|███       | 3/10 [00:26<00:56,  8.00s/it][Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+[Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+
+  0%|          | 0/1 [00:00<?, ?it/s][AINFO:root:
+Task: pick up the black bowl on the cookie box and place it on the plate
+INFO:root:Starting episode 1...
+INFO:root:Success: True
+INFO:root:# episodes completed so far: 4
+INFO:root:# successes: 4 (100.0%)
+
+100%|██████████| 1/1 [00:03<00:00,  3.72s/it][A100%|██████████| 1/1 [00:03<00:00,  3.72s/it]
+INFO:root:Current task success rate: 1.0
+INFO:root:Current total success rate: 1.0
+ 40%|████      | 4/10 [00:31<00:39,  6.57s/it][Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+[Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+
+  0%|          | 0/1 [00:00<?, ?it/s][AINFO:root:
+Task: pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate
+INFO:root:Starting episode 1...
+INFO:root:Success: True
+INFO:root:# episodes completed so far: 5
+INFO:root:# successes: 5 (100.0%)
+
+100%|██████████| 1/1 [00:05<00:00,  5.53s/it][A100%|██████████| 1/1 [00:05<00:00,  5.53s/it]
+INFO:root:Current task success rate: 1.0
+INFO:root:Current total success rate: 1.0
+ 50%|█████     | 5/10 [00:37<00:31,  6.39s/it][Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+[Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+
+  0%|          | 0/1 [00:00<?, ?it/s][AINFO:root:
+Task: pick up the black bowl on the ramekin and place it on the plate
+INFO:root:Starting episode 1...
+INFO:root:Success: True
+INFO:root:# episodes completed so far: 6
+INFO:root:# successes: 6 (100.0%)
+
+100%|██████████| 1/1 [00:04<00:00,  4.45s/it][A100%|██████████| 1/1 [00:04<00:00,  4.45s/it]
+INFO:root:Current task success rate: 1.0
+INFO:root:Current total success rate: 1.0
+ 60%|██████    | 6/10 [00:42<00:23,  5.91s/it][Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+[Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+
+  0%|          | 0/1 [00:00<?, ?it/s][AINFO:root:
+Task: pick up the black bowl next to the cookie box and place it on the plate
+INFO:root:Starting episode 1...
+INFO:root:Success: True
+INFO:root:# episodes completed so far: 7
+INFO:root:# successes: 7 (100.0%)
+
+100%|██████████| 1/1 [00:05<00:00,  5.00s/it][A100%|██████████| 1/1 [00:05<00:00,  5.00s/it]
+INFO:root:Current task success rate: 1.0
+INFO:root:Current total success rate: 1.0
+ 70%|███████   | 7/10 [00:48<00:17,  5.86s/it][Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+[Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+
+  0%|          | 0/1 [00:00<?, ?it/s][AINFO:root:
+Task: pick up the black bowl on the stove and place it on the plate
+INFO:root:Starting episode 1...
+INFO:root:Success: True
+INFO:root:# episodes completed so far: 8
+INFO:root:# successes: 8 (100.0%)
+
+100%|██████████| 1/1 [00:05<00:00,  5.17s/it][A100%|██████████| 1/1 [00:05<00:00,  5.17s/it]
+INFO:root:Current task success rate: 1.0
+INFO:root:Current total success rate: 1.0
+ 80%|████████  | 8/10 [00:53<00:11,  5.81s/it][Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+[Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+
+  0%|          | 0/1 [00:00<?, ?it/s][AINFO:root:
+Task: pick up the black bowl next to the plate and place it on the plate
+INFO:root:Starting episode 1...
+INFO:root:Success: True
+INFO:root:# episodes completed so far: 9
+INFO:root:# successes: 9 (100.0%)
+
+100%|██████████| 1/1 [00:04<00:00,  4.53s/it][A100%|██████████| 1/1 [00:04<00:00,  4.53s/it]
+INFO:root:Current task success rate: 1.0
+INFO:root:Current total success rate: 1.0
+ 90%|█████████ | 9/10 [00:58<00:05,  5.59s/it][Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+[Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+
+  0%|          | 0/1 [00:00<?, ?it/s][AINFO:root:
+Task: pick up the black bowl on the wooden cabinet and place it on the plate
+INFO:root:Starting episode 1...
+INFO:root:Success: True
+INFO:root:# episodes completed so far: 10
+INFO:root:# successes: 10 (100.0%)
+
+100%|██████████| 1/1 [00:04<00:00,  4.76s/it][A100%|██████████| 1/1 [00:04<00:00,  4.76s/it]
+INFO:root:Current task success rate: 1.0
+INFO:root:Current total success rate: 1.0
+100%|██████████| 10/10 [01:04<00:00,  5.51s/it]100%|██████████| 10/10 [01:04<00:00,  6.42s/it]
+INFO:root:Total success rate: 1.0
+INFO:root:Total episodes: 10
+Exception ignored in: <function MjRenderContext.__del__ at 0x72a0a17d3310>
+Traceback (most recent call last):
+  File "/home/huawei/hqk/workspace/pi05-step1/client-mirror-venv/lib/python3.8/site-packages/robosuite/utils/binding_utils.py", line 199, in __del__
+    self.gl_ctx.free()
+  File "/home/huawei/hqk/workspace/pi05-step1/client-mirror-venv/lib/python3.8/site-packages/robosuite/renderers/context/egl_context.py", line 149, in free
+    EGL.eglMakeCurrent(EGL_DISPLAY, EGL.EGL_NO_SURFACE, EGL.EGL_NO_SURFACE, EGL.EGL_NO_CONTEXT)
+  File "/home/huawei/hqk/workspace/pi05-step1/client-mirror-venv/lib/python3.8/site-packages/OpenGL/error.py", line 230, in glCheckError
+    raise self._errorClass(
+OpenGL.raw.EGL._errors.EGLError: EGLError(
+	err = EGL_NOT_INITIALIZED,
+	baseOperation = eglMakeCurrent,
+	cArguments = (
+		<OpenGL._opaque.EGLDisplay_pointer object at 0x72a087b2d8c0>,
+		<OpenGL._opaque.EGLSurface_pointer object at 0x72a0a72f58c0>,
+		<OpenGL._opaque.EGLSurface_pointer object at 0x72a0a72f58c0>,
+		<OpenGL._opaque.EGLContext_pointer object at 0x72a0a72f5540>,
+	),
+	result = 0
+)
+Exception ignored in: <function EGLGLContext.__del__ at 0x72a0a17d3160>
+Traceback (most recent call last):
+  File "/home/huawei/hqk/workspace/pi05-step1/client-mirror-venv/lib/python3.8/site-packages/robosuite/renderers/context/egl_context.py", line 155, in __del__
+    self.free()
+  File "/home/huawei/hqk/workspace/pi05-step1/client-mirror-venv/lib/python3.8/site-packages/robosuite/renderers/context/egl_context.py", line 149, in free
+    EGL.eglMakeCurrent(EGL_DISPLAY, EGL.EGL_NO_SURFACE, EGL.EGL_NO_SURFACE, EGL.EGL_NO_CONTEXT)
+  File "/home/huawei/hqk/workspace/pi05-step1/client-mirror-venv/lib/python3.8/site-packages/OpenGL/error.py", line 230, in glCheckError
+    raise self._errorClass(
+OpenGL.raw.EGL._errors.EGLError: EGLError(
+	err = EGL_NOT_INITIALIZED,
+	baseOperation = eglMakeCurrent,
+	cArguments = (
+		<OpenGL._opaque.EGLDisplay_pointer object at 0x72a087b2d8c0>,
+		<OpenGL._opaque.EGLSurface_pointer object at 0x72a0a72f58c0>,
+		<OpenGL._opaque.EGLSurface_pointer object at 0x72a0a72f58c0>,
+		<OpenGL._opaque.EGLContext_pointer object at 0x72a0a72f5540>,
+	),
+	result = 0
+)

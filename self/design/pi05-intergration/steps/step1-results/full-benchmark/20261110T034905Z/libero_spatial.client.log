@@ -1,0 +1,747 @@
+[robosuite WARNING] No private macro file found! (macros.py:53)
+[robosuite WARNING] It is recommended to use a private macro file (macros.py:54)
+[robosuite WARNING] To setup, run: python /home/huawei/hqk/workspace/pi05-step1/client-mirror-venv/lib/python3.8/site-packages/robosuite/scripts/setup_macros.py (macros.py:55)
+[info] using task orders [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+INFO:root:Task suite: libero_spatial
+INFO:root:Waiting for server at ws://127.0.0.1:18015...
+  0%|          | 0/10 [00:00<?, ?it/s][Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+[Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+/home/huawei/hqk/workspace/pi05-step1/client-mirror-venv/lib/python3.8/site-packages/numba/np/arraymath.py:3845: DeprecationWarning: `np.MachAr` is deprecated (NumPy 1.22).
+  @overload(np.MachAr)
+
+  0%|          | 0/50 [00:00<?, ?it/s][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 1...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 1
+INFO:root:# successes: 0 (0.0%)
+
+  2%|▏         | 1/50 [00:16<13:16, 16.26s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 2...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 2
+INFO:root:# successes: 0 (0.0%)
+
+  4%|▍         | 2/50 [00:23<08:45, 10.94s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 3...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 3
+INFO:root:# successes: 0 (0.0%)
+
+  6%|▌         | 3/50 [00:30<07:06,  9.07s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 4...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 4
+INFO:root:# successes: 0 (0.0%)
+
+  8%|▊         | 4/50 [00:37<06:19,  8.25s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 5...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 5
+INFO:root:# successes: 0 (0.0%)
+
+ 10%|█         | 5/50 [00:44<05:51,  7.82s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 6...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 6
+INFO:root:# successes: 0 (0.0%)
+
+ 12%|█▏        | 6/50 [00:51<05:35,  7.62s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 7...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 7
+INFO:root:# successes: 0 (0.0%)
+
+ 14%|█▍        | 7/50 [00:59<05:25,  7.58s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 8...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 8
+INFO:root:# successes: 0 (0.0%)
+
+ 16%|█▌        | 8/50 [01:07<05:31,  7.89s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 9...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 9
+INFO:root:# successes: 0 (0.0%)
+
+ 18%|█▊        | 9/50 [01:14<05:15,  7.69s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 10...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 10
+INFO:root:# successes: 0 (0.0%)
+
+ 20%|██        | 10/50 [01:21<04:58,  7.47s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 11...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 11
+INFO:root:# successes: 0 (0.0%)
+
+ 22%|██▏       | 11/50 [01:28<04:45,  7.32s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 12...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 12
+INFO:root:# successes: 0 (0.0%)
+
+ 24%|██▍       | 12/50 [01:35<04:33,  7.21s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 13...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 13
+INFO:root:# successes: 0 (0.0%)
+
+ 26%|██▌       | 13/50 [01:42<04:21,  7.08s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 14...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 14
+INFO:root:# successes: 0 (0.0%)
+
+ 28%|██▊       | 14/50 [01:49<04:12,  7.02s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 15...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 15
+INFO:root:# successes: 0 (0.0%)
+
+ 30%|███       | 15/50 [01:56<04:02,  6.93s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 16...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 16
+INFO:root:# successes: 0 (0.0%)
+
+ 32%|███▏      | 16/50 [02:02<03:53,  6.86s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 17...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 17
+INFO:root:# successes: 0 (0.0%)
+
+ 34%|███▍      | 17/50 [02:09<03:44,  6.80s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 18...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 18
+INFO:root:# successes: 0 (0.0%)
+
+ 36%|███▌      | 18/50 [02:16<03:37,  6.81s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 19...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 19
+INFO:root:# successes: 0 (0.0%)
+
+ 38%|███▊      | 19/50 [02:23<03:31,  6.81s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 20...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 20
+INFO:root:# successes: 0 (0.0%)
+
+ 40%|████      | 20/50 [02:30<03:24,  6.81s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 21...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 21
+INFO:root:# successes: 0 (0.0%)
+
+ 42%|████▏     | 21/50 [02:36<03:17,  6.81s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 22...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 22
+INFO:root:# successes: 0 (0.0%)
+
+ 44%|████▍     | 22/50 [02:43<03:10,  6.81s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 23...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 23
+INFO:root:# successes: 0 (0.0%)
+
+ 46%|████▌     | 23/50 [02:50<03:03,  6.80s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 24...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 24
+INFO:root:# successes: 0 (0.0%)
+
+ 48%|████▊     | 24/50 [02:57<02:57,  6.81s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 25...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 25
+INFO:root:# successes: 0 (0.0%)
+
+ 50%|█████     | 25/50 [03:04<02:51,  6.84s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 26...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 26
+INFO:root:# successes: 0 (0.0%)
+
+ 52%|█████▏    | 26/50 [03:10<02:44,  6.84s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 27...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 27
+INFO:root:# successes: 0 (0.0%)
+
+ 54%|█████▍    | 27/50 [03:17<02:37,  6.84s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 28...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 28
+INFO:root:# successes: 0 (0.0%)
+
+ 56%|█████▌    | 28/50 [03:24<02:30,  6.86s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 29...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 29
+INFO:root:# successes: 0 (0.0%)
+
+ 58%|█████▊    | 29/50 [03:31<02:23,  6.83s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 30...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 30
+INFO:root:# successes: 0 (0.0%)
+
+ 60%|██████    | 30/50 [03:38<02:16,  6.82s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 31...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 31
+INFO:root:# successes: 0 (0.0%)
+
+ 62%|██████▏   | 31/50 [03:45<02:09,  6.82s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 32...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 32
+INFO:root:# successes: 0 (0.0%)
+
+ 64%|██████▍   | 32/50 [03:51<02:02,  6.81s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 33...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 33
+INFO:root:# successes: 0 (0.0%)
+
+ 66%|██████▌   | 33/50 [03:58<01:55,  6.80s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 34...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 34
+INFO:root:# successes: 0 (0.0%)
+
+ 68%|██████▊   | 34/50 [04:05<01:48,  6.78s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 35...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 5.2500.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 35
+INFO:root:# successes: 0 (0.0%)
+
+ 70%|███████   | 35/50 [04:12<01:42,  6.83s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 36...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 36
+INFO:root:# successes: 0 (0.0%)
+
+ 72%|███████▏  | 36/50 [04:19<01:35,  6.83s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 37...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 1.0000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 37
+INFO:root:# successes: 0 (0.0%)
+
+ 74%|███████▍  | 37/50 [04:26<01:29,  6.86s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 38...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 38
+INFO:root:# successes: 0 (0.0%)
+
+ 76%|███████▌  | 38/50 [04:33<01:22,  6.91s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 39...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 39
+INFO:root:# successes: 0 (0.0%)
+
+ 78%|███████▊  | 39/50 [04:40<01:15,  6.91s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 40...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 10.0000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 40
+INFO:root:# successes: 0 (0.0%)
+
+ 80%|████████  | 40/50 [04:46<01:08,  6.87s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 41...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 41
+INFO:root:# successes: 0 (0.0%)
+
+ 82%|████████▏ | 41/50 [04:54<01:02,  6.98s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 42...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 42
+INFO:root:# successes: 0 (0.0%)
+
+ 84%|████████▍ | 42/50 [05:00<00:55,  6.91s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 43...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 43
+INFO:root:# successes: 0 (0.0%)
+
+ 86%|████████▌ | 43/50 [05:07<00:48,  6.98s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 44...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 44
+INFO:root:# successes: 0 (0.0%)
+
+ 88%|████████▊ | 44/50 [05:14<00:41,  6.95s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 45...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 45
+INFO:root:# successes: 0 (0.0%)
+
+ 90%|█████████ | 45/50 [05:21<00:34,  6.95s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 46...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 46
+INFO:root:# successes: 0 (0.0%)
+
+ 92%|█████████▏| 46/50 [05:28<00:27,  6.98s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 47...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 47
+INFO:root:# successes: 0 (0.0%)
+
+ 94%|█████████▍| 47/50 [05:35<00:21,  7.01s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 48...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 48
+INFO:root:# successes: 0 (0.0%)
+
+ 96%|█████████▌| 48/50 [05:42<00:13,  6.96s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 49...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 49
+INFO:root:# successes: 0 (0.0%)
+
+ 98%|█████████▊| 49/50 [05:49<00:07,  7.02s/it][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 50...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 50
+INFO:root:# successes: 0 (0.0%)
+
+100%|██████████| 50/50 [05:56<00:00,  7.00s/it][A100%|██████████| 50/50 [05:56<00:00,  7.14s/it]
+INFO:root:Current task success rate: 0.0
+INFO:root:Current total success rate: 0.0
+ 10%|█         | 1/10 [05:58<53:43, 358.22s/it][Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+[Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+
+  0%|          | 0/50 [00:00<?, ?it/s][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 1...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 51
+INFO:root:# successes: 0 (0.0%)
+
+  2%|▏         | 1/50 [00:07<05:44,  7.03s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 2...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 52
+INFO:root:# successes: 0 (0.0%)
+
+  4%|▍         | 2/50 [00:13<05:34,  6.97s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 3...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 53
+INFO:root:# successes: 0 (0.0%)
+
+  6%|▌         | 3/50 [00:21<05:41,  7.26s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 4...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 54
+INFO:root:# successes: 0 (0.0%)
+
+  8%|▊         | 4/50 [00:29<05:49,  7.59s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 5...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 55
+INFO:root:# successes: 0 (0.0%)
+
+ 10%|█         | 5/50 [00:37<05:51,  7.81s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 6...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 56
+INFO:root:# successes: 0 (0.0%)
+
+ 12%|█▏        | 6/50 [00:46<05:51,  7.99s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 7...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 57
+INFO:root:# successes: 0 (0.0%)
+
+ 14%|█▍        | 7/50 [00:54<05:53,  8.23s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 8...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 58
+INFO:root:# successes: 0 (0.0%)
+
+ 16%|█▌        | 8/50 [01:03<05:46,  8.26s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 9...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 59
+INFO:root:# successes: 0 (0.0%)
+
+ 18%|█▊        | 9/50 [01:11<05:44,  8.40s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 10...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 60
+INFO:root:# successes: 0 (0.0%)
+
+ 20%|██        | 10/50 [01:19<05:30,  8.27s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 11...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 61
+INFO:root:# successes: 0 (0.0%)
+
+ 22%|██▏       | 11/50 [01:28<05:26,  8.38s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 12...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 62
+INFO:root:# successes: 0 (0.0%)
+
+ 24%|██▍       | 12/50 [01:35<05:02,  7.97s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 13...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 63
+INFO:root:# successes: 0 (0.0%)
+
+ 26%|██▌       | 13/50 [01:42<04:40,  7.58s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 14...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 64
+INFO:root:# successes: 0 (0.0%)
+
+ 28%|██▊       | 14/50 [01:49<04:25,  7.39s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 15...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 65
+INFO:root:# successes: 0 (0.0%)
+
+ 30%|███       | 15/50 [01:56<04:14,  7.27s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 16...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 66
+INFO:root:# successes: 0 (0.0%)
+
+ 32%|███▏      | 16/50 [02:03<04:04,  7.18s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 17...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 67
+INFO:root:# successes: 0 (0.0%)
+
+ 34%|███▍      | 17/50 [02:10<03:55,  7.12s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 18...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 68
+INFO:root:# successes: 0 (0.0%)
+
+ 36%|███▌      | 18/50 [02:17<03:45,  7.05s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 19...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 69
+INFO:root:# successes: 0 (0.0%)
+
+ 38%|███▊      | 19/50 [02:23<03:37,  7.01s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 20...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 70
+INFO:root:# successes: 0 (0.0%)
+
+ 40%|████      | 20/50 [02:31<03:35,  7.18s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 21...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 71
+INFO:root:# successes: 0 (0.0%)
+
+ 42%|████▏     | 21/50 [02:39<03:36,  7.47s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 22...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 72
+INFO:root:# successes: 0 (0.0%)
+
+ 44%|████▍     | 22/50 [02:47<03:28,  7.43s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 23...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 73
+INFO:root:# successes: 0 (0.0%)
+
+ 46%|████▌     | 23/50 [02:54<03:24,  7.57s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 24...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 74
+INFO:root:# successes: 0 (0.0%)
+
+ 48%|████▊     | 24/50 [03:02<03:15,  7.52s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 25...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 75
+INFO:root:# successes: 0 (0.0%)
+
+ 50%|█████     | 25/50 [03:10<03:12,  7.70s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 26...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 76
+INFO:root:# successes: 0 (0.0%)
+
+ 52%|█████▏    | 26/50 [03:18<03:07,  7.82s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 27...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 77
+INFO:root:# successes: 0 (0.0%)
+
+ 54%|█████▍    | 27/50 [03:26<02:59,  7.80s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 28...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 78
+INFO:root:# successes: 0 (0.0%)
+
+ 56%|█████▌    | 28/50 [03:34<02:53,  7.90s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 29...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 79
+INFO:root:# successes: 0 (0.0%)
+
+ 58%|█████▊    | 29/50 [03:41<02:39,  7.61s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 30...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 80
+INFO:root:# successes: 0 (0.0%)
+
+ 60%|██████    | 30/50 [03:48<02:26,  7.32s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 31...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 81
+INFO:root:# successes: 0 (0.0%)
+
+ 62%|██████▏   | 31/50 [03:54<02:15,  7.12s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 32...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 82
+INFO:root:# successes: 0 (0.0%)
+
+ 64%|██████▍   | 32/50 [04:02<02:09,  7.19s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 33...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 83
+INFO:root:# successes: 0 (0.0%)
+
+ 66%|██████▌   | 33/50 [04:08<02:01,  7.12s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 34...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 84
+INFO:root:# successes: 0 (0.0%)
+
+ 68%|██████▊   | 34/50 [04:16<01:58,  7.38s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 35...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 85
+INFO:root:# successes: 0 (0.0%)
+
+ 70%|███████   | 35/50 [04:25<01:54,  7.64s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 36...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 86
+INFO:root:# successes: 0 (0.0%)
+
+ 72%|███████▏  | 36/50 [04:33<01:47,  7.71s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 37...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 87
+INFO:root:# successes: 0 (0.0%)
+
+ 74%|███████▍  | 37/50 [04:41<01:41,  7.79s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 38...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.
+
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 88
+INFO:root:# successes: 0 (0.0%)
+
+ 76%|███████▌  | 38/50 [04:49<01:35,  7.95s/it][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 39...
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.5000.

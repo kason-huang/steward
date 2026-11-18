@@ -1,0 +1,35 @@
+[robosuite WARNING] No private macro file found! (macros.py:53)
+[robosuite WARNING] It is recommended to use a private macro file (macros.py:54)
+[robosuite WARNING] To setup, run: python /home/huawei/hqk/workspace/pi05-step1/client-mirror-venv/lib/python3.8/site-packages/robosuite/scripts/setup_macros.py (macros.py:55)
+Traceback (most recent call last):
+  File "/home/huawei/hqk/workspace/steward/self/design/pi05-intergration/steps/step1-results/full-benchmark/record_official.py", line 62, in <module>
+    tyro.cli(namespace["eval_libero"])
+  File "/home/huawei/hqk/workspace/pi05-step1/client-mirror-venv/lib/python3.8/site-packages/tyro/_cli.py", line 169, in cli
+    output = _cli_impl(
+  File "/home/huawei/hqk/workspace/pi05-step1/client-mirror-venv/lib/python3.8/site-packages/tyro/_cli.py", line 373, in _cli_impl
+    parser_spec = _parsers.ParserSpecification.from_callable_or_type(
+  File "/home/huawei/hqk/workspace/pi05-step1/client-mirror-venv/lib/python3.8/site-packages/tyro/_parsers.py", line 125, in from_callable_or_type
+    field_out = handle_field(
+  File "/home/huawei/hqk/workspace/pi05-step1/client-mirror-venv/lib/python3.8/site-packages/tyro/_parsers.py", line 385, in handle_field
+    if force_primitive == "struct" or _fields.is_struct_type(
+  File "/home/huawei/hqk/workspace/pi05-step1/client-mirror-venv/lib/python3.8/site-packages/tyro/_unsafe_cache.py", line 33, in wrapped_f
+    out = f(*args, **kwargs)
+  File "/home/huawei/hqk/workspace/pi05-step1/client-mirror-venv/lib/python3.8/site-packages/tyro/_fields.py", line 208, in is_struct_type
+    list_or_error = field_list_from_type_or_callable(
+  File "/home/huawei/hqk/workspace/pi05-step1/client-mirror-venv/lib/python3.8/site-packages/tyro/_fields.py", line 238, in field_list_from_type_or_callable
+    spec = registry.get_struct_spec(type_info)
+  File "/home/huawei/hqk/workspace/pi05-step1/client-mirror-venv/lib/python3.8/site-packages/tyro/constructors/_registry.py", line 170, in get_struct_spec
+    maybe_spec = spec_factory(type_info)
+  File "/home/huawei/hqk/workspace/pi05-step1/client-mirror-venv/lib/python3.8/site-packages/tyro/constructors/_struct_spec.py", line 151, in dataclass_rule
+    lambda field: field.init, _resolver.resolved_fields(info.type)
+  File "/home/huawei/hqk/workspace/pi05-step1/client-mirror-venv/lib/python3.8/site-packages/tyro/_unsafe_cache.py", line 33, in wrapped_f
+    out = f(*args, **kwargs)
+  File "/home/huawei/hqk/workspace/pi05-step1/client-mirror-venv/lib/python3.8/site-packages/tyro/_resolver.py", line 86, in resolved_fields
+    annotations = get_type_hints_with_backported_syntax(
+  File "/home/huawei/hqk/workspace/pi05-step1/client-mirror-venv/lib/python3.8/site-packages/tyro/_resolver.py", line 603, in get_type_hints_with_backported_syntax
+    out = get_type_hints(obj, include_extras=include_extras)
+  File "/home/huawei/hqk/workspace/pi05-step1/client-mirror-venv/lib/python3.8/site-packages/typing_extensions.py", line 1234, in get_type_hints
+    hint = typing.get_type_hints(obj, globalns=globalns, localns=localns)
+  File "/home/huawei/.local/share/uv/python/cpython-3.8-linux-x86_64-gnu/lib/python3.8/typing.py", line 1223, in get_type_hints
+    base_globals = sys.modules[base.__module__].__dict__
+KeyError: 'instrumented_upstream'

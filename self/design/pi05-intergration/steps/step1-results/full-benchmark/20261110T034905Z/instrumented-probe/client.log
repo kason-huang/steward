@@ -1,0 +1,141 @@
+[robosuite WARNING] No private macro file found! (macros.py:53)
+[robosuite WARNING] It is recommended to use a private macro file (macros.py:54)
+[robosuite WARNING] To setup, run: python /home/huawei/hqk/workspace/pi05-step1/client-mirror-venv/lib/python3.8/site-packages/robosuite/scripts/setup_macros.py (macros.py:55)
+[info] using task orders [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+INFO:root:Task suite: libero_spatial
+INFO:root:Waiting for server at ws://127.0.0.1:18016...
+  0%|          | 0/10 [00:00<?, ?it/s][Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+[Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+/home/huawei/hqk/workspace/pi05-step1/client-mirror-venv/lib/python3.8/site-packages/numba/np/arraymath.py:3845: DeprecationWarning: `np.MachAr` is deprecated (NumPy 1.22).
+  @overload(np.MachAr)
+
+  0%|          | 0/1 [00:00<?, ?it/s][AINFO:root:
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+INFO:root:Starting episode 1...
+INFO:root:Success: True
+INFO:root:# episodes completed so far: 1
+INFO:root:# successes: 1 (100.0%)
+
+100%|██████████| 1/1 [00:13<00:00, 13.27s/it][A100%|██████████| 1/1 [00:13<00:00, 13.27s/it]
+INFO:root:Current task success rate: 1.0
+INFO:root:Current total success rate: 1.0
+ 10%|█         | 1/10 [00:14<02:10, 14.55s/it][Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+[Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+
+  0%|          | 0/1 [00:00<?, ?it/s][AINFO:root:
+Task: pick up the black bowl next to the ramekin and place it on the plate
+INFO:root:Starting episode 1...
+INFO:root:Success: True
+INFO:root:# episodes completed so far: 2
+INFO:root:# successes: 2 (100.0%)
+
+100%|██████████| 1/1 [00:04<00:00,  4.71s/it][A100%|██████████| 1/1 [00:04<00:00,  4.71s/it]
+INFO:root:Current task success rate: 1.0
+INFO:root:Current total success rate: 1.0
+ 20%|██        | 2/10 [00:19<01:12,  9.11s/it][Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+[Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+
+  0%|          | 0/1 [00:00<?, ?it/s][AINFO:root:
+Task: pick up the black bowl from table center and place it on the plate
+INFO:root:Starting episode 1...
+INFO:root:Success: True
+INFO:root:# episodes completed so far: 3
+INFO:root:# successes: 3 (100.0%)
+
+100%|██████████| 1/1 [00:04<00:00,  4.63s/it][A100%|██████████| 1/1 [00:04<00:00,  4.63s/it]
+INFO:root:Current task success rate: 1.0
+INFO:root:Current total success rate: 1.0
+ 30%|███       | 3/10 [00:25<00:51,  7.33s/it][Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+[Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+
+  0%|          | 0/1 [00:00<?, ?it/s][AINFO:root:
+Task: pick up the black bowl on the cookie box and place it on the plate
+INFO:root:Starting episode 1...
+INFO:root:Success: True
+INFO:root:# episodes completed so far: 4
+INFO:root:# successes: 4 (100.0%)
+
+100%|██████████| 1/1 [00:03<00:00,  3.55s/it][A100%|██████████| 1/1 [00:03<00:00,  3.55s/it]
+INFO:root:Current task success rate: 1.0
+INFO:root:Current total success rate: 1.0
+ 40%|████      | 4/10 [00:29<00:36,  6.07s/it][Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+[Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+
+  0%|          | 0/1 [00:00<?, ?it/s][AINFO:root:
+Task: pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate
+INFO:root:Starting episode 1...
+INFO:root:Success: True
+INFO:root:# episodes completed so far: 5
+INFO:root:# successes: 5 (100.0%)
+
+100%|██████████| 1/1 [00:05<00:00,  5.62s/it][A100%|██████████| 1/1 [00:05<00:00,  5.62s/it]
+INFO:root:Current task success rate: 1.0
+INFO:root:Current total success rate: 1.0
+ 50%|█████     | 5/10 [00:35<00:30,  6.13s/it][Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+[Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+
+  0%|          | 0/1 [00:00<?, ?it/s][AINFO:root:
+Task: pick up the black bowl on the ramekin and place it on the plate
+INFO:root:Starting episode 1...
+INFO:root:Success: True
+INFO:root:# episodes completed so far: 6
+INFO:root:# successes: 6 (100.0%)
+
+100%|██████████| 1/1 [00:04<00:00,  4.23s/it][A100%|██████████| 1/1 [00:04<00:00,  4.23s/it]
+INFO:root:Current task success rate: 1.0
+INFO:root:Current total success rate: 1.0
+ 60%|██████    | 6/10 [00:40<00:22,  5.69s/it][Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+[Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+
+  0%|          | 0/1 [00:00<?, ?it/s][AINFO:root:
+Task: pick up the black bowl next to the cookie box and place it on the plate
+INFO:root:Starting episode 1...
+INFO:root:Success: True
+INFO:root:# episodes completed so far: 7
+INFO:root:# successes: 7 (100.0%)
+
+100%|██████████| 1/1 [00:04<00:00,  4.56s/it][A100%|██████████| 1/1 [00:04<00:00,  4.56s/it]
+INFO:root:Current task success rate: 1.0
+INFO:root:Current total success rate: 1.0
+ 70%|███████   | 7/10 [00:45<00:16,  5.51s/it][Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+[Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+
+  0%|          | 0/1 [00:00<?, ?it/s][AINFO:root:
+Task: pick up the black bowl on the stove and place it on the plate
+INFO:root:Starting episode 1...
+INFO:root:Success: True
+INFO:root:# episodes completed so far: 8
+INFO:root:# successes: 8 (100.0%)
+
+100%|██████████| 1/1 [00:04<00:00,  4.66s/it][A100%|██████████| 1/1 [00:04<00:00,  4.66s/it]
+INFO:root:Current task success rate: 1.0
+INFO:root:Current total success rate: 1.0
+ 80%|████████  | 8/10 [00:50<00:10,  5.44s/it][Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+[Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+
+  0%|          | 0/1 [00:00<?, ?it/s][AINFO:root:
+Task: pick up the black bowl next to the plate and place it on the plate
+INFO:root:Starting episode 1...
+INFO:root:Success: False
+INFO:root:# episodes completed so far: 9
+INFO:root:# successes: 8 (88.9%)
+
+100%|██████████| 1/1 [00:08<00:00,  8.51s/it][A100%|██████████| 1/1 [00:08<00:00,  8.51s/it]
+INFO:root:Current task success rate: 0.0
+INFO:root:Current total success rate: 0.8888888888888888
+ 90%|█████████ | 9/10 [00:59<00:06,  6.58s/it][Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+[Warning]: datasets path /home/huawei/hqk/workspace/openpi-step1/third_party/libero/libero/datasets does not exist!
+
+  0%|          | 0/1 [00:00<?, ?it/s][AINFO:root:
+Task: pick up the black bowl on the wooden cabinet and place it on the plate
+INFO:root:Starting episode 1...
+INFO:root:Success: True
+INFO:root:# episodes completed so far: 10
+INFO:root:# successes: 9 (90.0%)
+
+100%|██████████| 1/1 [00:04<00:00,  4.57s/it][A100%|██████████| 1/1 [00:04<00:00,  4.57s/it]
+INFO:root:Current task success rate: 1.0
+INFO:root:Current total success rate: 0.9
+100%|██████████| 10/10 [01:04<00:00,  6.15s/it]100%|██████████| 10/10 [01:04<00:00,  6.50s/it]
+INFO:root:Total success rate: 0.9
+INFO:root:Total episodes: 10

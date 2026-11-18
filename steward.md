@@ -706,6 +706,8 @@ Bundle 的 `package.json` 声明：
 
 ### 6.5 EH 模型工具设计
 
+CaP 与 VLA 的后续接入采用[互补能力设计](self/design/vla-cap-integration/design.md)：沿用 run_code 和现有能力库，任务程序组合程序技能与学习策略；策略工具和生命周期增强均处于待实现阶段。
+
 工具面向模型的视角描述任务概念，不暴露传输与实现细节：
 
 | 工具 | 作用 | 返回 |
