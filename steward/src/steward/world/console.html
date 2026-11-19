@@ -465,7 +465,7 @@ function drawEgoOverlay() {
     }
     if ($('showEgoLabels').checked) {
       const conf = o.existence < 0.99 ? `  存在 ${(o.existence * 100).toFixed(0)}%` : '';
-      const kind = o.role || o.category;
+      const kind = o.role && o.role !== 'unknown' ? o.role : o.category;
       const tint = o.color && COLOR_NAMES[o.color] && TABLEWARE.has(kind) ? COLOR_NAMES[o.color] : '';
       const seenAs = kind !== o.category ? `（感知为${NAMES[o.category] || o.category}）` : '';
       items.push({ kind, top: [o.center[0], o.center[1], o.center[2] + o.size[2] / 2 + 0.1],
