@@ -24,11 +24,13 @@ import subprocess
 import tempfile
 import threading
 import time
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from steward.net import HttpError, call
+from steward.world.preferences import OperatorPreferences
 
 WORLD_BRIEF = (
     "你是 Steward 的 World Harness 操作员助手。一个世界仿真正在运行（机器人正在执行任务），"
@@ -260,6 +262,16 @@ def robot_brief(embodiment_id: str | None = None) -> str:
         the single-hand Steward body so a missing registry never omits hand-use guidance.
     :returns: the full first-turn prefix ending in :data:`ROBOT_FOLLOW_UP`.
     """
+    if embodiment_id == "phyagent-piper":
+        return (
+            "你控制一台固定在工作台上的 PiPER 机械臂。先用 ego_observe 和 ego_state 查看物体、左右托盘"
+            "及当前夹持状态。机器人左侧是基座坐标的 +y。只用机器人观测中的 e: 对象 ID。"
+            "对 pick 使用 target，对 place 使用 on 和可选的托盘坐标 offset。每步先用 ego_predict 检查可行性，"
+            "再用 skill_run 执行预测回执。等待技能结果后重新看现场。放置结束调用 ego_verify_placement，"
+            "按操作员最新指定的托盘与落点核验。证据不足就补看或报告未知。"
+            "若用户改口，查夹持状态，保留已确认的抓取并为最新目标重新预测。"
+            "如果控制保持，查看保护事件与本体状态。\n\n" + ROBOT_FOLLOW_UP
+        )
     body = EMBODIMENT_BRIEFS.get(embodiment_id or "steward-bot", EMBODIMENT_BRIEFS["steward-bot"])
     return ROBOT_BRIEF_HEAD + body + ROBOT_BRIEF_BODY + ROBOT_FOLLOW_UP
 
@@ -346,6 +358,26 @@ class ChatConfig:
 
 
 @dataclass
+class _RobotTask:
+    instruction: str
+    id: str = field(default_factory=lambda: uuid.uuid4().hex)
+    ended: threading.Event = field(default_factory=threading.Event)
+
+
+@dataclass(frozen=True)
+class _SessionTools:
+    names: frozenset[str]
+    prediction_skills: frozenset[str] | None
+    read_only: bool
+
+    def skills(self, supported: list[str]) -> list[str]:
+        predicts_and_runs = {"ego_predict", "skill_run"} <= self.names
+        return [skill for skill in supported
+                if ("ego_explore" in self.names if skill == "look_around" else
+                    predicts_and_runs and (self.prediction_skills is None or skill in self.prediction_skills))]
+
+
+@dataclass
 class _Agent:
     key: str
     label: str
@@ -361,8 +393,13 @@ class _Agent:
     extra_reason: Callable[[], str | None] | None = None
     session_id: str | None = None
     busy: bool = False
+    read_only: bool = False
+    session_tools: _SessionTools | None = None
     proc: subprocess.Popen | None = None
     cancelled: bool = False
+    intent_revision: str | None = None
+    revising: bool = False
+    task: _RobotTask | None = None
     # What the harness is waiting on during a busy turn: ``llm`` while the model answers,
     # ``run_code`` / ``tool`` while a tool call is open. Cleared when the turn ends.
     wait_kind: str | None = None
@@ -398,6 +435,8 @@ class HarnessChat:
         self._next_id = 1
         self.agents: dict[str, _Agent] = {}
         self._seen_alerts: set[int] = set()
+        self._closed = threading.Event()
+        self.preferences = OperatorPreferences(config.robot_home) if config and config.robot_home else None
         if config is None:
             return
         self.agents["world"] = _Agent(
@@ -426,6 +465,19 @@ class HarnessChat:
         self.agents["robot"].brief = robot_brief(embodiment_id)
 
     # ------------------------------------------------------------ public API
+    def operator_preferences(self, *, history: bool = False) -> dict:
+        if self.preferences is None:
+            raise HttpError(503, "there is no robot workspace for operator preferences")
+        return {"preferences": self.preferences.read(history=history)}
+
+    def change_operator_preference(self, key: str, value: str | None) -> dict:
+        if self.preferences is None:
+            raise HttpError(503, "there is no robot workspace for operator preferences")
+        try:
+            return self.preferences.change(key, value)
+        except ValueError as exc:
+            raise HttpError(400, str(exc)) from exc
+
     def unavailable_reason(self, key: str) -> str | None:
         agent = self.agents.get(key)
         if agent is None or self.config is None:
@@ -444,12 +496,42 @@ class HarnessChat:
         with self._lock:
             agents = {key: {"label": a.label, "available": self.unavailable_reason(key) is None,
                             "reason": self.unavailable_reason(key), "busy": a.busy, "sessionId": a.session_id,
-                            "wait": self._wait_of(a)}
+                            "wait": self._wait_of(a), "revising": a.revising, "readOnly": a.read_only}
                       for key, a in self.agents.items()}
             messages = [e.to_dict() for e in self._entries if e.id > since]
-        if robot:
-            agents["robot"].update(robot)
+            if robot:
+                agent = self.agents["robot"]
+                tools = agent.session_tools
+                plan = robot["plan"]
+                supported = plan.get("availableSkills") if isinstance(plan, dict) else None
+                s0_tools = plan.get("availableS0Tools") if isinstance(plan, dict) else None
+                read_only = agent.read_only or (tools is not None and tools.read_only)
+                agents["robot"].update(robot, profile=agent.profile,
+                                       readOnly=read_only,
+                                       sessionSkills=(tools.skills(supported)
+                                                      if tools is not None and isinstance(supported, list)
+                                                      and all(isinstance(skill, str) for skill in supported) else None))
+                agents["robot"]["sessionS0Tools"] = (
+                    [{"name": name, "enabled": access == "read" or not read_only}
+                     for name, access in s0_tools.items()
+                     if name in tools.names and access in ("read", "control")]
+                    if tools is not None and isinstance(s0_tools, dict) else None
+                )
         return {"agents": agents, "messages": messages}
+
+    def prompts(self, after: str = "") -> dict:
+        """Inspect logged prompts for the current robot chat."""
+        from steward.world.thinking import session_prompts
+
+        with self._lock:
+            agent = self.agents.get("robot")
+            home, session = (agent.home, agent.session_id) if agent is not None else (None, None)
+        if home is None or session is None:
+            return {"sessionId": None, "ready": False}
+        try:
+            return session_prompts(str(home), session, after)
+        except (OSError, RuntimeError, TimeoutError, json.JSONDecodeError) as exc:
+            raise HttpError(503, "无法读取当前会话的 Prompt，请重试") from exc
 
     def send(self, key: str, text: str) -> dict:
         text = (text or "").strip()
@@ -462,24 +544,114 @@ class HarnessChat:
             raise HttpError(503, reason)
         agent = self.agents[key]
         with self._lock:
-            if agent.busy:
+            if agent.busy or agent.revising:
                 raise HttpError(409, f"{agent.label} is still working on the previous message")
-            agent.busy = True
-            self._set_wait(agent, "llm")
             entry = self._add(key, "user", text)
-            first = agent.session_id is None
-        threading.Thread(target=self._run, args=(agent, text, first), name=f"chat-{key}", daemon=True).start()
+            if key == "robot":
+                self._remember_robot_task(agent, text)
+            self._start_turn(agent, text)
         return {"accepted": True, "id": entry.id}
+
+    def _remember_robot_task(self, agent: _Agent, text: str) -> _RobotTask:
+        if agent.task is None:
+            agent.task = _RobotTask(text)
+            threading.Thread(target=self._watch_job_events, args=(agent, agent.task),
+                             name="chat-robot-events", daemon=True).start()
+        else:
+            agent.task.instruction = text
+        return agent.task
+
+    @staticmethod
+    def _end_robot_task(agent: _Agent) -> _RobotTask | None:
+        task = agent.task
+        if task is not None:
+            task.ended.set()
+            agent.task = None
+        return task
+
+    def _start_turn(self, agent: _Agent, text: str, *, read_only: bool = False) -> None:
+        """Claim a turn while holding the chat lock."""
+        agent.busy = True
+        agent.read_only = read_only
+        agent.session_tools = None
+        agent.cancelled = False
+        self._set_wait(agent, "llm")
+        threading.Thread(target=self._run,
+                         args=(agent, text, agent.session_id is None, agent.intent_revision, agent.task, read_only),
+                         name=f"chat-{agent.key}", daemon=True).start()
+
+    def revise_robot_intent(self, text: str) -> dict:
+        text = (text or "").strip()
+        if not text:
+            raise HttpError(400, "an updated instruction is required")
+        reason = self.unavailable_reason("robot")
+        if reason:
+            raise HttpError(503, reason)
+        agent = self.agents["robot"]
+        with self._lock:
+            if agent.revising:
+                raise HttpError(409, "an intent revision is already being applied")
+            agent.revising = True
+            task = agent.task
+        try:
+            transition = call("POST", f"{self.config.ego_api}/ego/intent/revise",
+                              {"owner": ROBOT_OWNER, "instruction": text})
+            with self._lock:
+                agent.intent_revision = transition["intentRevision"]
+                if task is not None and task.ended.is_set():
+                    raise HttpError(409, "the robot task ended while applying its new instruction")
+                task = self._remember_robot_task(agent, text)
+                entry = self._add("robot", "user", text)
+        except Exception:
+            with self._lock:
+                agent.revising = False
+            raise
+        prompt = f"最新目标为：{text}\n请先重新观察，核验已经完成的步骤，再按最新目标继续。"
+        threading.Thread(target=self._continue_turn, args=(agent, task, prompt, transition["interrupted"]),
+                         name="chat-robot-revision", daemon=True).start()
+        return {"accepted": True, "id": entry.id, "intentRevision": transition["intentRevision"]}
+
+    def _continue_turn(self, agent: _Agent, task: _RobotTask, prompt: str, interrupted: dict | None,
+                       *, read_only: bool = False) -> None:
+        try:
+            deadline = time.monotonic() + self.config.stop_wait_s
+            stopped = None
+            while agent.busy and not (self._closed.is_set() or task.ended.is_set()):
+                proc = agent.proc
+                if proc is not None and proc is not stopped:
+                    agent.cancelled = True
+                    _terminate(proc)
+                    stopped = proc
+                if time.monotonic() >= deadline:
+                    raise HttpError(504, "previous Ego turn did not terminate")
+                time.sleep(0.05)
+
+            if self._closed.is_set() or task.ended.is_set():
+                return
+            if interrupted is not None:
+                self._resume_after_handoff(interrupted, "intent-revision", deadline)
+            with self._lock:
+                if not (self._closed.is_set() or task.ended.is_set()):
+                    self._start_turn(agent, prompt, read_only=read_only)
+        except (HttpError, OSError) as exc:
+            self._report(agent, f"新目标已记录，机器人等待处理：{exc}")
+        finally:
+            with self._lock:
+                agent.revising = False
 
     def reset(self, key: str) -> dict:
         agent = self.agents.get(key)
         if agent is None:
             raise HttpError(400, f"unknown chat target {key!r}")
         with self._lock:
-            if agent.busy:
+            if agent.busy or agent.revising:
                 raise HttpError(409, "cannot start a new conversation while a message is running")
+            task = self._end_robot_task(agent)
             agent.session_id = None
+            agent.session_tools = None
             self._add(key, "system", f"已开始新的 {agent.label} 会话")
+        if task is not None:
+            self._stop_robot_job(agent, task)
         return {"reset": True}
 
     def clear(self) -> None:
@@ -488,27 +660,43 @@ class HarnessChat:
         with self._lock:
             self._entries.clear()
             for agent in self.agents.values():
+                self._end_robot_task(agent)
                 if not agent.busy:
                     agent.session_id = None
+                    agent.session_tools = None
 
     def cancel(self, key: str) -> dict:
         """Stop the running turn of one harness; robot control is released when the turn ends."""
         agent = self.agents.get(key)
         if agent is None:
             raise HttpError(400, f"unknown chat target {key!r}")
-        proc = agent.proc
-        if not agent.busy or proc is None or proc.poll() is not None:
-            return {"stopped": False}
-        agent.cancelled = True
-        _terminate(proc)
         with self._lock:
-            self._add(key, "system", f"已停止 {agent.label} 的本轮任务")
-        if key == "robot" and self.config and self.config.ego_api:
-            try:
-                call("POST", f"{self.config.ego_api}/skill/stop", {})
-            except (HttpError, OSError) as exc:
-                self._report(agent, f"停止机器人动作失败：{exc}")
-        return {"stopped": True}
+            proc = agent.proc
+            active = agent.busy or agent.revising
+            stopping_handoff = agent.revising
+            if active:
+                agent.cancelled = True
+            task = self._end_robot_task(agent)
+        if active and proc is not None and proc.poll() is None:
+            _terminate(proc)
+        job_stopped = (self._stop_robot_job(agent, task, hold_during_handoff=stopping_handoff)
+                       if key == "robot" and (active or task) else False)
+        if active or job_stopped:
+            with self._lock:
+                self._add(key, "system", f"已停止 {agent.label} 的本轮任务")
+        return {"stopped": active or job_stopped}
+
+    def _stop_robot_job(self, agent: _Agent, task: _RobotTask | None, *, hold_during_handoff: bool = False) -> bool:
+        if not self.config or not self.config.ego_api:
+            return False
+        try:
+            body = {"taskId": task.id} if task is not None else {}
+            if hold_during_handoff:
+                body["holdDuringHandoff"] = True
+            return bool(call("POST", f"{self.config.ego_api}/skill/stop", body)["stopped"])
+        except (HttpError, OSError) as exc:
+            self._report(agent, f"停止机器人动作失败：{exc}")
+            return False
 
     def stop_turn(self, key: str) -> None:
         """Stop the running turn of ``key``, if any, and return once it has ended; raises
@@ -517,12 +705,11 @@ class HarnessChat:
         if agent is None:
             raise HttpError(400, f"unknown chat target {key!r}")
         deadline = time.monotonic() + self.config.stop_wait_s
-        stopped = None
-        while agent.busy:
-            proc = agent.proc
-            if proc is not None and proc is not stopped:
+        cancelling = False
+        while agent.busy or agent.revising:
+            if not cancelling:
                 self.cancel(key)
-                stopped = proc
+                cancelling = True
             if time.monotonic() > deadline:
                 raise HttpError(504, f"{agent.label} did not end its running turn within {self.config.stop_wait_s:g} s")
             time.sleep(0.05)
@@ -538,14 +725,45 @@ class HarnessChat:
         return self.send(key, text)
 
     def stop(self) -> None:
-        for agent in self.agents.values():
-            proc = agent.proc
+        self._closed.set()
+        with self._lock:
+            for agent in self.agents.values():
+                self._end_robot_task(agent)
+            processes = [agent.proc for agent in self.agents.values()]
+        for proc in processes:
             if proc is not None and proc.poll() is None:
                 _terminate(proc)
 
     # -------------------------------------------------------------- internals
     def _robot_control(self, action: str) -> None:
-        call("POST", f"{self.config.ego_api}/ego/control", {"action": action, "owner": ROBOT_OWNER})
+        api = self.config.ego_api
+        result = call("POST", f"{api}/ego/control", {"action": action, "owner": ROBOT_OWNER})
+        if action == "acquire" and result.get("handoff") is not None:
+            try:
+                self._resume_after_handoff(result["handoff"], "control-handoff",
+                                           time.monotonic() + self.config.stop_wait_s)
+            except (HttpError, OSError):
+                call("POST", f"{api}/ego/control", {"action": "release", "owner": ROBOT_OWNER})
+                raise
+
+    def _resume_after_handoff(self, interrupted: dict, reason: str, deadline: float) -> None:
+        api = self.config.ego_api
+        requested = interrupted["motion"]
+        if requested["reason"] != reason:
+            raise HttpError(409, "robot remains under another motion hold")
+        job_id = None if interrupted.get("direct") else interrupted["stopped"]
+        while True:
+            motion = call("GET", f"{api}/ego/motion", timeout=3)
+            if motion["epoch"] != requested["epoch"]:
+                raise HttpError(409, "motion hold changed while waiting for standstill")
+            terminal = (job_id is None or
+                        call("GET", f"{api}/skill/status?job={job_id}", timeout=3)["state"] != "running")
+            if motion["state"] == "held" and terminal:
+                call("POST", f"{api}/ego/motion/resume", {"epoch": motion["epoch"], "owner": ROBOT_OWNER})
+                return
+            if time.monotonic() >= deadline:
+                raise HttpError(504, "standstill or job termination could not be confirmed")
+            time.sleep(0.05)
 
     def _robot_alerts(self) -> list[dict]:
         """Unacknowledged robot alerts; each new one is also added to the transcript as an error."""
@@ -615,11 +833,75 @@ class HarnessChat:
         with self._lock:
             self._add(agent.key, "error", text)
 
-    def _run(self, agent: _Agent, text: str, first: bool) -> None:
+    def _watch_job_events(self, agent: _Agent, task: _RobotTask) -> None:
+        """Consume task events between turns as well as while a model is running."""
+        source, cursor = None, 0
+        pending: list[dict] = []
+        while not task.ended.wait(0.25):
+            if self._closed.is_set():
+                return
+            api = self.config.ego_api
+            if not api:
+                continue
+            if source is not None and source[0] != api:
+                source, cursor = None, 0
+                pending.clear()
+            try:
+                packet = call("GET", f"{api}/ego/events?since={cursor}", timeout=0.5)
+            except HttpError as exc:
+                if exc.status == 404:
+                    return  # This runtime predates job events.
+                continue
+            except OSError:
+                continue
+            packet_source = (api, packet["boot"])
+            if source is not None and source != packet_source:
+                source, cursor = packet_source, 0
+                pending.clear()
+                continue
+            source, cursor = packet_source, packet["last"]
+            pending.extend(e for e in packet["events"]
+                           if e.get("taskId") == task.id and (e["kind"] != "skill-finished" or
+                               e.get("notifyCompletion") and e.get("state") in ("succeeded", "failed")))
+            with self._lock:
+                if task.ended.is_set():
+                    return
+                if agent.revising or agent.session_id is None:
+                    continue
+                pending = [e for e in pending if e["kind"] != "skill-finished" or
+                           e.get("intentRevision") == agent.intent_revision]
+                event = next((e for e in pending if e["kind"] != "skill-finished"), None)
+                protection = event is not None
+                if event is None and pending and not agent.busy:
+                    event = pending[0]
+                if event is None:
+                    continue
+                pending.remove(event)
+                agent.revising = True
+                instruction = task.instruction
+                self._add("robot", "system", f"Ego Runtime 事件 {event['kind']}，作业 {event['job']}")
+            details = json.dumps(event, ensure_ascii=False)
+            guidance = (
+                "请先用 ego_motion_status 核对是否停稳，再用只读工具观察。保持暂停，报告现场、"
+                "作业状态和是否需要协助。只引用已观测的事实，场景变化的成因写未知。"
+                if protection else "后台技能已返回。查原作业和最新观测，核验任务结果，再决定下一步。"
+            )
+            self._continue_turn(agent, task, f"当前任务：{instruction}\nEgo Runtime 事件：{details}\n{guidance}",
+                                None, read_only=protection)
+
+    def _run(self, agent: _Agent, text: str, first: bool, intent_revision: str | None,
+             task: _RobotTask | None, read_only: bool) -> None:
         cfg = self.config
         fd, name = tempfile.mkstemp(prefix=f"steward-{agent.key}-", suffix=".yml")
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             fh.write(agent.patch())
+            if agent.key == "robot":
+                if intent_revision is not None:
+                    fh.write(f"    intentRevision: {json.dumps(intent_revision)}\n")
+                if task is not None:
+                    fh.write(f"    taskId: {json.dumps(task.id)}\n")
+                if read_only:
+                    fh.write("    readOnly: true\n")
         patch = Path(name)
         args = [str(cfg.dsh), "--profile", agent.profile, "--patch", str(patch), "--json"]
         if agent.session_id:
@@ -629,26 +911,34 @@ class HarnessChat:
             env = harness_environment(load_env_file(cfg.env_file)) | {"DSH_HOME": str(agent.home)}
         else:
             env = os.environ | load_env_file(cfg.env_file) | {"DSH_HOME": str(agent.home)}
+        if agent.key == "robot":
+            env["STEWARD_CONSOLE_SESSION_TOOLS"] = "1"
         stderr_tail: list[str] = []
         controlled = False
         try:
-            if agent.before_turn is not None:
+            if agent.before_turn is not None and not read_only:
                 agent.before_turn()
                 controlled = True
             agent.cwd.mkdir(parents=True, exist_ok=True)
-            proc = agent.proc = subprocess.Popen(args, cwd=agent.cwd, env=env, stdin=subprocess.PIPE,
-                                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-                                                 encoding="utf-8", errors="replace",  # dsh speaks UTF-8; the Windows
-                                                 start_new_session=True)  # locale (GBK) would kill the reader
+            with self._lock:
+                if agent.cancelled or self._closed.is_set() or (task is not None and task.ended.is_set()):
+                    return
+                proc = agent.proc = subprocess.Popen(args, cwd=agent.cwd, env=env, stdin=subprocess.PIPE,
+                                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                                                     encoding="utf-8", errors="replace", start_new_session=True)
             prefix = agent.brief if first else agent.follow_up
             if first and agent.key == "robot":
                 # Reflection quotes the text after the last follow_up marker as the instruction.
                 prefix = prefix.removesuffix(agent.follow_up) + capabilities_digest(agent.home) + agent.follow_up
+            if agent.key == "robot" and self.preferences is not None and self.preferences.path.is_file():
+                preferences = json.dumps(self.preferences.read(), ensure_ascii=False)
+                prefix = (prefix.removesuffix(agent.follow_up) +
+                          f"操作员当前保存的默认偏好（只采用这份记录，以本轮指令和现场观测为先）：{preferences}\n\n" +
+                          agent.follow_up)
             proc.stdin.write(prefix + text)
             proc.stdin.close()
             err_reader = threading.Thread(target=lambda: stderr_tail.extend(proc.stderr), daemon=True)
             err_reader.start()
-            agent.cancelled = False
             timed_out = False
 
             def _on_timeout() -> None:
@@ -686,6 +976,7 @@ class HarnessChat:
                     self._report(agent, f"交还机器人控制失败：{exc}")
             with self._lock:
                 agent.busy = False
+                agent.read_only = False
                 agent.proc = None
                 self._clear_wait(agent)
 
@@ -730,10 +1021,22 @@ class HarnessChat:
             event = json.loads(line)
         except json.JSONDecodeError:
             return last_text
+        if not isinstance(event, dict):
+            return last_text
         kind = event.get("type")
         with self._lock:
             if kind == "session":
+                if event.get("sessionId") and event["sessionId"] != agent.session_id:
+                    agent.session_tools = None
                 agent.session_id = event.get("sessionId") or agent.session_id
+            elif kind == "steward_tool_catalog" and agent.key == "robot":
+                names, skills = event.get("tools"), event.get("predictSkills", [])
+                if (agent.busy and not agent.cancelled and agent.session_id
+                        and event.get("sessionId") == agent.session_id
+                        and isinstance(names, list) and all(isinstance(name, str) for name in names)
+                        and (skills is None or isinstance(skills, list) and all(isinstance(s, str) for s in skills))):
+                    agent.session_tools = _SessionTools(frozenset(names), None if skills is None else frozenset(skills),
+                                                        event.get("readOnly") is True)
             elif kind == "text" and event.get("text", "").strip():
                 last_text = event["text"].strip()
                 self._add(agent.key, "assistant", last_text)
@@ -751,6 +1054,8 @@ class HarnessChat:
                         break
                 self._set_wait(agent, "llm")
             elif kind == "final":
+                if event.get("sessionId") and event["sessionId"] != agent.session_id:
+                    agent.session_tools = None
                 agent.session_id = event.get("sessionId") or agent.session_id
                 final = (event.get("text") or "").strip()
                 if final and final != last_text:

@@ -10,7 +10,7 @@ import zstandard
 
 from steward.net import HttpError
 from steward.world.console import _thinking, _thinking_homes, console_thinking_text
-from steward.world.thinking import session_files, thinking_state, thinking_text
+from steward.world.thinking import session_files, session_prompts, thinking_state, thinking_text
 
 
 def _row(kind: str, time: int, data: dict | None = None) -> bytes:
@@ -135,3 +135,31 @@ def test_entry_ids_survive_appends_but_do_not_alias_other_sessions(tmp_path):
 def test_thinking_without_a_loaded_robot_does_not_assign_a_session(tmp_path, scenario):
     host = SimpleNamespace(chat=SimpleNamespace(config=SimpleNamespace(robot_home=tmp_path)), scenario=scenario)
     assert _thinking_homes(host) == {}
+
+
+def test_prompt_inspection_reads_the_named_session_and_its_latest_operator_input(tmp_path):
+    def user(kind, text):
+        return {"source": {"kind": kind}, "content": [{"type": "text", "text": text}]}
+
+    def session(session_id, records):
+        path = tmp_path / "sessions/workspace" / session_id / "session.v4.jsonl.zstd"
+        path.parent.mkdir(parents=True)
+        rows = [dict(type=kind, seq=seq, data=data) for seq, (kind, data) in enumerate(records, 1)]
+        body = "".join(json.dumps(row) + "\n" for row in rows).encode()
+        path.write_bytes(zstandard.ZstdCompressor().compress(body))
+
+    session("session-active", [
+        ("system/message", {"message": user("profile", "有效系统提示")}),
+        ("user/message", user("user", "上一轮输入")),
+        ("user/message", user("ego-reflection", "上一轮反思")),
+        ("user/message", user("user", "本轮输入")),
+        ("user/message", user("runtime-context", "本轮运行时提示")),
+    ])
+    session("session-other", [("system/message", {"message": user("profile", "另一会话")})])
+
+    result = session_prompts(str(tmp_path), "session-active")
+    assert result["systemPrompt"] == "有效系统提示"
+    assert result["operatorPrompt"] == "本轮输入"
+    assert result["injectedPrompts"] == [{"source": "runtime-context", "text": "本轮运行时提示"}]
+    assert session_prompts(str(tmp_path), "session-active", result["revision"])["unchanged"]
+    assert not session_prompts(str(tmp_path), "missing")["ready"]

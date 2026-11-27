@@ -35,9 +35,18 @@ def _off_main(host, fn):
     return out["value"]
 
 
-def test_each_camera_gives_its_own_frame_and_an_unknown_camera_is_refused(kitchen_scene):
+@pytest.fixture
+def rgbd_sim(kitchen_scene):
     sim = WorldSim(kitchen_scene, seed=1)
     sim.perception.mode = "rgbd"
+    try:
+        yield sim
+    finally:
+        sim.stop()
+
+
+def test_each_camera_gives_its_own_frame_and_an_unknown_camera_is_refused(rgbd_sim):
+    sim = rgbd_sim
     assert [c["id"] for c in sim.sensors("w:robot-1")["cameras"]] == ["head_camera", "wide_camera"]
     head, wide = (decode_rgbd(sim.rgbd("w:robot-1", c)) for c in ("head_camera", "wide_camera"))
     assert head["camera"] == "head_camera" and head["rgb"].shape == (1920, 2560, 3) and head["fovy"] == 60.0
@@ -47,9 +56,8 @@ def test_each_camera_gives_its_own_frame_and_an_unknown_camera_is_refused(kitche
         sim.rgbd("w:robot-1", "tail_camera")
 
 
-def test_a_tall_frame_is_reduced_for_perception_and_measures_the_same_objects(kitchen_scene):
-    sim = WorldSim(kitchen_scene, seed=1)
-    sim.perception.mode = "rgbd"
+def test_a_tall_frame_is_reduced_for_perception_and_measures_the_same_objects(rgbd_sim):
+    sim = rgbd_sim
     whole = decode_rgbd(sim.rgbd("w:robot-1", "head_camera"))
     frame = decimated(whole, 480)
     assert frame["rgb"].shape == (480, 640, 3) and frame["depth"].shape == frame["mask"].shape == (480, 640)
@@ -237,9 +245,8 @@ def test_of_one_instant_each_camera_fuses_the_regions_of_its_range_that_the_othe
     assert runtime._handoff(wide, [wide]) is None, "a lone frame fuses everything"
 
 
-def test_a_deferred_region_keeps_its_track_but_adds_no_observation_or_track(kitchen_scene):
-    sim = WorldSim(kitchen_scene, seed=1)
-    sim.perception.mode = "rgbd"
+def test_a_deferred_region_keeps_its_track_but_adds_no_observation_or_track(rgbd_sim):
+    sim = rgbd_sim
     head, wide = (decode_rgbd(sim.rgbd("w:robot-1", c)) for c in ("head_camera", "wide_camera"))
     est = EgoEstimator(robot_model=steward_bot().to_dict())
     est.update_rgbd(head, defer=lambda corners: True)

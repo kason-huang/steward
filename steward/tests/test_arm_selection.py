@@ -10,9 +10,11 @@ from steward.ego.runtime import EgoRuntime, RobotLink
 
 
 @pytest.fixture
-def runtime():
+def runtime(monkeypatch):
     model = robot_model("cobot-magic")
-    return EgoRuntime(RobotLink("http://127.0.0.1:1"), model, arm=PiperArm(model))
+    link = RobotLink("http://127.0.0.1:1")
+    monkeypatch.setattr(link, "motion_status", lambda: {"state": "ready", "epoch": "motion-1"})
+    return EgoRuntime(link, model, arm=PiperArm(model))
 
 
 def test_right_arm_receipt_commands_the_right_gripper_after_a_left_prediction(runtime, monkeypatch):
@@ -21,15 +23,19 @@ def test_right_arm_receipt_commands_the_right_gripper_after_a_left_prediction(ru
     assert right["feasible"] and left["feasible"]
     assert right["id"] != left["id"]
     commands = []
-    monkeypatch.setattr(runtime.link, "command", commands.append)
+    monkeypatch.setattr(runtime.link, "command", lambda command, epoch: commands.append((command, epoch)))
 
-    def start(skill, receipt):
-        runtime.executor._command({"gripper": "close"})
+    def start(skill, receipt, *, motion_epoch, **_):
+        runtime.executor._worker.motion_epoch = motion_epoch
+        try:
+            runtime.executor._command({"gripper": "close"})
+        finally:
+            del runtime.executor._worker.motion_epoch
         return SimpleNamespace(to_dict=lambda: {"state": "succeeded"})
 
     monkeypatch.setattr(runtime.executor, "start", start)
     runtime.run(right["id"])
-    assert commands == [{"gripper": {"R_link6": "close"}}]
+    assert commands == [({"gripper": {"R_link6": "close"}}, "motion-1")]
     assert runtime.arm.geometry.gripper == "R_link6"
     assert runtime.esim.arm is runtime.arm
 
@@ -48,7 +54,7 @@ def test_other_object_load_does_not_block_an_arm_selection(runtime, monkeypatch)
     runtime.estimator.grippers = {"L_link6": {"holding": True}}
     receipt = runtime.predict("navigate", {"x": 0, "y": 0, "arm": "R"})
     assert receipt["feasible"]
-    monkeypatch.setattr(runtime.executor, "start", lambda *_: SimpleNamespace(to_dict=lambda: {"state": "succeeded"}))
+    monkeypatch.setattr(runtime.executor, "start", lambda *_, **__: SimpleNamespace(to_dict=lambda: {"state": "succeeded"}))
     runtime.run(receipt["id"])
     assert runtime.arm.geometry.gripper == "R_link6"
     assert runtime.estimator.grippers["L_link6"]["holding"]

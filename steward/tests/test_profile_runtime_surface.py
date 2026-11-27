@@ -21,11 +21,7 @@ def test_runtime_prediction_execution_and_api_match_reference(profile):
     result = subprocess.run([sys.executable, str(ROOT / 'tests/profile_runtime_surface.py'), '--check-catalog'],
                             env=env, capture_output=True, text=True, check=True)
     actual = json.loads(result.stdout)
-    expected = json.loads(json.dumps(EXPECTED[profile]))
-    if profile == 'toy':
-        # The only wire change is metadata on the existing read-only response.
-        expected['routeParameters']['GET /ego/control'] = "lambda q, b: {**runtime.control(), 'assemblyProfile': 'toy'}"
-    assert actual == expected
+    assert actual == EXPECTED[profile]
     markers = [line.removeprefix('STEWARD_EGO_INTERFACE ') for line in result.stderr.splitlines()
                if line.startswith('STEWARD_EGO_INTERFACE ')]
     if profile == 'toy':

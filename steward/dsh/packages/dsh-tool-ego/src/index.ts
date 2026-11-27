@@ -1,19 +1,20 @@
 /**
  * Consumer of `ctx.ego`: the robot tools the Ego Harness model calls.
  *
- * The model sees the world only through the robot's Ego-State. Every motion that can collide
- * or drop something follows predict → run: `ego_predict` asks ESim for a Prediction Receipt and
- * `skill_run` executes exactly that receipt's plan. Looking around in place needs no receipt.
+ * The model sees the world through the robot's Ego-State. Skills follow predict → run;
+ * an opted-in PiPER profile can also issue explicit joint and gripper targets to S0.
  * @module @steward/dsh-tool-ego
  */
 
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool, type InferValue, type ToolDefinition } from '@deepseek-ai/dsh-tools'
+import z from '@deepseek-ai/schemastery'
 import { recordingId } from '@steward/dsh-ego'
 import type { EgoService, JsonObject, PredictionReceipt, SkillJob } from '@steward/dsh-ego'
 
 export const name = 'steward-tool-ego'
 export const inject = ['tools', 'ego']
+export const Config = z.object({ allowDirectS0: z.boolean().default(false) })
 
 const JSON_OUTPUT = { type: 'json' } as const
 type Json = InferValue<typeof JSON_OUTPUT>
@@ -51,11 +52,12 @@ function jobView(job: SkillJob): JsonObject {
  * Build the robot tool definitions over an Ego service.
  * @param ego - the `ctx.ego` service.
  * @param profile - resolved runtime profile, or the environment for standalone factories.
+ * @param allowDirectS0 - profile opt-in to PiPER commissioning controls.
  * @returns tool definitions in registration order.
  */
-export function egoTools(ego: EgoService, profile = process.env.STEWARD_ASSEMBLY_PROFILE): ToolDefinition[] {
+export function egoTools(ego: EgoService, profile = process.env.STEWARD_ASSEMBLY_PROFILE, allowDirectS0 = false): ToolDefinition[] {
   if (profile === 'toy') return assemblyTools(ego)
-  return [
+  const tools: ToolDefinition[] = [
     defineTool({
       name: 'ego_state',
       description: 'Read your current understanding of the world: your own position, what you are holding, the skill '
@@ -142,7 +144,7 @@ export function egoTools(ego: EgoService, profile = process.env.STEWARD_ASSEMBLY
     }),
     defineTool({
       name: 'ego_camera_calibration',
-      description: 'Read fixed RGB camera intrinsics and camera_to_reference transforms into the middle head_camera frame '
+      description: 'Read fixed RGB camera intrinsics and camera_to_reference transforms into the named reference camera frame '
         + '(OpenCV x right, y down, z forward; translation in metres) without images or motion. '
         + 'Each camera has pixel K and dimensions. No absolute camera pose is provided.',
       parameters: {},
@@ -156,7 +158,7 @@ export function egoTools(ego: EgoService, profile = process.env.STEWARD_ASSEMBLY
       description: 'Read your gripper-link pose relative to your base and the robot cameras from current joint encoders, '
         + 'your body model and fixed camera calibration. No motion or image capture. gripper_to_camera maps gripper-local '
         + 'points (x forward, y left, z up) into each OpenCV camera frame (x right, y down, z forward), translations in metres. '
-        + 'The gripper frame is the gripper link origin. Includes sensor timestamp, measured lift/reach and gripper_to_base. '
+        + 'The gripper frame is the gripper link origin. Includes sensor timestamp, measured joint positions and gripper_to_base. '
         + 'For a pose synchronized to images, use ego_capture_cameras and its embedded gripper_pose instead of combining separate calls.',
       parameters: {},
       output: { schema: JSON_OUTPUT, render: (_a, v) => text(v) },
@@ -433,7 +435,7 @@ export function egoTools(ego: EgoService, profile = process.env.STEWARD_ASSEMBLY
       },
       output: { schema: JSON_OUTPUT, render: (_a, v) => text(v) },
       async execute(args, exec) {
-        const job = await ego.run(args.receipt, exec.signal)
+        const job = await ego.run(args.receipt, exec.signal, args.wait === false)
         if (args.wait === false) return json(jobView(job))
         return json(jobView(await ego.wait(job.id, args.timeoutS ?? 180, exec.signal)))
       },
@@ -446,6 +448,31 @@ export function egoTools(ego: EgoService, profile = process.env.STEWARD_ASSEMBLY
       async execute(args, exec) {
         return json(jobView(await ego.job(args.job, exec.signal)))
       },
+    }),
+    defineTool({
+      name: 'ego_verify_placement',
+      description: 'Verify a placement against the current instruction after observing again. '
+        + 'Check acceptance, termination, observed effect and goal satisfaction separately. '
+        + 'If fresh post-release evidence is missing the outcome is unknown. '
+        + 'Use the requested support and offset even if the motion planner chose another location.',
+      parameters: {
+        job: { type: 'string', required: true, description: 'Placement job id.' },
+        entity: { type: 'string', required: true, description: 'Robot-side id of the object.' },
+        support: { type: 'string', required: true, description: 'Robot-side id of the requested support.' },
+        offset: { type: 'array', items: { type: 'number' }, description: 'Optional [x, y] in the support frame, in metres.' },
+        toleranceM: { type: 'number', description: 'Required positive tolerance in metres for an exact offset.' },
+      },
+      output: { schema: JSON_OUTPUT, render: (_a, v) => text(v) },
+      async execute({ job, ...goal }, exec) {
+        return json(await ego.verifyPlacement(job, goal, exec.signal))
+      },
+    }),
+    defineTool({
+      name: 'ego_motion_status',
+      description: 'Read whether S0 is ready, stopping, held at measured standstill, or unknown. This never commands motion.',
+      parameters: {},
+      output: { schema: JSON_OUTPUT, render: (_a, v) => text(v) },
+      execute: async (_args, exec) => json(await ego.motionStatus(exec.signal)),
     }),
     defineTool({
       name: 'body_stop',
@@ -476,11 +503,42 @@ export function egoTools(ego: EgoService, profile = process.env.STEWARD_ASSEMBLY
       },
     }),
   ]
+  if (allowDirectS0) {
+    const angle = { type: 'number', description: 'Absolute target angle in radians.' } as const
+    tools.push(
+      defineTool({
+        name: 'body_set_joints',
+        description: 'Set one or more absolute PiPER arm joint angles in radians directly via S0. '
+          + 'Omitted joints keep their targets. Use for explicit joint-control tasks. '
+          + 'There is no collision planning. Returns the measured angles after reaching the targets.',
+        parameters: { joint1: angle, joint2: angle, joint3: angle, joint4: angle, joint5: angle, joint6: angle },
+        output: { schema: JSON_OUTPUT, render: (_a, v) => text(v) },
+        async execute(args, exec) {
+          const joints: Record<string, number> = {}
+          for (const [joint, value] of Object.entries(args)) {
+            if (value !== undefined) joints[joint] = value
+          }
+          return json(await ego.directBody({ joints }, exec.signal))
+        },
+      }),
+      defineTool({
+        name: 'body_set_gripper',
+        description: 'Open or close the PiPER gripper directly via S0. Use for explicit gripper-control tasks. '
+          + 'Returns the finger encoders and whether the gripper holds anything.',
+        parameters: {
+          action: { type: 'string', enum: ['open', 'close'], required: true },
+        },
+        output: { schema: JSON_OUTPUT, render: (_a, v) => text(v) },
+        execute: async ({ action }, exec) => json(await ego.directBody({ gripper: action }, exec.signal)),
+      }),
+    )
+  }
+  return tools
 }
 
-export async function apply(ctx: Context): Promise<void> {
+export async function apply(ctx: Context, config: { allowDirectS0?: boolean } = {}): Promise<void> {
   const profile = await ctx.ego.assemblyProfile()
-  const tools = egoTools(ctx.ego, profile)
+  const tools = egoTools(ctx.ego, profile, config.allowDirectS0)
   if (profile === 'toy') {
     console.error('STEWARD_HARNESS_INTERFACE ' + JSON.stringify({ profile: 'toy', module: import.meta.url,
       tools: tools.map(tool => tool.name), predict: tools.find(tool => tool.name === 'ego_predict')?.parameters }))

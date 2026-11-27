@@ -51,6 +51,23 @@ def test_floor_placement_keeps_carrying_reach_after_docking(monkeypatch):
     assert job.log[-1] == "docked"
 
 
+def test_pick_uses_the_execution_method_bound_for_the_robot(monkeypatch):
+    commands = []
+    state = lambda: {"stamp": 0.0}
+    planar = SkillExecutor(commands.append, state, lambda entity: entity)
+    monkeypatch.setattr(planar, "_pick", lambda job, plan: job.log.append("planar pick"))
+    receipt = {"id": "receipt-1", "plan": {"jointProgram": {"approach": {"joint1": 0.2}}}}
+    job = planar.start("pick", receipt)
+    assert planar.wait(job.id, timeout=1).state == "succeeded"
+    assert list(job.log) == ["planar pick"]
+
+    waypoint = SkillExecutor(commands.append, state, lambda entity: entity, waypoint_skills=frozenset({"pick"}))
+    job = waypoint.start("pick", {"id": "receipt-2", "plan": {}})
+    assert waypoint.wait(job.id, timeout=1).state == "failed"
+    assert "requires a predicted joint-waypoint program" in job.message
+    assert commands == []
+
+
 @pytest.mark.parametrize("failure", ["drive", "unexpected", "missed_dock", "stopped"])
 def test_failed_approach_does_not_start_arm_recovery_or_homing(monkeypatch, failure):
     executor, job, plan, _, commands = _executor(monkeypatch)

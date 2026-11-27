@@ -95,15 +95,16 @@ def gripper_pose(model: dict, packet: dict, gripper: str | None = None, joints: 
     No odometry or simulator absolute pose is required.
     """
     gripper = gripper or grasp_link(model)
-    if (packet["reference_camera"] != "head_camera" or packet["camera_axes"] != CAMERA_AXES
+    reference = packet["reference_camera"]
+    if (packet["camera_axes"] != CAMERA_AXES
             or packet["calibration_source"] != "rig_calibration"
             or not math.isfinite(packet["stamp"]) or packet["stamp"] < 0
-            or "head_camera" not in packet["views"]):
+            or reference not in packet["views"]):
         raise ValueError("Invalid robot kinematics packet")
     encoders = packet["joint_encoders"]
     gripper_to_base = _matrix(_link_pose(model, encoders, gripper))
     camera_link, camera = next((link["id"], sensor) for link in model["body"]["links"]
-                               for sensor in link.get("sensors", []) if sensor["id"] == "head_camera")
+                               for sensor in link.get("sensors", []) if sensor["id"] == reference)
     reference_to_base = _matrix(pose_compose(_link_pose(model, encoders, camera_link), camera["mount"]))
     flu_from_cv = np.array([[0, 0, 1, 0], [-1, 0, 0, 0], [0, -1, 0, 0], [0, 0, 0, 1]])
     reference_to_base = reference_to_base @ flu_from_cv

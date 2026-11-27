@@ -41,6 +41,7 @@ from steward.scene.schema import SceneState
 from steward.world.chat import ChatConfig, HarnessChat
 from steward.viewloop import ViewLoop, ViewSettings, frame_response
 from steward.world.goals import evaluate as evaluate_goal
+from steward.world.goals import score_placement
 from steward.world.sim import EditError, PerceptionConfig, WorldSim, speed_json
 from steward.world.sensor_cameras import SensorCameras
 from steward.world.thinking import session_files
@@ -464,6 +465,8 @@ class StewardHost:
                                                         **(self.sim.status() if self.sim else {"loaded": False})}),
             ("GET", "/wca/scene"): guard(lambda q, b: self._require_sim().world_state()),
             ("GET", "/wca/goal"): guard(lambda q, b: {"goal": self.goal_progress()}),
+            ("POST", "/wca/verify-placement"): guard(
+                lambda q, b: score_placement(self._require_sim().world_state(), b)),
             ("POST", "/wca/clock"): guard(clock),
             ("POST", "/wca/episode"): guard(episode),
             ("GET", "/wca/render"): guard(render),
@@ -490,7 +493,13 @@ class StewardHost:
             ("GET", "/wca/phase"): guard(lambda q, b: self.phase_state()),
             ("POST", "/wca/phase"): guard(lambda q, b: self._set_phase_request(b)),
             ("GET", "/console/chat"): guard(lambda q, b: self.chat.state(int(q.get("since", 0)), int(q.get("activity", 0)))),
+            ("GET", "/console/prompts"): guard(lambda q, b: self.chat.prompts(q.get("after", ""))),
+            ("GET", "/console/preferences"): guard(lambda q, b: self.chat.operator_preferences(
+                history=q.get("history") == "true")),
+            ("POST", "/console/preferences"): guard(lambda q, b: self.chat.change_operator_preference(
+                b["key"], b["value"])),
             ("POST", "/console/chat"): guard(lambda q, b: self.chat.send(b.get("agent", "world"), b.get("message", ""))),
+            ("POST", "/console/chat/revise"): guard(lambda q, b: self.chat.revise_robot_intent(b.get("message", ""))),
             ("POST", "/console/chat/reset"): guard(lambda q, b: self.chat.reset(b.get("agent", "world"))),
             ("POST", "/console/chat/stop"): guard(lambda q, b: self.chat.cancel(b.get("agent", "world"))),
             ("POST", "/console/alerts/ack"): guard(lambda q, b: self.acknowledge_alerts()),
@@ -708,6 +717,25 @@ class StewardHost:
             self.observer.ingest(rid, b)
             return {"accepted": True}
 
+        def command(q, b):
+            body = b or {}
+            try:
+                return self._require_sim().command(rid, body, body.get("motionEpoch"))
+            except PermissionError as exc:
+                raise HttpError(409, str(exc)) from exc
+
+        def resume_motion(q, b):
+            try:
+                return self._require_sim().resume_motion(rid, (b or {}).get("epoch"))
+            except PermissionError as exc:
+                raise HttpError(409, str(exc)) from exc
+
+        def hold_motion(q, b):
+            reason = (b or {}).get("reason", "protection")
+            if reason not in ("protection", "intent-revision", "control-handoff"):
+                raise HttpError(400, "unknown motion hold reason")
+            return self._require_sim().hold_motion(rid, reason)
+
         return {
             ("GET", "/identity"): lambda q, b: {"embodiment": self.embodiments[rid]["id"]},
             ("GET", "/sensors"): lambda q, b: self._require_sim().sensors(rid),
@@ -724,7 +752,10 @@ class StewardHost:
             ("GET", "/sensors/rgb/record/result"): lambda q, b: self.sensor_cameras.recordings.get(rid, q["recording_id"]).result(),
             ("GET", "/sensors/rgb/pose"): lambda q, b: self.sensor_cameras.odometry_kinematics(rid),
             ("GET", "/camera/rgb"): camera,
-            ("POST", "/command"): lambda q, b: self._require_sim().command(rid, b or {}),
+            ("POST", "/command"): command,
+            ("GET", "/motion"): lambda q, b: self._require_sim().motion_status(rid),
+            ("POST", "/motion/hold"): hold_motion,
+            ("POST", "/motion/resume"): resume_motion,
             ("POST", "/telemetry"): telemetry,
             ("POST", "/clock/wait"): clock_wait,
             ("POST", "/clock/release"): lambda q, b: self._require_sim().release(f"{rid}/{b['hold']}") or {},

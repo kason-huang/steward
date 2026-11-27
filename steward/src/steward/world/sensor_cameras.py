@@ -26,9 +26,9 @@ def _intrinsics(sensor):
 
 
 def _sensor_kinematics(sim, robot):
-    """Read encoders and fixed camera-to-``head_camera`` mounts under the simulation lock.
+    """Read encoders and fixed camera-to-reference mounts under the simulation lock.
 
-    Only cameras welded to the same rigid body as ``head_camera`` enter the packet: wrist
+    Only cameras welded to the same rigid body as the reference camera enter the packet: wrist
     cameras ride moving links and need FK, so they stay out of this fixed-rig calibration.
     """
     names = sim.build.names[robot]
@@ -48,14 +48,13 @@ def _sensor_kinematics(sim, robot):
             transform[:3, :3] = matrix_from_quat(sim.model.cam_quat[cid]) @ np.diag([1, -1, -1])
             transform[:3, 3] = sim.model.cam_pos[cid]
             transforms[key] = transform
-        if "head_camera" not in transforms:
-            raise ValueError("Camera calibration requires head_camera")
-        ref_body = bodies["head_camera"]
+        if not transforms:
+            raise ValueError("Camera calibration requires a camera")
+        reference = "head_camera" if "head_camera" in transforms else next(iter(transforms))
+        ref_body = bodies[reference]
         shared = {key: value for key, value in transforms.items() if bodies[key] == ref_body}
-        if not shared:
-            raise ValueError("Camera calibration requires a shared rigid mount with head_camera")
-        inverse = np.linalg.inv(shared["head_camera"])
-        return {"stamp": sim.time, "reference_camera": "head_camera", "calibration_source": "rig_calibration",
+        inverse = np.linalg.inv(shared[reference])
+        return {"stamp": sim.time, "reference_camera": reference, "calibration_source": "rig_calibration",
                 "camera_axes": "opencv_x_right_y_down_z_forward",
                 "joint_encoders": {key: sim._joint_q(name) for key, name in names.joints.items()},
                 "views": {key: {"camera_to_reference": np.round(inverse @ value, 12).tolist()}
@@ -163,9 +162,10 @@ class SensorCameras:
                 sim = self.sim()
                 with sim.lock:
                     for sensor in sim.robot_cameras(robot):
-                        packet["views"][sensor["id"]].update(_intrinsics(sensor["intrinsics"]))
-                        packet["views"][sensor["id"]].update({k:sensor[k] for k in
-                            ("renderNearM", "depthRangeM", "housingSizeM", "tipPlaneClearanceM") if k in sensor})
+                        if sensor["id"] in packet["views"]:
+                            packet["views"][sensor["id"]].update(_intrinsics(sensor["intrinsics"]))
+                            packet["views"][sensor["id"]].update({k:sensor[k] for k in
+                                ("renderNearM", "depthRangeM", "housingSizeM", "tipPlaneClearanceM") if k in sensor})
             # Moving camera extrinsics belong to this encoder timestamp.
             if "wrist_camera" not in packet["views"]:
                 packet.pop("stamp")
@@ -176,7 +176,8 @@ class SensorCameras:
                 sim = self.sim()
                 with sim.lock:
                     for sensor in sim.robot_cameras(robot):
-                        packet["views"][sensor["id"]].update(_intrinsics(sensor["intrinsics"]))
+                        if sensor["id"] in packet["views"]:
+                            packet["views"][sensor["id"]].update(_intrinsics(sensor["intrinsics"]))
             packet.pop("stamp")
             packet.pop("joint_encoders")
         return packet

@@ -4,6 +4,7 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { mkdtempSync } from 'node:fs'
+import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { test } from 'node:test'
@@ -15,8 +16,31 @@ import { egoTools } from '@steward/dsh-tool-ego'
 const STEWARD = resolve(import.meta.dirname, '../..')
 const PYTHON = join(STEWARD, '.venv/bin/python')
 
+test('the Ego provider reconciles a lost dispatch response with a single status lookup', async () => {
+  const seen = []
+  const server = createServer((request, response) => {
+    seen.push([request.method, request.url])
+    if (request.method === 'POST') {
+      request.resume()
+      request.once('end', () => response.destroy())
+      return
+    }
+    response.setHeader('Content-Type', 'application/json')
+    response.end(JSON.stringify({ id: 'job-1', receipt: 'rcpt-1', skill: 'pick', state: 'running' }))
+  })
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+  try {
+    const client = new EgoRuntimeClient(new Context(), { endpoint: `http://127.0.0.1:${server.address().port}`, timeoutMs: 1000 })
+    assert.equal((await client.run('rcpt-1')).id, 'job-1')
+    assert.deepEqual(seen, [['POST', '/skill/run'], ['GET', '/skill/status?receipt=rcpt-1']])
+  } finally {
+    server.closeAllConnections()
+    await new Promise(resolve => server.close(resolve))
+  }
+})
+
 function startSteward(root) {
-  const child = spawn(PYTHON, ['-m', 'steward.cli', '--root', root, 'up', '--scenario', 'phase0-kitchen', '--speed', '6', '--wca-port', '0',
+  const child = spawn(PYTHON, ['-m', 'steward.cli', '--root', root, 'up', '--no-dispatch-task', '--scenario', 'phase0-kitchen', '--speed', '6', '--wca-port', '0',
     '--robot-port', '0', '--api-port', '0'], { cwd: STEWARD, stdio: ['ignore', 'pipe', 'inherit'] })
   return new Promise((resolvePromise, reject) => {
     let buffer = ''
@@ -45,7 +69,8 @@ test('robot tools complete the cup-to-table mission through the Ego API provider
     const tools = Object.fromEntries(egoTools(ego).map(t => [t.name, t]))
     const run = (name, args = {}) => tools[name].execute(args, { name, arguments: args, signal: AbortSignal.timeout(200_000) })
 
-    assert.equal((await run('ego_explore')).state, 'succeeded')
+    const explored = await run('ego_explore')
+    assert.equal(explored.state, 'succeeded', explored.message)
     let state = await run('ego_state')
     const cup = state.objects.find(o => o.category === 'cup')
     const table = state.objects.find(o => o.category === 'table')

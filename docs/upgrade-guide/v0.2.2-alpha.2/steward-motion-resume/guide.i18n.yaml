@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.2-alpha.2/steward-motion-resume/guide.md
+/:
+  en: fadf1041bb8690a6
+  zh: c7b3a00ef33406b0
+/resume-steward-motion-after-a-stop:
+  en: c86011e805090bb7
+  zh: d6b22def813ddb94
+/resume-steward-motion-after-a-stop/change:
+  en: f4675cc2b0d2e241
+  zh: f9f94a154d385001
+/resume-steward-motion-after-a-stop/migration:
+  en: 75a4ae7a146f6e47
+  zh: d5c44e2652eb1fdd

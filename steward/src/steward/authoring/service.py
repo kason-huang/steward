@@ -958,6 +958,50 @@ def build_cobot_workstation(service: AuthoringService) -> dict:
     return {"assets": {k: v["version"][:12] for k, v in published.items()}, "scene": scene, "scenario": scenario}
 
 
+PIPER_TASK = "把工作台上的黑盒放到机器人左侧托盘中央，然后观察黑盒停在哪里。"
+
+
+def piper_spec() -> dict:
+    return {"name": "piper-workstation", "entities": [
+        {"id": "w:room", "asset": "piper-room", "at": {"x": 0.0, "y": 0.0}},
+        {"id": "w:table", "asset": "piper-table", "at": {"x": 0.27, "y": 0.0}},
+        {"id": "w:robot-1", "asset": "phyagent-piper", "on": "w:table", "offset": [-0.27, 0.0]},
+        {"id": "w:black-box", "asset": "piper-black-box", "on": "w:table", "offset": [0.04, 0.0]},
+        {"id": "w:left-tray", "asset": "piper-left-tray", "on": "w:table", "offset": [0.06, 0.15]},
+        {"id": "w:right-tray", "asset": "piper-right-tray", "on": "w:table", "offset": [0.06, -0.15]},
+    ]}
+
+
+def build_piper_workstation(service: AuthoringService) -> dict:
+    from steward.assets.generators import building, dining_table, printed_board
+    from steward.assets.piper import piper_entity
+    from steward.scene.schema import exact
+
+    table = dining_table(width=0.80, depth=0.65)
+    table.rigid.root = exact("fixed")
+    box = printed_board(width=0.043, depth=0.042, thickness=0.045, back=[0.10, 0.10, 0.12, 1.0],
+                        mass=0.035, category="box")
+    box.rigid.links[0].affordances = [exact("graspable")]
+    trays = {
+        "piper-left-tray": printed_board(0.13, 0.12, 0.018, back=[0.18, 0.51, 0.85, 1.0], category="tray"),
+        "piper-right-tray": printed_board(0.13, 0.12, 0.018, back=[0.82, 0.36, 0.18, 1.0], category="tray"),
+    }
+    for tray in trays.values():
+        tray.rigid.links[0].affordances = [exact("support-surface")]
+    assets = {"piper-room": building(3.0, 3.0, 2.5), "piper-table": table,
+              "phyagent-piper": piper_entity(), "piper-black-box": box, **trays}
+    for name, template in assets.items():
+        service.publish_asset(name, template.to_dict())
+    scene = service.compose_scene(piper_spec())
+    scenario = service.save_scenario({
+        "name": "piper-workstation", "scene": "piper-workstation", "robots": ["w:robot-1"],
+        "phase": "phase1", "task": PIPER_TASK,
+        "perturbationPolicy": {"allowed": ["move"], "budget": 1},
+        "view": {"lookat": [0.25, 0.0, 0.83], "distance": 1.1, "azimuth": 140.0, "elevation": -30.0},
+    })
+    return {"scene": scene, "scenario": scenario}
+
+
 def build_cobot_kitchen(service: AuthoringService) -> dict:
     """Put the twin in the chores kitchen: the coloured bowls on one table within its reach."""
     from steward.assets.cobot import cobot_magic
@@ -1227,6 +1271,7 @@ def build_screw_board(service: AuthoringService) -> dict:
 # builder saves all three Phase 0 scenarios), so the table names each one it produces.
 BUILTIN_SCENARIOS: dict[str, dict] = {
     "merom-house": {"build": build_merom_house, "spec": merom_house_spec, "task": ""},
+    "piper-workstation": {"build": build_piper_workstation, "spec": piper_spec, "task": PIPER_TASK},
     "phase0-kitchen": {"build": build_default_kitchen, "spec": kitchen_spec, "task": KITCHEN_TASK},
     "phase0-shuttle": {"build": build_default_kitchen, "spec": shuttle_spec, "task": SHUTTLE_TASK},
     "phase0-chores": {"build": build_default_kitchen, "spec": chores_spec, "task": CHORES_TASK},

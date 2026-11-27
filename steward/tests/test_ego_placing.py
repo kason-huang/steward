@@ -48,3 +48,38 @@ def test_the_place_risk_uses_the_turned_footprint_too():
     # unturned, a long thin load is as far from the long edges as its short side allows
     thin = Box2D(id="n", cx=0.0, cy=0.0, yaw=0.0, hx=0.25, hy=0.02)
     assert Esim._edge_margin(sbox, (0.0, 0.0), *Esim._turned_half(thin, 0.0, 0.0)) == pytest.approx(0.06)
+
+
+def test_placement_verification_distinguishes_no_evidence_wrong_goal_and_success():
+    from types import SimpleNamespace
+
+    from steward.ego.skills import Job
+    from steward.ego.verification import placement_verdict
+
+    observation = {"status": "observed", "releasedAt": 2.0, "observation": {"stamp": 3.0, "centreM": [0.2, 0, 0.75]}}
+    support = SimpleNamespace(id="e:2", pos=np.array([0.0, 0.0, 0.35]), yaw=0.0, last_seen=3.0)
+    estimator = SimpleNamespace(
+        stamp=3.0, version=7, config=SimpleNamespace(placement_observation_max_age_s=0.5),
+        tracks={"e:1": object()}, placement_evidence=lambda _: observation, support_of=lambda _: support,
+    )
+    job = Job("job-1", "place", "r-1", state="succeeded", started=1.0, finished=2.8)
+    receipt = {"plan": {"object": "e:1"}}
+    goal = {"entity": "e:1", "support": "e:2", "offset": [0.2, 0.0], "toleranceM": 0.05}
+    verdict = placement_verdict(estimator, job, receipt, goal)
+    assert verdict["accepted"] and verdict["terminated"]
+    assert verdict["effect"] == verdict["intent"] == "satisfied"
+    wrong_support = placement_verdict(estimator, job, receipt, {**goal, "support": "e:3"})
+    assert wrong_support["effect"] == "satisfied" and wrong_support["intent"] == "unsatisfied"
+    wrong_offset = placement_verdict(estimator, job, receipt, {**goal, "offset": [-0.2, 0.0]})
+    assert wrong_offset["offsetErrorM"] == pytest.approx(0.4)
+    assert wrong_offset["intent"] == "unsatisfied"
+    estimator.stamp = 4.0
+    stale = placement_verdict(estimator, job, receipt, goal)
+    assert stale["effect"] == stale["intent"] == "unknown"
+    estimator.stamp = 3.0
+    observation["releasedAt"] = 2.9
+    unrelated = placement_verdict(estimator, job, receipt, goal)
+    assert unrelated["effect"] == unrelated["intent"] == "unknown"
+    observation["status"] = "unknown"
+    obscured = placement_verdict(estimator, job, receipt, goal)
+    assert obscured["effect"] == obscured["intent"] == "unknown"

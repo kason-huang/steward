@@ -35,6 +35,7 @@ from dataclasses import dataclass, field, replace
 import mujoco
 import numpy as np
 
+from steward.assets.piper import BODY_ID as PIPER_BODY, WRIST_LINK as PIPER_WRIST
 from steward.glrender import close_renderer, encode_image, free_camera
 from steward.math3d import matrix_from_quat, pose_compose, pose_inverse, quat_from_yaw, quat_mul, quat_normalize, yaw_from_quat
 from steward.scene.extent import entity_body_ids, entity_obb
@@ -55,6 +56,10 @@ _JOINT_WIDTH = {int(mujoco.mjtJoint.mjJNT_FREE): (7, 6), int(mujoco.mjtJoint.mjJ
                 int(mujoco.mjtJoint.mjJNT_SLIDE): (1, 1), int(mujoco.mjtJoint.mjJNT_HINGE): (1, 1)}
 # Shared by every simulation of the process, so a newly loaded scenario never repeats a number.
 _EPISODES = itertools.count(1)
+
+# Simulated actuator velocities are measured in m/s or rad/s according to the joint.
+_HOLD_VELOCITY_LIMIT = 0.015
+_HOLD_SETTLE_SECONDS = 0.1
 
 
 _COLOR_NAMES = {
@@ -201,21 +206,36 @@ class _Hold:
 
 @dataclass
 class _GripState:
-    """Per-gripper ideal-grasp state; a robot has one entry per ``grasp-point`` link."""
+    """Per-gripper state. Contact evidence never changes the object's dynamics."""
     closed: bool = False
     attached: str | None = None
     rel: dict | None = None
     saved_contacts: dict[int, tuple[int, int]] = field(default_factory=dict)
     handle: dict | None = None  # articulated grasp: {"entity", "link", "dof", ..., "gripper": link id}
+    contact_entity: str | None = None
+
+    @property
+    def held(self) -> str | None:
+        return self.attached or self.contact_entity
 
 
 @dataclass
 class _RobotState:
     entity_id: str
     grippers: dict[str, _GripState] = field(default_factory=dict)
+    motion_epoch: str = field(default_factory=lambda: uuid.uuid4().hex)
+    hold_requested: bool = False
+    hold_reason: str | None = None
+    require_motion_epoch: bool = False
+    still_since: float | None = None
+    contact_grasp: bool = False
+
+    @property
+    def grasp_mode(self) -> str:
+        return "contact" if self.contact_grasp else "rigid"
 
     def holding_any(self, entity_id: str) -> bool:
-        return any(g.attached == entity_id or (g.handle is not None and g.handle["entity"] == entity_id)
+        return any(g.held == entity_id or (g.handle is not None and g.handle["entity"] == entity_id)
                    for g in self.grippers.values())
 
     @property
@@ -274,7 +294,8 @@ if _assembly_enabled():
 
 
 def _robot_state(ent) -> _RobotState:
-    return _RobotState(ent.id, {lid: _GripState() for lid in _gripper_links(ent)})
+    return _RobotState(ent.id, {lid: _GripState() for lid in _gripper_links(ent)},
+                       contact_grasp=ent.category.value == PIPER_BODY)
 
 
 if _assembly_enabled():
@@ -693,6 +714,7 @@ class WorldSim:
             for g in rs.grippers.values():
                 g.saved_contacts = {}
                 g.handle = None
+                g.contact_entity = None
                 if g.attached is not None and scene.find(g.attached) is None:
                     g.attached, g.rel = None, None
                 if g.attached is not None:
@@ -714,6 +736,8 @@ class WorldSim:
                     self._drive_handles()
                     mujoco.mj_step(self.model, self.data)
                     self._follow_attached()
+                    self._sample_contact_grasps()
+                    self._sample_motion_holds()
                     checked = bool(self._fastening.slots) and self.step_count % _FASTEN_EVERY == 0
                     if checked:
                         # mj_step leaves position caches at the previous integration point.
@@ -732,6 +756,8 @@ class WorldSim:
                     self._drive_handles()
                     mujoco.mj_step(self.model, self.data)
                     self._follow_attached()
+                    self._sample_contact_grasps()
+                    self._sample_motion_holds()
                     if self._fastening.slots:
                         # mj_step leaves position caches at the previous integration point.
                         mujoco.mj_forward(self.model, self.data)
@@ -767,8 +793,12 @@ class WorldSim:
         """Read the same deterministic body sensor channel used by normal perception."""
         with self.lock:
             names = self.build.names[robot_id]
-            roots = names.root_joints
-            x, y, yaw = tuple(self._joint_q(j) for j in roots) if roots else (0.0, 0.0, 0.0)
+            if not names.root_joints:
+                mount = self.template.entity(robot_id).pose.value
+                x, y, z = mount["p"]
+                return {"x": x, "y": y, "z": z, "yaw": yaw_from_quat(mount["q"]), "q": list(mount["q"]),
+                        "sigma": {"pos": 0.0, "yaw": 0.0}}
+            x, y, yaw = (self._joint_q(j) for j in names.root_joints)
             if self.perception.odom_scale_error or self.perception.odom_yaw_drift_per_m:
                 x, y, yaw = self._odometry_tracks[robot_id].pose
             p, rng = self.perception, self._sensor_rng(robot_id, "body")
@@ -913,7 +943,8 @@ class WorldSim:
 
     def _pulled(self) -> bool:
         """True when a caller waits for world time to pass (see ``freeze_idle``)."""
-        return self._pulling_waits > 0 or any(h.pulls and not h.woken for h in self._live_holds().values())
+        braking = any(robot.hold_requested and not self._motion_settled(robot) for robot in self.robots.values())
+        return braking or self._pulling_waits > 0 or any(h.pulls and not h.woken for h in self._live_holds().values())
 
     def _hold_limit(self) -> int | float:
         """Step the world may advance to: the current one while a hold runs, else the earliest step a
@@ -924,13 +955,17 @@ class WorldSim:
         return min((h.step for h in live), default=math.inf)
 
     # --------------------------------------------------------------- commands
-    def command(self, robot_id: str, cmd: dict) -> dict:
+    def command(self, robot_id: str, cmd: dict, motion_epoch: str | None = None) -> dict:
         """Apply a robot actuator command: base [x, y, yaw], lift, reach, wrist_yaw, wrist_roll,
         gripper "open"/"close", or generic ``joints`` {joint id: target} for any actuated joint of
         any embodiment, and ``gripper`` {grasp-point link id: "open"/"close"} for multi-gripper robots."""
         if _assembly_enabled():
             with self.lock:
                 rs = self._robot(robot_id)
+                if rs.hold_requested:
+                    raise PermissionError("robot motion is on hold")
+                if (rs.require_motion_epoch or motion_epoch is not None) and motion_epoch != rs.motion_epoch:
+                    raise PermissionError("robot motion authorization is stale or missing")
                 names = self.build.names[robot_id]
                 if "base" in cmd:
                     for key, value in zip(("root_x", "root_y", "root_yaw"), cmd["base"], strict=True):
@@ -952,7 +987,8 @@ class WorldSim:
                         if action == "close" and not g.closed:
                             g.closed = True
                             self._set_fingers(rs, link_id, closed=True)
-                            self._try_attach(rs, g, link_id)
+                            if not rs.contact_grasp:
+                                self._try_attach(rs, g, link_id)
                             self._finger_display_set(rs, link_id, closed=True)
                         elif action == "open" and g.closed:
                             g.closed = False
@@ -963,6 +999,10 @@ class WorldSim:
         else:
             with self.lock:
                 rs = self._robot(robot_id)
+                if rs.hold_requested:
+                    raise PermissionError("robot motion is on hold")
+                if (rs.require_motion_epoch or motion_epoch is not None) and motion_epoch != rs.motion_epoch:
+                    raise PermissionError("robot motion authorization is stale or missing")
                 names = self.build.names[robot_id]
                 if "base" in cmd:
                     for key, value in zip(("root_x", "root_y", "root_yaw"), cmd["base"], strict=True):
@@ -984,12 +1024,95 @@ class WorldSim:
                         if action == "close" and not g.closed:
                             g.closed = True
                             self._set_fingers(rs, link_id, closed=True)
-                            self._try_attach(rs, g, link_id)
+                            if not rs.contact_grasp:
+                                self._try_attach(rs, g, link_id)
                         elif action == "open" and g.closed:
                             g.closed = False
                             self._set_fingers(rs, link_id, closed=False)
                             self._release(rs, g)
                 return {"ok": True, "t": self.time}
+
+    def _actuated_joints(self, robot_id: str):
+        for name in self.build.names[robot_id].actuators.values():
+            actuator = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_ACTUATOR, name)
+            yield name, actuator, int(self.model.actuator_trnid[actuator, 0])
+
+    def _sample_motion_holds(self) -> None:
+        for robot in self.robots.values():
+            if not robot.hold_requested:
+                continue
+            names = self.build.names[robot.entity_id]
+            joints = [mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, name)
+                      for name in [*names.root_joints, *names.joints.values()]]
+            velocities = (self.data.qvel[self.model.jnt_dofadr[joint]:
+                                        self.model.jnt_dofadr[joint] + _JOINT_WIDTH[int(self.model.jnt_type[joint])][1]]
+                          for joint in joints)
+            if all(np.all(np.abs(speed) <= _HOLD_VELOCITY_LIMIT) for speed in velocities):
+                if robot.still_since is None:
+                    robot.still_since = self.time
+            else:
+                robot.still_since = None
+
+    def _motion_settled(self, robot: _RobotState) -> bool:
+        return robot.still_since is not None and self.time - robot.still_since >= _HOLD_SETTLE_SECONDS
+
+    def motion_status(self, robot_id: str) -> dict:
+        with self.lock:
+            robot = self._robot(robot_id)
+            state = "ready"
+            if robot.hold_requested:
+                settled = self._motion_settled(robot)
+                state = "unknown" if self.paused else "held" if settled else "stopping"
+            return {"state": state, "epoch": robot.motion_epoch, "episode": self.episode,
+                    "t": self.time, "reason": robot.hold_reason}
+
+    def hold_motion(self, robot_id: str, reason: str = "protection") -> dict:
+        """Fence old commands and hold the measured body pose without changing the grip target."""
+        with self.lock:
+            robot = self._robot(robot_id)
+            if robot.hold_requested and reason == "protection" and robot.hold_reason != reason:
+                robot.motion_epoch = uuid.uuid4().hex
+                robot.hold_reason = reason
+                robot.still_since = None
+                self.events.append({"type": "motion/protection", "t": self.time, "robot": robot_id,
+                                    "motionEpoch": robot.motion_epoch})
+                self._clock.notify_all()
+            if not robot.hold_requested:
+                robot.hold_requested = True
+                robot.hold_reason = reason
+                robot.require_motion_epoch = True
+                robot.motion_epoch = uuid.uuid4().hex
+                robot.still_since = None
+                names = self.build.names[robot_id]
+                entity = self.template.entity(robot_id)
+                fingers = {names.actuators.get(joint_id) for link_id in robot.grippers
+                           for joint_id, _, _ in _finger_joints(entity, link_id)}
+                for name, actuator, joint in self._actuated_joints(robot_id):
+                    if name in fingers:
+                        continue
+                    # MJCF position actuators have a length-dependent bias; velocity servos
+                    # and torque motors take a zero target for a stop.
+                    position = self.model.actuator_biasprm[actuator, 1] != 0
+                    target = float(self.data.qpos[self.model.jnt_qposadr[joint]]) if position else 0.0
+                    self._set_ctrl(name, target)
+                self.events.append({"type": "motion/hold", "t": self.time, "robot": robot_id,
+                                    "motionEpoch": robot.motion_epoch})
+                self._clock.notify_all()
+            return self.motion_status(robot_id)
+
+    def resume_motion(self, robot_id: str, motion_epoch: str) -> dict:
+        with self.lock:
+            status = self.motion_status(robot_id)
+            if status["epoch"] != motion_epoch or status["state"] != "held":
+                raise PermissionError("current hold and measured standstill are required before resuming")
+            robot = self._robot(robot_id)
+            robot.hold_requested = False
+            robot.hold_reason = None
+            # A hold status is readable during braking and cannot authorize a queued command.
+            robot.motion_epoch = uuid.uuid4().hex
+            self.events.append({"type": "motion/resume", "t": self.time, "robot": robot_id,
+                                "motionEpoch": robot.motion_epoch})
+            return self.motion_status(robot_id)
 
     @staticmethod
     def _sole_gripper(rs: _RobotState) -> str:
@@ -1007,7 +1130,9 @@ class WorldSim:
                 self._set_ctrl(actuator, shut if closed else open_)
 
     def _set_ctrl(self, actuator: str, value: float) -> None:
+        """Store a joint-space target in the actuator's transmission coordinates."""
         aid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_ACTUATOR, actuator)
+        value *= self.model.actuator_gear[aid, 0]
         lo, hi = self.model.actuator_ctrlrange[aid]
         if self.model.actuator_ctrllimited[aid]:
             value = min(max(value, lo), hi)
@@ -1042,6 +1167,37 @@ class WorldSim:
             if isinstance(value, dict) and "tcp-offset" in value:
                 return pose_compose(pose, value["tcp-offset"])
         return pose
+
+    def _sample_contact_grasps(self) -> None:
+        """Report a PiPER grasp when the same free object loads both native fingers."""
+        for rs in self.robots.values():
+            if not rs.contact_grasp:
+                continue
+            grip = rs.grippers[PIPER_WRIST]
+            if not grip.closed and grip.contact_entity is None:
+                continue
+            contacts: dict[str, set[str]] = {"link7": set(), "link8": set()}
+            force = np.zeros(6)
+            for idx, contact in enumerate(self.data.contact):
+                if contact.efc_address < 0:
+                    continue
+                first, second = self.model.geom_bodyid[contact.geom]
+                if self._body_entity.get(second) == rs.entity_id:
+                    first, second = second, first
+                if self._body_entity.get(first) != rs.entity_id:
+                    continue
+                finger = self._body_link.get(first)
+                object_id = self._body_entity.get(second)
+                if finger not in contacts or object_id is None:
+                    continue
+                other = self.template.find(object_id)
+                if other is None or other.role != "object" or other.rigid.root.value != "free":
+                    continue
+                mujoco.mj_contactForce(self.model, self.data, idx, force)
+                if force[0] > 0.01:
+                    contacts[finger].add(other.id)
+            both = contacts["link7"] & contacts["link8"]
+            grip.contact_entity = next(iter(both)) if len(both) == 1 else None
 
     def _try_attach(self, rs: _RobotState, g: _GripState, gripper_link: str) -> None:
         """Ideal grasp: attach the nearest free object within capture range of the pinch point (inside
@@ -1273,9 +1429,10 @@ class WorldSim:
                                           mode="rigid", derived=False) for a, b in self._fastening.welds]
         for rs in self.robots.values():
             for gripper_link, g in rs.grippers.items():
-                if g.attached is not None:
-                    rels.append(Relation(type="attached", a={"entity": g.attached},
-                                         b={"entity": rs.entity_id, "link": gripper_link}, mode="rigid", derived=False))
+                if g.held is not None:
+                    rels.append(Relation(type="attached", a={"entity": g.held},
+                                         b={"entity": rs.entity_id, "link": gripper_link},
+                                         mode=rs.grasp_mode, derived=rs.contact_grasp))
         seen = set()
         for c in range(self.data.ncon):
             con = self.data.contact[c]
@@ -1338,20 +1495,11 @@ class WorldSim:
             with self.lock:
                 rs = self._robot(robot_id)
                 names = self.build.names[robot_id]
-                roots = names.root_joints
-                x, y, yaw = ((self._joint_q(j) for j in roots) if roots else (0.0, 0.0, 0.0))
-                p = self.perception
-                rng = self._sensor_rng(robot_id, "body")
-                odom = {
-                    "x": x + rng.normal(0, p.odom_pos_sigma),
-                    "y": y + rng.normal(0, p.odom_pos_sigma),
-                    "yaw": yaw + rng.normal(0, p.odom_yaw_sigma),
-                    "sigma": {"pos": p.odom_pos_sigma, "yaw": p.odom_yaw_sigma},
-                }
+                odom = self.odometry(robot_id)
                 joints = {jid: self._joint_q(jname) for jid, jname in names.joints.items()}
                 cameras = self.robot_cameras(robot_id)
                 grips = {lid: {"state": "closed" if g.closed else "open",
-                               "holding": g.attached is not None or g.handle is not None,
+                               "holding": g.held is not None or g.handle is not None,
                                "holdingHandle": g.handle is not None}
                          for lid, g in rs.grippers.items()}
                 frame = {
@@ -1382,7 +1530,7 @@ class WorldSim:
                 joints = {jid: self._joint_q(jname) for jid, jname in names.joints.items()}
                 cameras = self.robot_cameras(robot_id)
                 grips = {lid: {"state": "closed" if g.closed else "open",
-                               "holding": g.attached is not None or g.handle is not None,
+                               "holding": g.held is not None or g.handle is not None,
                                "holdingHandle": g.handle is not None}
                          for lid, g in rs.grippers.items()}
                 frame = {
@@ -1417,7 +1565,7 @@ class WorldSim:
             names = self.build.names[robot_id]
             joints = {jid: self._joint_q(jname) for jid, jname in names.joints.items()}
             grips = {lid: {"state": "closed" if g.closed else "open",
-                           "holding": g.attached is not None or g.handle is not None,
+                           "holding": g.held is not None or g.handle is not None,
                            "holdingHandle": g.handle is not None}
                      for lid, g in rs.grippers.items()}
             frame = {"stamp": self.time, "episode": self.episode, "joints": joints, "grippers": grips}
@@ -1849,9 +1997,10 @@ class WorldSim:
                 "speed": speed_json(self.speed),
                 "freezeIdle": self.freeze_idle,
                 "entities": [{"id": e.id, "category": e.category.value, "role": e.role} for e in self.template.entities],
-                "robots": {rid: {"holding": next((g.attached for g in rs.grippers.values() if g.attached), None),
+                "robots": {rid: {"holding": next((g.held for g in rs.grippers.values() if g.held), None),
                                  "gripper": "closed" if any(g.closed for g in rs.grippers.values()) else "open",
-                                 "grippers": {lid: {"holding": g.attached, "state": "closed" if g.closed else "open"}
+                                 "graspMode": rs.grasp_mode if rs.grippers else None,
+                                 "grippers": {lid: {"holding": g.held, "state": "closed" if g.closed else "open"}
                                               for lid, g in rs.grippers.items()}}
                            for rid, rs in self.robots.items()},
                 "events": self.events[-20:],

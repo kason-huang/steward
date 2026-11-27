@@ -38,7 +38,7 @@ Node Harness 在注册工具及反思钩子前，从所连接的 Ego 解析配�
 
 运行时配置决定工具、反思/续行、相机元数据解析及 explore 超时。Harness 环境冲突时，stderr 输出一次 `STEWARD_HARNESS_PROFILE`，以运行时为准。Ego 不可达或配置非法时，启动在工具注册前失败。连接缓存该配置，运行时配置变更后需重启 Harness。独立工厂、本地 provider 及反思配置 schema 仍使用启动环境。
 
-两种配置均公开 13 个技能。Toy 有 38 个 API 路由和 20 个核心 Ego 工具；default 为 39 个路由和 21 个工具。Toy 通过 `ego_predict` 提供 `complete_assembly`；default 提供 `insert_screw_into_hole`、`ego_screw_holes` 及 `/ego/screw-holes`。`complete_assembly` 是技能值，不是独立工具。[运行时](../tests/expected/runtime-profile-surface.json)、[已注册工具](../tests/expected/registered-tool-surfaces.json)及[启动](../tests/expected/launch-profile-surface.json)夹具保存独立参考，包括描述、schema、SDK 和机器人简介。
+两种配置均公开 13 个技能。Toy 有 48 个 Ego API 路由和 20 个核心工具。Default 有 49 个路由和 23 个核心工具，包括 `ego_motion_status` 和 `ego_verify_placement`。PiPER 本体额外提供一个直接发送本体指令的路由。Toy 通过 `ego_predict` 提供 `complete_assembly`；default 提供 `insert_screw_into_hole`、`ego_screw_holes` 及 `/ego/screw-holes`。`complete_assembly` 是技能值，不是独立工具。[运行时](../tests/expected/runtime-profile-surface.json)、[已注册工具](../tests/expected/registered-tool-surfaces.json)及[启动](../tests/expected/launch-profile-surface.json)夹具记录描述、schema、SDK 和机器人简介。
 
 ## 自行运行 toy 装配评测
 

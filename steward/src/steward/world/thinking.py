@@ -66,6 +66,37 @@ def _entry_id(path: str, index: int) -> str:
     return f"{hashlib.sha256(path.encode()).hexdigest()[:16]}:{index}"
 
 
+def _prompt_text(message: dict) -> str:
+    content = message.get("content", "")
+    return content if isinstance(content, str) else "\n".join(
+        block["text"] for block in content if block.get("type") == "text")
+
+
+def session_prompts(home: str, session_id: str, after: str = "") -> dict:
+    """Read the latest logged prompts for the console's active session."""
+    path = next((path for path in session_files(home)
+                 if os.path.basename(os.path.dirname(path)) == session_id), None)
+    if path is None:
+        return {"sessionId": session_id, "ready": False}
+    rows = _rows(path, time.monotonic() + _TIME_BUDGET_S)
+    system = next((row for row in reversed(rows) if row.get("type") == "system/message"), None)
+    operator = next((row for row in reversed(rows) if row.get("type") == "user/message"
+                     and row["data"].get("source", {}).get("kind") == "user"), None)
+    context_sources = {"agent-instructions", "runtime-context", "skill-catalog", "ego-reflection"}
+    injected = [row for row in rows if row.get("type") == "user/message"
+                and row["data"].get("source", {}).get("kind") in context_sources
+                and (operator is None or row["seq"] > operator["seq"])]
+    revision = ":".join(str(row["seq"]) if row is not None else "-"
+                        for row in (system, operator, *injected))
+    if revision == after:
+        return {"sessionId": session_id, "revision": revision, "unchanged": True}
+    return {"sessionId": session_id, "ready": system is not None or operator is not None, "revision": revision,
+            "systemPrompt": _prompt_text(system["data"]["message"]) if system is not None else None,
+            "operatorPrompt": _prompt_text(operator["data"]) if operator is not None else None,
+            "injectedPrompts": [{"source": row["data"]["source"]["kind"], "text": _prompt_text(row["data"])}
+                                for row in injected]}
+
+
 def _reasoning(row: dict) -> str:
     """Reasoning text of an assistant event, or empty text for other events."""
     if row.get("type") != "assistant/message":

@@ -72,6 +72,9 @@ class MotionConfig:
     position_tol: float = 0.03
     yaw_tol: float = 0.04
     joint_tol: float = 0.01
+    waypoint_speed_rad_s: float = 1.2
+    waypoint_tolerance_rad: float = 0.016
+    waypoint_settle_timeout_s: float = 1.5
     # mink often parks a commanded shallow pitch on a neighbouring posture a few tenths away; the
     # virtual TCP still works, so wrist_pitch settle uses this wider gate (lift/reach keep joint_tol).
     wrist_pitch_tol: float = 0.25
@@ -178,6 +181,12 @@ class Job:
     log: list[str] = field(default_factory=TimedLog)
     posterior: dict | None = None  # what a look after the skill found (observed z / settled state)
     postcondition: dict | None = None
+    motion_epoch: str | None = None
+    watched_target: dict | None = None
+    expects_grip: bool = False
+    task_id: str | None = None
+    intent_revision: str | None = None
+    notify_completion: bool = False
 
     def to_dict(self) -> dict:
         if _assembly_enabled():
@@ -199,12 +208,14 @@ class Job:
                     "message": message, "started": self.started, "finished": self.finished, "log": self.log[-log_limit:],
                     "timing": getattr(self.log, "events", [])[-(4 if precision and hasattr(self, "phaseTiming") else log_limit):],
                     **({"phaseTiming": snapshot(self)} if hasattr(self, "phaseTiming") else {}),
+                    **({"motionEpoch": self.motion_epoch} if self.motion_epoch is not None else {}),
                     **({"postcondition": postcondition} if postcondition is not None else {})})
         else:
             return {"id": self.id, "skill": self.skill, "receipt": self.receipt, "state": self.state,
                     "message": self.message, "started": self.started, "finished": self.finished, "log": self.log[-20:],
                     "timing": getattr(self.log, "events", [])[-20:],
                     **({"posterior": self.posterior} if self.posterior else {}),
+                    **({"motionEpoch": self.motion_epoch} if self.motion_epoch is not None else {}),
                     **({"postcondition": self.postcondition} if self.postcondition is not None else {})}
 
 
@@ -259,7 +270,8 @@ class SkillExecutor:
                      verify_screw_seat: Callable[[str], tuple[bool, str]] | None = None,
                      replan_pick: Callable[[str], dict | None] | None = None,
                      replan_insert_place: Callable[[dict], dict | None] | None = None,
-                     motion_policy: MotionPolicy | None = None):
+                     motion_policy: MotionPolicy | None = None,
+                     waypoint_skills: frozenset[str] = frozenset()):
             """``clock`` is the robot link whose world clock times the control ticks (one hold per job,
             ``skill/<job id>``); without it a tick sleeps ``tick_s`` of wall time.
 
@@ -309,6 +321,9 @@ class SkillExecutor:
             from steward.ego import base_command_ledger
             if base_command_ledger.enabled():
                 base_command_ledger.install(self)
+            if waypoint_skills - {"pick", "place"}:
+                raise ValueError("joint-waypoint execution supports only pick and place")
+            self._waypoint_skills = waypoint_skills
             self._mark_held = mark_held
             self._shift = shift
             self._closed_drawers = closed_drawers
@@ -328,6 +343,7 @@ class SkillExecutor:
             self._arm_engaged = False  # Cartesian recovery is allowed only after this job docks successfully
             self._lock = threading.Lock()
             self._stop = threading.Event()
+            self._worker = threading.local()
             self.jobs: dict[str, Job] = {}
             self.current: Job | None = None
             self._pulls: dict[str, dict] = {}  # drawer id -> the pull that left it open (:meth:`pull_of`)
@@ -357,7 +373,8 @@ class SkillExecutor:
                      verify_screw_seat: Callable[[str], tuple[bool, str]] | None = None,
                      replan_pick: Callable[[str], dict | None] | None = None,
                      replan_insert_place: Callable[[dict], dict | None] | None = None,
-                     motion_policy: MotionPolicy | None = None):
+                     motion_policy: MotionPolicy | None = None,
+                     waypoint_skills: frozenset[str] = frozenset()):
             """``clock`` is the robot link whose world clock times the control ticks (one hold per job,
             ``skill/<job id>``); without it a tick sleeps ``tick_s`` of wall time.
 
@@ -405,6 +422,9 @@ class SkillExecutor:
             self._replan_insert_place = replan_insert_place
             self._command = command
             self._state = state
+            if waypoint_skills - {"pick", "place"}:
+                raise ValueError("joint-waypoint execution supports only pick and place")
+            self._waypoint_skills = waypoint_skills
             self._mark_held = mark_held
             self._shift = shift
             self._closed_drawers = closed_drawers
@@ -424,6 +444,7 @@ class SkillExecutor:
             self._arm_engaged = False  # Cartesian recovery is allowed only after this job docks successfully
             self._lock = threading.Lock()
             self._stop = threading.Event()
+            self._worker = threading.local()
             self.jobs: dict[str, Job] = {}
             self.current: Job | None = None
             self._pulls: dict[str, dict] = {}  # drawer id -> the pull that left it open (:meth:`pull_of`)
@@ -440,7 +461,12 @@ class SkillExecutor:
         return {} if pull is None else {"handle": list(pull["handle"]), "axis": list(pull["axis"]),
                                         "distance": pull["distance"]}
 
-    def start(self, skill: str, receipt: dict) -> Job:
+    @property
+    def motion_epoch(self) -> str | None:
+        return getattr(self._worker, "motion_epoch", None)
+
+    def start(self, skill: str, receipt: dict, *, motion_epoch: str | None = None,
+              task_id: str | None = None, notify_completion: bool = False) -> Job:
         if _assembly_enabled():
             from steward.ego.look_timeout import ENABLED
             bounded_look = skill == 'look_around' and ENABLED
@@ -452,7 +478,9 @@ class SkillExecutor:
                 if self.current is not None and self.current.state == "running":
                     raise RuntimeError(f"skill {self.current.skill} ({self.current.id}) is still running")
                 initial = self._state()
-                job = Job(id=f"job-{next(self._ids)}", skill=skill, receipt=receipt["id"], started=initial["stamp"])
+                job = Job(id=f"job-{next(self._ids)}", skill=skill, receipt=receipt["id"], started=initial["stamp"],
+                          motion_epoch=motion_epoch, task_id=task_id,
+                          intent_revision=receipt.get("intentRevision"), notify_completion=notify_completion)
                 if bounded_look:
                     receipt = {**receipt, 'plan':dict(receipt.get('plan', {}), timeoutS=timeout,
                         _lookDeadline=time.monotonic()+timeout, _lookInitialState=initial)}
@@ -465,7 +493,9 @@ class SkillExecutor:
             with self._lock:
                 if self.current is not None and self.current.state == "running":
                     raise RuntimeError(f"skill {self.current.skill} ({self.current.id}) is still running")
-                job = Job(id=f"job-{next(self._ids)}", skill=skill, receipt=receipt["id"], started=self._state()["stamp"])
+                job = Job(id=f"job-{next(self._ids)}", skill=skill, receipt=receipt["id"], started=self._state()["stamp"],
+                          motion_epoch=motion_epoch, task_id=task_id,
+                          intent_revision=receipt.get("intentRevision"), notify_completion=notify_completion)
                 self.jobs[job.id] = job
                 self.current = job
                 self._stop.clear()
@@ -481,15 +511,16 @@ class SkillExecutor:
             from steward.ego.base_command_ledger import invalidate
             invalidate(self, 'executor_cancel_or_reset')
 
-    def stop(self) -> dict:
+    def stop(self, *, hold_body: bool = True) -> dict:
         self._stop.set()
         running = self.current if self.current and self.current.state == "running" else None
         if running is not None and self._clock is not None:
             # A skill waiting on a paused world clock ends now instead of when the world resumes.
             self._release_clock(f"skill/{running.id}")
-        st = self._state()
-        o = st["odometry"]
-        self._command({"base": [o["x"], o["y"], o["yaw"]]})
+        if hold_body:
+            st = self._state()
+            o = st["odometry"]
+            self._command({"base": [o["x"], o["y"], o["yaw"]]})
         return {"stopped": running.id if running else None}
 
     def wait(self, job_id: str, timeout: float) -> Job:
@@ -543,6 +574,7 @@ class SkillExecutor:
                 raise
 
     def _run(self, job: Job, skill: str, receipt: dict) -> None:
+        self._worker.motion_epoch = job.motion_epoch
         if _assembly_enabled():
             self._observation_thread = threading.get_ident()
             wall_started = time.time()
@@ -569,7 +601,9 @@ class SkillExecutor:
                 if self._stop.is_set():
                     raise SkillStopped()
                 self._gentle = bool(plan.get("gentle"))
-                if skill == "look_around":
+                if skill in self._waypoint_skills:
+                    self._waypoint_pick_place(job, plan)
+                elif skill == "look_around":
                     self._look = True
                     try:
                         self._look_around(job)
@@ -707,6 +741,73 @@ class SkillExecutor:
                     self._release_clock(f"skill/{job.id}")
                 if self._on_finish is not None:
                     self._on_finish(job)
+
+    def _waypoint_pick_place(self, job: Job, plan: dict) -> None:
+        """Execute a predicted approach, contact and retreat using the shared robot primitives."""
+        program = plan.get("jointProgram")
+        if not program:
+            raise SkillFailed(f"{job.skill} requires a predicted joint-waypoint program")
+        job.expects_grip = job.skill == "place"
+        job.watched_target = {"id": plan["target"], "position": plan["targetP"], "category": plan["targetCategory"]}
+        try:
+            self._move_joints(program["approach"])
+        finally:
+            job.watched_target = None
+        job.log.append("reached approach pose")
+        if job.skill == "place" and not self._state()["gripper"]["holding"]:
+            raise SkillFailed("the load was lost before lowering")
+        self._move_joints(program["contact"])
+        if job.skill == "pick":
+            self._command({"gripper": "close"})
+            deadline = self._state()["stamp"] + 0.65
+            holding = False
+            while True:
+                sample = self._tick()
+                loaded = sample["gripper"]["holding"]
+                if holding and loaded:
+                    break
+                if sample["stamp"] >= deadline:
+                    self._command({"gripper": "open"})
+                    self._move_joints(program["approach"])
+                    raise SkillFailed("the gripper closed without acquiring the object")
+                holding = loaded
+            self._mark_held(plan["target"])
+            job.expects_grip = True
+            job.log.append("gripper reports a held object")
+        else:
+            if not self._state()["gripper"]["holding"]:
+                raise SkillFailed("the load was lost before release")
+            job.expects_grip = False
+            self._command({"gripper": "open"})
+            self._released(plan["object"], plan["spot"])
+            self._wait(0.25)
+            if self._state()["gripper"]["holding"]:
+                raise SkillFailed("the fingers are still loaded after the open command")
+        self._move_joints(program["approach"])
+        if job.skill == "pick":
+            if not self._state()["gripper"]["holding"]:
+                raise SkillFailed("the object slipped during lifting")
+        else:
+            self._move_joints(program["clearView"])
+            self._report_placement(job, plan["object"])
+
+    def _move_joints(self, target: dict[str, float]) -> None:
+        """Ramp physical joint goals and wait for the encoders to reach the final goal."""
+        previous = self._state()
+        start = {key: previous["joints"][key] for key in target}
+        distance = max(abs(target[key] - start[key]) for key in target)
+        duration = max(0.1, distance / self.config.waypoint_speed_rad_s)
+        for step in range(1, max(1, math.ceil(duration / self.config.tick_s)) + 1):
+            fraction = min(1.0, step * self.config.tick_s / duration)
+            self._command({"joints": {key: start[key] + fraction * (value - start[key])
+                                       for key, value in target.items()}})
+            state = self._tick()
+        deadline = state["stamp"] + self.config.waypoint_settle_timeout_s
+        while any(abs(state["joints"][key] - value) > self.config.waypoint_tolerance_rad
+                  for key, value in target.items()):
+            if state["stamp"] >= deadline:
+                raise SkillFailed("the joint encoders did not reach the predicted pose")
+            state = self._tick()
 
     if _assembly_enabled():
         def _released(self, object_id: str, spot: list[float], target: dict | None = None) -> None:

@@ -5,14 +5,17 @@ from __future__ import annotations
 import json
 import os
 import sys
+import threading
 import time
 from pathlib import Path
 
 import pytest
 
 from steward.assets.generators import steward_bot
-from steward.ego.runtime import EgoRuntime, RobotLink
-from steward.net import JsonServer
+from steward.ego.monitor import MonitorConfig
+from steward.ego.runtime import EgoRuntime, RobotLink, RuntimeConfig
+from steward.ego.server import ego_api
+from steward.net import HttpError, JsonServer, call
 from steward.world.chat import ChatConfig, HarnessChat, ROBOT_BRIEF, capabilities_digest, robot_brief
 from steward.world.server import StewardHost
 
@@ -106,6 +109,56 @@ def test_world_chat_keeps_its_session_and_targets_this_hosts_wca(tmp_path):
     assert (world / "stdin").read_text(encoding="utf-8").startswith("操作员请求：")
     assert chat.state(since=state["messages"][-1]["id"])["messages"] == []
     assert not state["agents"]["robot"]["available"]
+
+
+def test_console_skills_match_the_tools_reported_by_the_robot_session(tmp_path):
+    plan = {"body": "test-body", "availableSkills": ["pick", "place", "look_around"],
+            "availableS0Tools": {"body_stop": "control", "ego_motion_status": "read", "ego_gripper_pose": "read",
+                                 "body_set_joints": "control", "body_set_gripper": "control"}}
+    api = JsonServer({("GET", "/ego/plan"): lambda q, b: plan}).start()
+    try:
+        home = _home(tmp_path, "robot-1", "ego")
+        event = {"type": "steward_tool_catalog", "sessionId": "session-1",
+                 "tools": ["run_code", "ego_predict", "skill_run", "ego_explore",
+                           "body_stop", "ego_motion_status", "body_set_joints", "body_set_gripper", "body_resume"],
+                 "predictSkills": ["pick", "navigate"], "readOnly": True}
+        events = [
+            {"type": "session", "sessionId": "session-1"},
+            event,
+            {**event, "sessionId": "child-session", "tools": [], "readOnly": False},
+        ]
+        launcher = _launcher(tmp_path,
+                             f"assert os.environ['STEWARD_CONSOLE_SESSION_TOOLS'] == '1'\n"
+                             f"sys.stdin.read()\nprint({chr(10).join(map(json.dumps, events))!r})\n")
+        chat = HarnessChat(ChatConfig(dsh=launcher, cwd=tmp_path, env_file=tmp_path / ".env",
+                                      robot_home=home, ego_api=api.url), lambda: "unused")
+        chat.agents["robot"].before_turn = None
+        chat.agents["robot"].after_turn = None
+        assert chat.state()["agents"]["robot"]["sessionSkills"] is None
+        chat.send("robot", "观察")
+        _wait_idle(chat, "robot")
+        robot = chat.state()["agents"]["robot"]
+        assert robot["sessionSkills"] == ["pick", "look_around"]
+        assert robot["profile"] == "ego" and robot["readOnly"]
+        assert robot["sessionS0Tools"] == [{"name": "body_stop", "enabled": False},
+                                           {"name": "ego_motion_status", "enabled": True},
+                                           {"name": "body_set_joints", "enabled": False},
+                                           {"name": "body_set_gripper", "enabled": False}]
+
+        event.update(tools=["run_code", "ego_predict", "body_stop", "ego_gripper_pose", "body_set_joints"], readOnly=False)
+        _launcher(tmp_path, f"sys.stdin.read()\nprint({json.dumps(event)!r})\n")
+        chat.send("robot", "再看一下")
+        _wait_idle(chat, "robot")
+        robot = chat.state()["agents"]["robot"]
+        assert robot["sessionSkills"] == []
+        assert robot["sessionS0Tools"] == [{"name": "body_stop", "enabled": True},
+                                           {"name": "ego_gripper_pose", "enabled": True},
+                                           {"name": "body_set_joints", "enabled": True}]
+        chat.reset("robot")
+        assert chat.state()["agents"]["robot"]["sessionSkills"] is None
+        assert chat.state()["agents"]["robot"]["sessionS0Tools"] is None
+    finally:
+        api.stop()
 
 
 def test_robot_chat_takes_control_for_the_turn_and_gives_it_back(tmp_path):
@@ -218,7 +271,7 @@ def test_robot_wait_reports_llm_then_run_code_then_llm_again(tmp_path):
     assert chat.state()["agents"]["robot"]["wait"] is None
 
 
-def _recording_dsh(tmp_path):
+def _recording_dsh(tmp_path, *, wait_for_dispatch=False):
     """A stand-in launcher that records each turn (resumed or not, its stdin), prints a session and,
     for a task marked ⏳, keeps running until stopped."""
     return _launcher(tmp_path, (
@@ -229,7 +282,10 @@ def _recording_dsh(tmp_path):
         "    fh.write(json.dumps({'resumed': '--session-id' in args, 'text': text}) + '\\n')\n"
         "print(json.dumps({'type': 'session', 'sessionId': 's-1'}), flush=True)\n"
         "if text.endswith('⏳'):\n"
-        "    time.sleep(30)\n"))
+        "    time.sleep(30)\n"
+        + ("if '--session-id' not in args:\n"
+           "    while not os.path.exists(os.path.join(os.environ['DSH_HOME'], 'job-dispatched')):\n"
+           "        time.sleep(0.01)\n" if wait_for_dispatch else "")))
 
 
 def _turns(home: Path) -> list[dict]:
@@ -261,6 +317,238 @@ def test_a_task_given_anew_stops_the_running_turn_and_starts_a_new_conversation(
     assert [t["resumed"] for t in turns] == [False, False], "the new task opens a new conversation"
     assert turns[1]["text"].startswith("你是家用服务机器人") and turns[1]["text"].endswith("把拼图拼好")
     assert calls == ["acquire", "stop", "release", "acquire", "release"]
+
+@pytest.mark.parametrize("moving", [False, True])
+def test_intent_revision_resumes_the_same_ego_session_in_simulation(kitchen_root, tmp_path, moving):
+    robot = _home(tmp_path, "robot-1", "ego")
+    host = StewardHost(kitchen_root, scenario="phase0-kitchen", speed=6).start()
+    link = RobotLink(host.robot_servers["w:robot-1"].url)
+    runtime = EgoRuntime(link, steward_bot().to_dict())
+    runtime.start()
+    ego = ego_api(runtime).start()
+    chat = HarnessChat(ChatConfig(dsh=_recording_dsh(tmp_path), cwd=tmp_path, env_file=tmp_path / ".env",
+                                  robot_home=robot, ego_api=ego.url), lambda: "unused")
+    try:
+        chat.send("robot", "把杯子放到左边⏳")
+        deadline = time.monotonic() + 5
+        while chat.agents["robot"].session_id is None and time.monotonic() < deadline:
+            time.sleep(0.02)
+        assert chat.agents["robot"].session_id == "s-1"
+        job = runtime.explore(owner="operator") if moving else None
+        before = link.motion_status()
+        updated = chat.revise_robot_intent("改放右边")
+        with pytest.raises(HttpError, match="task intent is stale"):
+            call("POST", f"{ego.url}/ego/explore", {"owner": "operator"})
+        deadline = time.monotonic() + 10
+        while (chat.agents["robot"].revising or chat.agents["robot"].busy) and time.monotonic() < deadline:
+            time.sleep(0.02)
+        turns = _turns(robot)
+        assert [turn["resumed"] for turn in turns] == [False, True]
+        assert "改放右边" in turns[1]["text"]
+        assert "重新观察" in turns[1]["text"]
+        assert updated["intentRevision"] == chat.agents["robot"].intent_revision
+        after = link.motion_status()
+        assert after["state"] == "ready"
+        if moving:
+            assert runtime.job(job["id"])["state"] == "stopped"
+            assert before["epoch"] != after["epoch"]
+        else:
+            assert before["epoch"] == after["epoch"], "an idle body needs no stop"
+    finally:
+        chat.stop()
+        ego.stop()
+        runtime.stop()
+        host.stop()
+
+
+def test_independent_monitor_holds_the_robot_and_wakes_ego_in_simulation(kitchen_root, tmp_path):
+    robot = _home(tmp_path, "robot-1", "ego")
+    host = StewardHost(kitchen_root, scenario="phase0-kitchen", speed=2).start()
+    link = RobotLink(host.robot_servers["w:robot-1"].url)
+    config = RuntimeConfig(monitor=MonitorConfig(poll_s=0.05, job_timeout_s=0.3))
+    runtime = EgoRuntime(link, steward_bot().to_dict(), config)
+    runtime.start()
+    ego = ego_api(runtime).start()
+    chat = HarnessChat(ChatConfig(dsh=_recording_dsh(tmp_path), cwd=tmp_path, env_file=tmp_path / ".env",
+                                  robot_home=robot, ego_api=ego.url), lambda: "unused")
+    try:
+        chat.send("robot", "看看周围有什么⏳")
+        deadline = time.monotonic() + 5
+        while chat.agents["robot"].session_id is None and time.monotonic() < deadline:
+            time.sleep(0.02)
+        assert chat.agents["robot"].session_id == "s-1"
+        job = runtime.explore(owner="operator", task_id=chat.agents["robot"].task.id)
+        deadline = time.monotonic() + 10
+        while (chat.agents["robot"].revising or chat.agents["robot"].busy) and time.monotonic() < deadline:
+            time.sleep(0.02)
+        turns = _turns(robot)
+        assert [turn["resumed"] for turn in turns] == [False, True]
+        assert "skill-deadline" in turns[1]["text"] and "保持暂停" in turns[1]["text"]
+        assert runtime.wait(job["id"], timeout=3)["state"] == "stopped"
+        motion = link.motion_status()
+        assert motion["reason"] == "protection"
+        assert motion["state"] in ("stopping", "held")
+        assert motion["epoch"] != job["motionEpoch"]
+        events = call("GET", f"{ego.url}/ego/events")["events"]
+        deadline_events = [event for event in events if event["kind"] == "skill-deadline"]
+        assert len(deadline_events) == 1
+        assert deadline_events[0]["job"] == job["id"] and deadline_events[0]["holdAccepted"]
+    finally:
+        chat.stop()
+        ego.stop()
+        runtime.stop()
+        host.stop()
+
+
+@pytest.mark.parametrize("outcome", ["protection", "finished", "cancelled"])
+def test_detached_job_routes_events_to_its_original_task(kitchen_root, tmp_path, outcome):
+    robot = _home(tmp_path, "robot-1", "ego")
+    host = StewardHost(kitchen_root, scenario="phase0-kitchen", speed=1).start()
+    link = RobotLink(host.robot_servers["w:robot-1"].url)
+    config = RuntimeConfig(monitor=MonitorConfig(poll_s=0.05, job_timeout_s=0.7 if outcome == "protection" else None))
+    runtime = EgoRuntime(link, steward_bot().to_dict(), config)
+    runtime.start()
+    ego = ego_api(runtime).start()
+    chat = HarnessChat(ChatConfig(dsh=_recording_dsh(tmp_path, wait_for_dispatch=True), cwd=tmp_path,
+                                  env_file=tmp_path / ".env", robot_home=robot, ego_api=ego.url), lambda: "unused")
+    try:
+        chat.send("robot", "执行后继续核验")
+        agent = chat.agents["robot"]
+        deadline = time.monotonic() + 5
+        while agent.session_id is None and time.monotonic() < deadline:
+            time.sleep(0.02)
+        assert agent.session_id == "s-1"
+        task = agent.task
+        if outcome == "finished":
+            position = link.sensors()["odometry"]
+            params = {key: position[key] for key in ("x", "y", "yaw")}
+            receipt = runtime.predict("navigate", params)
+            assert receipt["withinRiskLimit"], receipt["issues"]
+            # Hold the physics clock until the fake model has yielded the turn. A zero-distance
+            # navigation can otherwise finish before the process exits on a loaded host.
+            with host.sim.lock:
+                host.sim.paused = True
+            job = call("POST", f"{ego.url}/skill/run", {"receipt": receipt["id"], "owner": "operator",
+                                                       "taskId": task.id, "notifyCompletion": True})
+        else:
+            job = call("POST", f"{ego.url}/ego/explore", {"owner": "operator", "taskId": task.id})
+        (robot / "job-dispatched").touch()
+        _wait_idle(chat, "robot")
+        assert runtime.job(job["id"])["state"] == "running"
+        if outcome == "finished":
+            with host.sim.lock:
+                host.sim.paused = False
+        if outcome == "cancelled":
+            assert chat.cancel("robot") == {"stopped": True}
+            assert runtime.wait(job["id"], timeout=3)["state"] == "stopped"
+            assert task.ended.is_set()
+            assert len(_turns(robot)) == 1
+            with pytest.raises(HttpError, match="task has ended"):
+                call("POST", f"{ego.url}/ego/explore", {"owner": "operator", "taskId": task.id})
+        else:
+            expected = "skill-deadline" if outcome == "protection" else "skill-finished"
+            deadline = time.monotonic() + 8
+            while len(_turns(robot)) < 2 and time.monotonic() < deadline:
+                time.sleep(0.02)
+            _wait_idle(chat, "robot")
+            turns = _turns(robot)
+            assert [turn["resumed"] for turn in turns] == [False, True]
+            assert expected in turns[1]["text"] and job["id"] in turns[1]["text"]
+            if outcome == "protection":
+                assert link.motion_status()["reason"] == "protection"
+                assert runtime.job(job["id"])["state"] == "stopped"
+            else:
+                assert runtime.job(job["id"])["state"] == "succeeded"
+    finally:
+        chat.stop()
+        ego.stop()
+        runtime.stop()
+        host.stop()
+
+
+def test_operator_preferences_have_an_auditable_lifetime_across_new_tasks(kitchen_root, tmp_path):
+    robot = _home(tmp_path, "robot-1", "ego")
+    ego = _robot_ego([])
+    config = ChatConfig(dsh=_recording_dsh(tmp_path), cwd=tmp_path, env_file=tmp_path / ".env",
+                        robot_home=robot, ego_api=ego.url)
+
+    def start():
+        return StewardHost(kitchen_root, scenario="phase0-kitchen", chat=config).start()
+
+    def set_preference(host, value):
+        return call("POST", f"{host.wca.url}/console/preferences", {"key": "默认落点", "value": value})
+
+    try:
+        host = start()
+        try:
+            original = set_preference(host, "蓝色托盘")
+            assert original["source"] == "operator"
+            with pytest.raises(HttpError) as denied:
+                call("GET", f"{host.robot_servers['w:robot-1'].url}/console/preferences")
+            assert denied.value.status == 404
+            host.chat.assign("robot", "只观察工作区")
+            _wait_idle(host.chat, "robot")
+        finally:
+            host.stop()
+
+        host = start()
+        try:
+            assert call("GET", f"{host.wca.url}/console/preferences")["preferences"] == [original]
+            updated = set_preference(host, "棕色托盘")
+            host.chat.assign("robot", "收好物品")
+            _wait_idle(host.chat, "robot")
+            removed = set_preference(host, None)
+            host.chat.assign("robot", "继续观察")
+            _wait_idle(host.chat, "robot")
+            assert call("GET", f"{host.wca.url}/console/preferences") == {"preferences": []}
+            history = call("GET", f"{host.wca.url}/console/preferences?history=true")
+            assert history["preferences"] == [removed, updated, original]
+        finally:
+            host.stop()
+    finally:
+        ego.stop()
+
+    first, second, third = _turns(robot)
+    assert all(not turn["resumed"] for turn in (first, second, third))
+    assert "蓝色托盘" in first["text"]
+    assert "棕色托盘" in second["text"] and "蓝色托盘" not in second["text"]
+    assert '"source": "operator"' in second["text"] and "现场观测为先" in second["text"]
+    assert "默认偏好" in third["text"] and "棕色托盘" not in third["text"]
+
+
+def test_old_task_events_and_synchronous_completions_do_not_wake_a_new_turn(tmp_path):
+    robot = _home(tmp_path, "robot-1", "ego")
+    events = []
+    polled = threading.Event()
+
+    def packet(q, b):
+        since = int(q.get("since", 0))
+        batch = events.copy()
+        if since == 2:
+            polled.set()
+        return {"boot": "sim", "last": len(batch), "events": [e for e in batch if e["id"] > since]}
+
+    ego = JsonServer({("GET", "/ego/events"): packet,
+                      ("POST", "/ego/control"): lambda q, b: {"owner": None},
+                      ("POST", "/skill/stop"): lambda q, b: {"stopped": None}}).start()
+    chat = HarnessChat(ChatConfig(dsh=_recording_dsh(tmp_path), cwd=tmp_path, env_file=tmp_path / ".env",
+                                  robot_home=robot, ego_api=ego.url), lambda: "unused")
+    try:
+        chat.send("robot", "旧任务")
+        _wait_idle(chat, "robot")
+        old = chat.agents["robot"].task.id
+        chat.assign("robot", "新任务")
+        _wait_idle(chat, "robot")
+        current = chat.agents["robot"].task.id
+        events.extend([{"id": 1, "kind": "target-position-changed", "job": "job-old", "taskId": old},
+                       {"id": 2, "kind": "skill-finished", "job": "job-sync", "taskId": current,
+                        "state": "succeeded", "notifyCompletion": False}])
+        assert polled.wait(3)
+        assert not chat.agents["robot"].busy
+        assert len(_turns(robot)) == 2
+    finally:
+        chat.stop()
+        ego.stop()
 
 
 def test_the_host_gives_the_scenario_task_to_the_robot_whenever_an_episode_loads_or_resets(kitchen_root, tmp_path):

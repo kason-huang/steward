@@ -42,6 +42,14 @@ EMBODIMENTS: dict[str, dict] = {
         "runs_mission": False,
         "skills": True,
     },
+    "phyagent-piper": {
+        "label": "PhyAgentOS PiPER 台面机械臂",
+        "description": "固定基座、六轴关节与平行夹爪，带原生腕部相机和仿真工作台 RGB-D 相机",
+        "profile": "phyagent-piper.yaml",
+        "ego": "ego",
+        "runs_mission": False,
+        "skills": True,
+    },
 }
 
 
@@ -102,6 +110,10 @@ def robot_entity(embodiment_id: str) -> dict:
         from steward.assets.cobot import cobot_magic
 
         return cobot_magic().to_dict()
+    if embodiment_id == "phyagent-piper":
+        from steward.assets.piper import piper_entity
+
+        return piper_entity().to_dict()
     raise ValueError(f"unknown body {embodiment_id!r}; registered: {', '.join(EMBODIMENTS)}")
 
 

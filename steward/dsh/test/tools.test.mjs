@@ -7,6 +7,7 @@ import { egoTools } from '@steward/dsh-tool-ego'
 import { CapabilityRunLedger, CapabilityStore, capabilityTools, taskSpecifics } from '@steward/dsh-tool-ego-capabilities'
 import { worldTools } from '@steward/dsh-tool-world'
 import { receiptDenial, reviewExecution } from '@steward/dsh-robot-safety'
+import { cameraFixture } from './ego-camera-fixture.mjs'
 
 function fakeEgo(receipts = {}) {
   const calls = []
@@ -52,8 +53,68 @@ test('ego tools expose the robot vocabulary without World State concepts', () =>
   const names = egoTools(fakeEgo()).map(t => t.name)
   assert.deepEqual(names, ['ego_state', 'ego_query', 'ego_observe', 'ego_capture_cameras', 'ego_rgb_recording_start',
     'ego_rgb_recording_status', 'ego_rgb_recording_stop', 'ego_camera_calibration', 'ego_gripper_pose', 'ego_explore', 'ego_predict', 'ego_screw_holes', 'ego_inspect',
-    'ego_match_face', 'ego_annotate', 'ego_forget', 'ego_candidates', 'skill_run', 'skill_status', 'body_stop', 'report_problem'])
+    'ego_match_face', 'ego_annotate', 'ego_forget', 'ego_candidates', 'skill_run', 'skill_status',
+    'ego_verify_placement', 'ego_motion_status', 'body_stop', 'report_problem'])
   for (const t of egoTools(fakeEgo())) assert.doesNotMatch(t.description, /ground truth|world state/i)
+})
+
+test('Ego camera tools accept a fixed PiPER reference and six joint encoders', async t => {
+  const fixed = await cameraFixture(t)
+  const camera = 'workspace_rgbd'
+  const joints = Object.fromEntries(Array.from({ length: 6 }, (_, i) => [`joint${i + 1}`, i / 10]))
+  fixed.packet.views = { [camera]: fixed.packet.views.head_camera }
+  fixed.packet.reference_camera = camera
+  fixed.calibration.views = { [camera]: fixed.calibration.views.head_camera }
+  fixed.calibration.reference_camera = camera
+  fixed.packet.gripper_pose.joint_positions = joints
+  fixed.packet.gripper_pose.gripper_to_camera = { [camera]: fixed.packet.gripper_pose.gripper_to_camera.head_camera }
+  assert.equal((await fixed.readCalibration()).reference_camera, camera)
+  assert.deepEqual((await fixed.pose()).joint_positions, joints)
+  const capture = await fixed.capture()
+  assert.equal(capture.reference_camera, camera)
+  assert.deepEqual(capture.gripper_pose.joint_positions, joints)
+  assert.ok(capture.views[camera].image_path.endsWith('/workspace_rgbd.jpg'))
+})
+
+test('the motion status tool only reads measured S0 state', async () => {
+  const ego = fakeEgo()
+  ego.motionStatus = async () => {
+    ego.calls.push(['motionStatus'])
+    return { state: 'held', reason: 'protection' }
+  }
+  const status = tool(egoTools(ego), 'ego_motion_status')
+  assert.deepEqual(await status.execute({}, exec(status.name, {})), { state: 'held', reason: 'protection' })
+  assert.deepEqual(ego.calls, [['motionStatus']])
+})
+
+test('a protection review cannot dispatch or stop motion', async t => {
+  const fixture = await cameraFixture(t, { readOnly: true })
+  const ego = fixture.ctx.ego
+  await assert.rejects(ego.run('rcpt-1'), /only permits observation/)
+  assert.throws(() => ego.explore(), /only permits observation/)
+  assert.throws(() => ego.stop(), /only permits observation/)
+  assert.throws(() => ego.directBody({ joints: { joint1: 0.2 } }), /only permits observation/)
+  assert.throws(() => ego.directBody({ gripper: 'open' }), /only permits observation/)
+  assert.deepEqual(fixture.calls, [])
+})
+
+test('the profile opt-in exposes PiPER S0 tools and forwards explicit targets', async () => {
+  const ego = fakeEgo()
+  ego.directBody = async (command, signal) => {
+    ego.calls.push([command, signal])
+    return { state: 'reached' }
+  }
+  const tools = egoTools(ego, undefined, true)
+  const joints = tool(tools, 'body_set_joints')
+  const gripper = tool(tools, 'body_set_gripper')
+  const jointCall = exec(joints.name, {})
+  const gripperCall = exec(gripper.name, {})
+  assert.equal((await joints.execute({ joint1: 0.2, joint3: -0.1 }, jointCall)).state, 'reached')
+  assert.equal((await gripper.execute({ action: 'close' }, gripperCall)).state, 'reached')
+  assert.deepEqual(ego.calls, [
+    [{ joints: { joint1: 0.2, joint3: -0.1 } }, jointCall.signal],
+    [{ gripper: 'close' }, gripperCall.signal],
+  ])
 })
 
 test('ego_predict forwards only the given parameters and hides the raw path', async () => {

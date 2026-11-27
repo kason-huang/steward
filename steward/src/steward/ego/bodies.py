@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import dataclasses
 
+import numpy as np
+
 from steward.ego.arm import Arm
 from steward.ego.piper_workspace import piper_envelope
 from steward.ego.runtime import RuntimeConfig
@@ -39,6 +41,19 @@ def body_arm(body: str, model: dict) -> Arm | None:
 
 
 
+def _piper_category(size: np.ndarray, bottom: float, color: np.ndarray) -> str | None:
+    """Simple workstation recognition from RGB-D extents and visible color."""
+    long, short = sorted(size[:2], reverse=True)
+    height = size[2]
+    if max(color) < 0.25 and 0.026 <= short <= long < 0.085 and 0.022 <= height < 0.08:
+        return "box"
+    if 0.08 <= short <= long < 0.19 and height < 0.05 and max(color) - min(color) > 0.26:
+        return "tray"
+    if 0.45 <= short <= long < 1.1 and bottom < 0.2 and height > 0.5:
+        return "table"
+    return None
+
+
 def runtime_config(body: str, base: RuntimeConfig | None = None) -> RuntimeConfig:
     """``base`` (default settings) with the body's planner and motion settings."""
     cfg = base or RuntimeConfig()
@@ -46,6 +61,14 @@ def runtime_config(body: str, base: RuntimeConfig | None = None) -> RuntimeConfi
         from steward.ego.agilex import prepare_agilex
 
         return prepare_agilex(cfg)[2]
+    if body == "phyagent-piper":
+        from steward.assets.piper import WORKSPACE_CAMERA
+
+        return dataclasses.replace(cfg, cameras=(WORKSPACE_CAMERA,), near_camera=WORKSPACE_CAMERA,
+                                   estimator=dataclasses.replace(
+                                       cfg.estimator, category_hint=_piper_category,
+                                       absence_depth_margin_m=0.015, absence_interval_s=0.2,
+                                       absence_views_established=3, absence_viewpoints=1))
     if body != "cobot-magic":
         return cfg
     from steward.ego.piper_arm import PiperArm

@@ -4,8 +4,8 @@ Every response is derived from the Ego-State and the robot's own receipts and jo
 take exclusive control (``/ego/control``); skill and explore requests then carry ``owner``.
 ``/ego/view`` sets the camera, rate and size of the rendered Ego-State view and
 ``/ego/view/frame`` returns its newest frame (``204`` when none is newer than ``after``).
-Requests that can change the robot's state are applied at a world instant and recorded with its
-time (``/ego/inputs``); :func:`replay` applies such a recording again, exactly, at any speed.
+Most requests that change the robot's state are applied at a world instant and recorded with its
+time (``/ego/inputs``); :func:`replay` reapplies the recorded inputs at those times.
 Face matching records and releases its observation snapshot before pure correlation; its input
 record therefore does not signal calculation completion. Peer disconnect cancels correlation
 between pieces/rotations; snapshot acquisition still completes at its scheduled world instant.
@@ -18,6 +18,7 @@ from steward.assembly_profile import enabled as _assembly_enabled
 
 from concurrent.futures import CancelledError
 
+from steward.assets.piper import BODY_ID as PIPER_BODY
 from steward.ego.runtime import EgoRuntime
 if _assembly_enabled():
     from steward.ego.public import public_json
@@ -25,8 +26,17 @@ from steward.net import NO_CONTENT, CancellableHandler, HttpError, JsonServer
 from steward.viewloop import ViewSettings, frame_response
 
 
-# Requests that neither change the robot's state nor draw on the world's randomness; all others are
-# applied at a world instant and recorded (:meth:`EgoRuntime.apply`).
+_DIRECT_BODY_ROUTE = ("POST", "/ego/body/command")
+_S0_TOOL_ROUTES = {
+    "body_stop": ("control", ("POST", "/skill/stop")),
+    "ego_motion_status": ("read", ("GET", "/ego/motion")),
+    "ego_gripper_pose": ("read", ("GET", "/ego/gripper/pose")),
+    "body_set_joints": ("control", _DIRECT_BODY_ROUTE),
+    "body_set_gripper": ("control", _DIRECT_BODY_ROUTE),
+}
+
+
+# Reads, live motion/protection calls and waits stay outside the recorded world inputs.
 UNRECORDED = frozenset({
     ("GET", "/ego/state"), ("GET", "/ego/control"), ("GET", "/ego/alerts"), ("GET", "/ego/dropped"), ("GET", "/ego/view"),
     ("POST", "/ego/view"),
@@ -35,6 +45,13 @@ UNRECORDED = frozenset({
     ("GET", "/ego/localization/preview"),
     ("GET", "/ego/view/frame"), ("GET", "/ego/plan"), ("GET", "/ego/receipt"), ("GET", "/skill/status"),
     ("POST", "/skill/wait"), ("POST", "/clock/sleep"), ("GET", "/ego/inputs"),
+    # S0 protection and reads must work even when an input pins the world clock.
+    ("POST", "/skill/stop"), ("GET", "/ego/motion"), ("POST", "/ego/motion/resume"),
+    ("POST", "/ego/intent/revise"),
+    # Direct S0 commands wait for live encoders; they cannot pin the simulated clock.
+    _DIRECT_BODY_ROUTE,
+    ("GET", "/ego/events"),
+    ("GET", "/ego/verifications"),
 })
 
 
@@ -74,6 +91,11 @@ def ego_api(runtime: EgoRuntime, port: int = 0, bind_wait_s: float = 0.0) -> Jso
         return guarded(match_route, run)(q, b)
 
     handlers[match_route] = CancellableHandler(match)
+    if _DIRECT_BODY_ROUTE in routes:
+        def direct_body(q, b, cancelled):
+            return guarded(_DIRECT_BODY_ROUTE, lambda _, body: runtime.direct_body(body, cancelled))(q, b)
+
+        handlers[_DIRECT_BODY_ROUTE] = CancellableHandler(direct_body)
     if _assembly_enabled():
         import json
         import sys
@@ -135,7 +157,7 @@ def _routes(runtime: EgoRuntime) -> dict:
         raise ValueError("action must be acquire or release")
 
     if _assembly_enabled():
-        return {
+        routes = {
             ("GET", "/ego/localization"): lambda q, b: runtime.localization_status(),
             ("GET", "/ego/localization/preview"): lambda q, b: runtime.localization_preview(q.get("episode"), q.get("version")),
             ("GET", "/ego/segmentation"): lambda q, b: {
@@ -156,7 +178,8 @@ def _routes(runtime: EgoRuntime) -> dict:
             ("POST", "/ego/rgb/record/stop"): lambda q, b: runtime.link.rgb_recording_stop(b["recording_id"], b.get("cancel", False)),
             ("POST", "/ego/rgb/record/export"): lambda q, b: runtime.recording_evidence(b["recording_id"]),
             ("POST", "/ego/rgb/prepare-novelanything"): lambda q, b: runtime.prepare_novelanything(b["recording_id"], b.get("num_source_views")),
-            ("POST", "/ego/explore"): lambda q, b: runtime.explore(b.get("owner"), b.get("timeoutS", 120.)),
+            ("POST", "/ego/explore"): lambda q, b: runtime.explore(
+                b.get("owner"), b.get("intentRevision"), task_id=b.get("taskId"), timeout_s=b.get("timeoutS", 120.)),
             ("GET", "/ego/control"): lambda q, b: {**runtime.control(), "assemblyProfile": "toy"},
             ("GET", "/ego/alerts"): lambda q, b: runtime.alerts_view(),
             ("GET", "/ego/dropped"): lambda q, b: {"dropped": runtime.dropped()},
@@ -165,10 +188,12 @@ def _routes(runtime: EgoRuntime) -> dict:
             ("GET", "/ego/view"): lambda q, b: runtime.view.status(),
             ("POST", "/ego/view"): lambda q, b: runtime.view.configure(ViewSettings.parse(b)),
             ("GET", "/ego/view/frame"): lambda q, b: view_frame(q),
-            ("GET", "/ego/plan"): lambda q, b: runtime.plan_view(int(q.get("since", 0))),
+            ("GET", "/ego/plan"): lambda q, b: runtime.plan_view(int(q.get("since", 0))) | {
+                "availableS0Tools": {name: access for name, (access, route) in _S0_TOOL_ROUTES.items() if route in routes}},
             ("POST", "/ego/plan"): lambda q, b: runtime.set_plan(b),
             ("POST", "/ego/control"): lambda q, b: control(b),
-            ("POST", "/ego/predict"): lambda q, b: runtime.predict(b["skill"], b.get("params", {})),
+            ("POST", "/ego/predict"): lambda q, b: runtime.predict(
+                b["skill"], b.get("params", {}), b.get("intentRevision")),
             ("POST", "/ego/annotate"): lambda q, b: runtime.annotate(b),
             ("POST", "/ego/stage-protect"): lambda q, b: runtime.stage_protect(b),
             ("POST", "/ego/forget"): lambda q, b: runtime.forget(b),
@@ -177,61 +202,91 @@ def _routes(runtime: EgoRuntime) -> dict:
             ("POST", "/ego/inspect"): lambda q, b: runtime.inspect(b["entity"], int(b.get("px", 24))),
             ("POST", "/ego/match-face"): lambda q, b: runtime.match_face(b.get("entities"), b["reference"], int(b.get("px", 24))),
             ("GET", "/ego/receipt"): lambda q, b: runtime.receipt(q["id"]),
-            ("POST", "/skill/run"): lambda q, b: runtime.run(b["receipt"], b.get("owner")),
-            ("GET", "/skill/status"): lambda q, b: runtime.job(q["job"]),
+            ("POST", "/skill/run"): lambda q, b: runtime.run(
+                b["receipt"], b.get("owner"), b.get("intentRevision"),
+                task_id=b.get("taskId"), notify_completion=b.get("notifyCompletion") is True),
+            ("GET", "/skill/status"): lambda q, b: (
+                runtime.job_for_receipt(q["receipt"]) if "receipt" in q else runtime.job(q["job"])),
             ("POST", "/skill/wait"): lambda q, b: runtime.wait(b["job"], float(b.get("timeoutS", 120))),
-            ("POST", "/skill/stop"): lambda q, b: runtime.stop_motion(),
+            ("POST", "/skill/stop"): lambda q, b: runtime.stop_motion(
+                owner=b.get("owner"), intent_revision=b.get("intentRevision"), task_id=b.get("taskId"),
+                hold_during_handoff=b.get("holdDuringHandoff") is True),
+            ("GET", "/ego/motion"): lambda q, b: runtime.link.motion_status(),
+            ("GET", "/ego/events"): lambda q, b: runtime.monitor.events(int(q.get("since", 0))),
+            ("POST", "/ego/verify-placement"): lambda q, b: runtime.verify_placement(
+                b["job"], b["goal"], b.get("owner"), b.get("intentRevision")),
+            ("GET", "/ego/verifications"): lambda q, b: {"records": list(runtime.verifications)},
+            ("POST", "/ego/motion/resume"): lambda q, b: runtime.resume_motion(b["epoch"], b.get("owner")),
+            ("POST", "/ego/intent/revise"): lambda q, b: runtime.revise_intent(b["owner"], b["instruction"]),
             ("POST", "/clock/sleep"): lambda q, b: {"t": runtime.link.sleep(float(b["seconds"]))},
             ("GET", "/ego/inputs"): lambda q, b: {"inputs": runtime.inputs},
         }
-    else:
-        return {
-            ("GET", "/ego/localization"): lambda q, b: runtime.localization_status(),
-            ("GET", "/ego/localization/preview"): lambda q, b: runtime.localization_preview(q.get("episode"), q.get("version")),
-            ("GET", "/ego/segmentation"): lambda q, b: {
-                "active": runtime.perception_mode == "rgbd-segmenter",
-                "error": runtime.segmentation["lastError"],
-                "frame": (runtime.segmentation_preview.latest(q.get("camera", "head_camera"), q.get("after"))
-                          if runtime.perception_mode == "rgbd-segmenter" else None)},
-            ("GET", "/ego/summary"): lambda q, b: runtime.summary(),
-            ("GET", "/ego/state"): lambda q, b: runtime.ego_state().to_dict(),
-            ("GET", "/ego/query"): lambda q, b: {"objects": runtime.query(
-                q.get("category"), q.get("near"), float(q["radius"]) if "radius" in q else None)},
-            ("POST", "/ego/observe"): lambda q, b: runtime.observe(),
-            ("POST", "/ego/cameras/capture"): lambda q, b: runtime.capture_cameras(),
-            ("GET", "/ego/cameras/calibration"): lambda q, b: runtime.camera_calibration(),
-            ("GET", "/ego/gripper/pose"): lambda q, b: runtime.gripper_pose(),
-            ("POST", "/ego/rgb/record/start"): lambda q, b: runtime.link.rgb_recording_start(b),
-            ("GET", "/ego/rgb/record/status"): lambda q, b: runtime.link.rgb_recording_status(q["recording_id"]),
-            ("POST", "/ego/rgb/record/stop"): lambda q, b: runtime.link.rgb_recording_stop(b["recording_id"], b.get("cancel", False)),
-            ("POST", "/ego/rgb/record/export"): lambda q, b: runtime.recording_evidence(b["recording_id"]),
-            ("POST", "/ego/rgb/prepare-novelanything"): lambda q, b: runtime.prepare_novelanything(b["recording_id"], b.get("num_source_views")),
-            ("POST", "/ego/explore"): lambda q, b: runtime.explore(b.get("owner")),
-            ("GET", "/ego/control"): lambda q, b: runtime.control(),
-            ("GET", "/ego/alerts"): lambda q, b: runtime.alerts_view(),
-            ("GET", "/ego/dropped"): lambda q, b: {"dropped": runtime.dropped()},
-            ("POST", "/ego/alert"): lambda q, b: report(b),
-            ("POST", "/ego/alerts/ack"): lambda q, b: runtime.acknowledge(b.get("id")),
-            ("GET", "/ego/view"): lambda q, b: runtime.view.status(),
-            ("POST", "/ego/view"): lambda q, b: runtime.view.configure(ViewSettings.parse(b)),
-            ("GET", "/ego/view/frame"): lambda q, b: view_frame(q),
-            ("GET", "/ego/plan"): lambda q, b: runtime.plan_view(int(q.get("since", 0))),
-            ("POST", "/ego/plan"): lambda q, b: runtime.set_plan(b),
-            ("POST", "/ego/control"): lambda q, b: control(b),
-            ("POST", "/ego/predict"): lambda q, b: runtime.predict(b["skill"], b.get("params", {})),
-            ("POST", "/ego/annotate"): lambda q, b: runtime.annotate(b),
-            ("POST", "/ego/stage-protect"): lambda q, b: runtime.stage_protect(b),
-            ("POST", "/ego/forget"): lambda q, b: runtime.forget(b),
-            ("POST", "/ego/candidates"): lambda q, b: runtime.candidates(b),
-            ("POST", "/ego/reflect"): lambda q, b: runtime.reflect(b),
-            ("POST", "/ego/inspect"): lambda q, b: runtime.inspect(b["entity"], int(b.get("px", 24))),
-            ("POST", "/ego/screw-holes"): lambda q, b: runtime.screw_holes(b["entity"]),
-            ("POST", "/ego/match-face"): lambda q, b: runtime.match_face(b.get("entities"), b["reference"], int(b.get("px", 24))),
-            ("GET", "/ego/receipt"): lambda q, b: runtime.receipt(q["id"]),
-            ("POST", "/skill/run"): lambda q, b: runtime.run(b["receipt"], b.get("owner")),
-            ("GET", "/skill/status"): lambda q, b: runtime.job(q["job"]),
-            ("POST", "/skill/wait"): lambda q, b: runtime.wait(b["job"], float(b.get("timeoutS", 120))),
-            ("POST", "/skill/stop"): lambda q, b: runtime.stop_motion(),
-            ("POST", "/clock/sleep"): lambda q, b: {"t": runtime.link.sleep(float(b["seconds"]))},
-            ("GET", "/ego/inputs"): lambda q, b: {"inputs": runtime.inputs},
-        }
+        return routes
+    routes = {
+        ("GET", "/ego/localization"): lambda q, b: runtime.localization_status(),
+        ("GET", "/ego/localization/preview"): lambda q, b: runtime.localization_preview(q.get("episode"), q.get("version")),
+        ("GET", "/ego/segmentation"): lambda q, b: {
+            "active": runtime.perception_mode == "rgbd-segmenter",
+            "error": runtime.segmentation["lastError"],
+            "frame": (runtime.segmentation_preview.latest(q.get("camera", "head_camera"), q.get("after"))
+                      if runtime.perception_mode == "rgbd-segmenter" else None)},
+        ("GET", "/ego/summary"): lambda q, b: runtime.summary(),
+        ("GET", "/ego/state"): lambda q, b: runtime.ego_state().to_dict(),
+        ("GET", "/ego/query"): lambda q, b: {"objects": runtime.query(
+            q.get("category"), q.get("near"), float(q["radius"]) if "radius" in q else None)},
+        ("POST", "/ego/observe"): lambda q, b: runtime.observe(),
+        ("POST", "/ego/cameras/capture"): lambda q, b: runtime.capture_cameras(),
+        ("GET", "/ego/cameras/calibration"): lambda q, b: runtime.camera_calibration(),
+        ("GET", "/ego/gripper/pose"): lambda q, b: runtime.gripper_pose(),
+        ("POST", "/ego/rgb/record/start"): lambda q, b: runtime.link.rgb_recording_start(b),
+        ("GET", "/ego/rgb/record/status"): lambda q, b: runtime.link.rgb_recording_status(q["recording_id"]),
+        ("POST", "/ego/rgb/record/stop"): lambda q, b: runtime.link.rgb_recording_stop(b["recording_id"], b.get("cancel", False)),
+        ("POST", "/ego/rgb/record/export"): lambda q, b: runtime.recording_evidence(b["recording_id"]),
+        ("POST", "/ego/rgb/prepare-novelanything"): lambda q, b: runtime.prepare_novelanything(b["recording_id"], b.get("num_source_views")),
+        ("POST", "/ego/explore"): lambda q, b: runtime.explore(
+            b.get("owner"), b.get("intentRevision"), task_id=b.get("taskId")),
+        ("GET", "/ego/control"): lambda q, b: runtime.control(),
+        ("GET", "/ego/alerts"): lambda q, b: runtime.alerts_view(),
+        ("GET", "/ego/dropped"): lambda q, b: {"dropped": runtime.dropped()},
+        ("POST", "/ego/alert"): lambda q, b: report(b),
+        ("POST", "/ego/alerts/ack"): lambda q, b: runtime.acknowledge(b.get("id")),
+        ("GET", "/ego/view"): lambda q, b: runtime.view.status(),
+        ("POST", "/ego/view"): lambda q, b: runtime.view.configure(ViewSettings.parse(b)),
+        ("GET", "/ego/view/frame"): lambda q, b: view_frame(q),
+        ("GET", "/ego/plan"): lambda q, b: runtime.plan_view(int(q.get("since", 0))) | {
+            "availableS0Tools": {name: access for name, (access, route) in _S0_TOOL_ROUTES.items() if route in routes}},
+        ("POST", "/ego/plan"): lambda q, b: runtime.set_plan(b),
+        ("POST", "/ego/control"): lambda q, b: control(b),
+        ("POST", "/ego/predict"): lambda q, b: runtime.predict(
+            b["skill"], b.get("params", {}), b.get("intentRevision")),
+        ("POST", "/ego/annotate"): lambda q, b: runtime.annotate(b),
+        ("POST", "/ego/stage-protect"): lambda q, b: runtime.stage_protect(b),
+        ("POST", "/ego/forget"): lambda q, b: runtime.forget(b),
+        ("POST", "/ego/candidates"): lambda q, b: runtime.candidates(b),
+        ("POST", "/ego/reflect"): lambda q, b: runtime.reflect(b),
+        ("POST", "/ego/inspect"): lambda q, b: runtime.inspect(b["entity"], int(b.get("px", 24))),
+        ("POST", "/ego/screw-holes"): lambda q, b: runtime.screw_holes(b["entity"]),
+        ("POST", "/ego/match-face"): lambda q, b: runtime.match_face(b.get("entities"), b["reference"], int(b.get("px", 24))),
+        ("GET", "/ego/receipt"): lambda q, b: runtime.receipt(q["id"]),
+        ("POST", "/skill/run"): lambda q, b: runtime.run(
+            b["receipt"], b.get("owner"), b.get("intentRevision"),
+            task_id=b.get("taskId"), notify_completion=b.get("notifyCompletion") is True),
+        ("GET", "/skill/status"): lambda q, b: (
+            runtime.job_for_receipt(q["receipt"]) if "receipt" in q else runtime.job(q["job"])),
+        ("POST", "/skill/wait"): lambda q, b: runtime.wait(b["job"], float(b.get("timeoutS", 120))),
+        ("POST", "/skill/stop"): lambda q, b: runtime.stop_motion(
+            owner=b.get("owner"), intent_revision=b.get("intentRevision"), task_id=b.get("taskId"),
+            hold_during_handoff=b.get("holdDuringHandoff") is True),
+        ("GET", "/ego/motion"): lambda q, b: runtime.link.motion_status(),
+        ("GET", "/ego/events"): lambda q, b: runtime.monitor.events(int(q.get("since", 0))),
+        ("POST", "/ego/verify-placement"): lambda q, b: runtime.verify_placement(
+            b["job"], b["goal"], b.get("owner"), b.get("intentRevision")),
+        ("GET", "/ego/verifications"): lambda q, b: {"records": list(runtime.verifications)},
+        ("POST", "/ego/motion/resume"): lambda q, b: runtime.resume_motion(b["epoch"], b.get("owner")),
+        ("POST", "/ego/intent/revise"): lambda q, b: runtime.revise_intent(b["owner"], b["instruction"]),
+        ("POST", "/clock/sleep"): lambda q, b: {"t": runtime.link.sleep(float(b["seconds"]))},
+        ("GET", "/ego/inputs"): lambda q, b: {"inputs": runtime.inputs},
+    }
+    if runtime.body_id == PIPER_BODY:
+        routes[_DIRECT_BODY_ROUTE] = lambda q, b: runtime.direct_body(b, lambda: False)
+    return routes

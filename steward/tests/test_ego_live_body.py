@@ -114,14 +114,19 @@ def _runtime(live, on_read=None):
 
     from steward.assets.generators import steward_bot
     from steward.ego.estimator import EgoEstimator
-    from steward.ego.runtime import EgoRuntime
+    from steward.ego.runtime import EgoRuntime, RuntimeConfig
+    from steward.ego.skill_adapter import RobotSkillAdapter
 
     rt = EgoRuntime.__new__(EgoRuntime)
+    rt.config = RuntimeConfig()
     rt._lock = threading.RLock()
     rt.estimator = EgoEstimator(robot_model=steward_bot().to_dict())
     rt._episode, rt._generation, rt._motion_belief = None, 0, None
     rt.arm = _Arm()
+    rt.gripper_link = None
     rt.link = _Link(rt._lock, live, on_read)
+    rt._skill_robot = RobotSkillAdapter(rt.link.sensors, rt._body_command, rt._read_motion_belief,
+                                       lambda: rt._generation, lambda: rt.arm)
     return rt
 
 

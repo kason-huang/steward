@@ -1,6 +1,8 @@
 /** Validation shared by robot camera and encoder-derived pose responses. */
 import { EgoError, type JsonObject } from '@steward/dsh-ego'
 
+export const validCameraId = (id: string) => /^[a-z][a-z0-9_]*$/.test(id)
+
 /** Decode an object from a sensor response.
  * @param value - untrusted response field.
  * @returns object fields.
@@ -78,9 +80,9 @@ function intrinsics(value: unknown, profile: string | undefined) {
 export function parseCameraCalibration(value: unknown, profile = process.env.STEWARD_ASSEMBLY_PROFILE): JsonObject {
   const packet = object(value), views = object(packet.views)
   const ids = Object.keys(views)
-  if (packet.reference_camera !== 'head_camera' || packet.calibration_source !== 'rig_calibration'
+  if (typeof packet.reference_camera !== 'string' || packet.calibration_source !== 'rig_calibration'
     || packet.camera_axes !== 'opencv_x_right_y_down_z_forward'
-    || ids.length === 0 || !ids.includes('head_camera') || !ids.every(id => /^[a-z][a-z0-9_]*$/.test(id))) throw new EgoError('Invalid camera rig calibration')
+    || !ids.includes(packet.reference_camera) || !ids.every(validCameraId)) throw new EgoError('Invalid camera rig calibration')
   return { reference_camera: packet.reference_camera, calibration_source: packet.calibration_source,
     camera_axes: packet.camera_axes, ...(profile === 'toy' && typeof packet.stamp === 'number' ? { stamp: packet.stamp, joint_encoders: object(packet.joint_encoders) } : {}), views: Object.fromEntries(ids.map(id => [id, intrinsics(views[id], profile)])) }
 }
@@ -92,11 +94,14 @@ export function parseCameraCalibration(value: unknown, profile = process.env.STE
 export function parseGripperPose(value: unknown): JsonObject {
   const pose = object(value), cameras = object(pose.gripper_to_camera), joints = object(pose.joint_positions)
   const ids = Object.keys(cameras)
+  const finiteJoint = (id: string) => typeof joints[id] === 'number' && Number.isFinite(joints[id])
+  const planar = ['lift', 'reach']
+  const articulated = ['joint1', 'joint2', 'joint3', 'joint4', 'joint5', 'joint6']
+  const jointIds = planar.every(finiteJoint) ? planar : articulated
   if (typeof pose.stamp !== 'number' || !Number.isFinite(pose.stamp) || pose.stamp < 0
     || pose.pose_source !== 'joint_encoders_and_robot_model' || pose.gripper_frame !== 'gripper'
     || pose.gripper_axes !== 'x_forward_y_left_z_up' || pose.camera_axes !== 'opencv_x_right_y_down_z_forward'
-    || ids.length === 0 || !ids.includes('head_camera') || !ids.every(id => /^[a-z][a-z0-9_]*$/.test(id))
-    || !['lift', 'reach'].every(id => typeof joints[id] === 'number' && Number.isFinite(joints[id]))) {
+    || ids.length === 0 || !ids.every(validCameraId) || !jointIds.every(finiteJoint)) {
     throw new EgoError('Invalid gripper pose sensor response')
   }
   const transform = (value: unknown) => {
@@ -106,7 +111,7 @@ export function parseGripperPose(value: unknown): JsonObject {
   }
   return { stamp: pose.stamp, pose_source: pose.pose_source, gripper_frame: pose.gripper_frame,
     gripper_axes: pose.gripper_axes, camera_axes: pose.camera_axes,
-    joint_positions: { lift: joints.lift, reach: joints.reach },
+    joint_positions: Object.fromEntries(jointIds.map(id => [id, joints[id]])),
     gripper_to_base: transform(pose.gripper_to_base),
     gripper_to_camera: Object.fromEntries(ids.map(id => [id, transform(cameras[id])])) }
 }

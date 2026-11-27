@@ -79,6 +79,29 @@
   .targets button { flex: 1; font-size: 12px; }
   .targets button.on.world { border-color: var(--gt); color: #cfe6ff; }
   .targets button.on.robot { border-color: var(--ego); color: #ffd2a6; }
+  .session-skills { margin: 2px 0 8px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px;
+                    background: #11151a; font-size: 12px; }
+  .skill-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 8px; }
+  .skill-heading .sub { color: var(--muted); }
+  .session-skills h3 { margin: 0; color: var(--text); font-size: inherit; font-weight: 600; }
+  .skill-list { display: flex; flex-wrap: wrap; gap: 5px; max-height: 6em; overflow-y: auto; margin: 0; padding: 0; list-style: none; }
+  .skill-list:not(:empty) { margin-top: 5px; }
+  .skill-list li { padding: 2px 6px; border-radius: 5px; background: #232a33; overflow-wrap: anywhere; }
+  .skill-list code { color: #ffd2a6; }
+  .grasp-mode { margin-inline-start: 5px; padding: 0 4px; border: 1px solid var(--line); border-radius: 4px;
+                font-size: 11px; color: var(--muted); }
+  .skill-list:not(.restricted) .grasp-mode.contact { color: #8fe0b8; border-color: #2f7a57; }
+  .skill-list.restricted li, .skill-list.restricted code { color: var(--muted); }
+  .skill-list li.restricted, .skill-list li.restricted code { color: var(--muted); }
+  .s0-tools { margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--line); }
+  .skill-note { color: var(--muted); }
+  .skill-note:not(:empty) { margin-top: 4px; }
+  .prompt-card { scroll-margin-top: 100px; }
+  .prompt-card > summary { cursor: pointer; font-weight: 600; }
+  .prompt-card h3 { margin: 12px 0 4px; font-size: 13px; }
+  .prompt-card pre { margin: 0; padding: 8px 10px; border-radius: 6px; background: #11151a; max-height: 320px;
+                     overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+  #promptStatus:not(:empty) { margin-top: 8px; }
   .msg.error { align-self: stretch; background: #3a1f24; color: #ffb3b3; font-size: 12px; }
   .msg.system { align-self: center; color: var(--muted); font-size: 12px; padding: 2px; }
   .tool { align-self: flex-start; font-size: 12px; color: var(--muted); max-width: 100%; }
@@ -234,11 +257,25 @@
   </section>
   <section class="card chat">
     <h2>操作员对话 <span class="pill" id="chatStatus"></span>
-      <span class="spacer"></span><button id="egoAlertAck" class="alert-ack" hidden title="确认当前告警：Ego State 窗口停止闪烁，被监测暂停的仿真继续">解除告警</button><button id="chatStop" title="停止当前目标的本轮任务">停止</button><button id="chatReset">新会话</button></h2>
+      <span class="spacer"></span><button id="openPrompts" type="button" aria-controls="promptCard" aria-expanded="false">查看 Prompt</button>
+      <button id="egoAlertAck" class="alert-ack" hidden title="确认当前告警：Ego State 窗口停止闪烁，被监测暂停的仿真继续">解除告警</button><button id="chatStop" title="停止当前目标的本轮任务">停止</button><button id="chatReset">新会话</button></h2>
     <div class="targets">
       <button data-target="world" class="on world">世界 · World Harness</button>
       <button data-target="robot" class="robot">机器人</button>
     </div>
+    <section class="session-skills" aria-labelledby="sessionSkillsTitle">
+      <div class="skill-heading">
+        <h3 id="sessionSkillsTitle">S2 可调用的 S1 技能</h3>
+        <span id="sessionSkillBody" class="sub"></span>
+      </div>
+      <ul class="skill-list" id="sessionSkills"></ul>
+      <div class="skill-note" id="sessionSkillNote" role="status">正在读取机器人技能…</div>
+      <div class="s0-tools">
+        <h3 id="sessionS0Title">S0 本体接口 · S2 直调</h3>
+        <ul class="skill-list" id="sessionS0Tools" aria-labelledby="sessionS0Title"></ul>
+        <div class="skill-note" id="sessionS0Note" role="status"></div>
+      </div>
+    </section>
     <div class="msgs" id="chatMsgs"></div>
     <div class="chips" id="chatChips"></div>
     <div class="composer">
@@ -247,6 +284,17 @@
     </div>
   </section>
   </div>
+  <details class="card prompt-card" id="promptCard">
+    <summary>机器人会话 Prompt</summary>
+    <div class="task" id="promptStatus" role="status"></div>
+    <div id="promptContent" hidden>
+      <h3>System Prompt</h3>
+      <pre id="systemPrompt"></pre>
+      <h3>本轮输入（含任务前缀）</h3>
+      <pre id="operatorPrompt"></pre>
+      <div id="injectedPrompts"></div>
+    </div>
+  </details>
   <div class="grid3">
     <section class="card">
       <h2 id="robotCamLabel">机器人相机</h2>
@@ -743,7 +791,7 @@ async function refresh() {
   try {
     state = await api('GET', '/console/state');
     showError(null);
-    if (!state.loaded) { stopNavigation(false); setText($('clock'), '未加载 Episode'); return; }
+    if (!state.loaded) { stopNavigation(false); setText($('clock'), '未加载 Episode'); renderSessionSkills(); return; }
     robotId = robotId && state.robots[robotId] ? robotId : Object.keys(state.robots)[0];
     const key = `${state.scenario}|${state.view.lookat}|${state.view.distance}`;
     if (key !== viewKey) { stopNavigation(false); viewKey = key; view = presetView('south'); panes.world.rendered = panes.ego.rendered = null;
@@ -754,6 +802,7 @@ async function refresh() {
     renderPhase(state.phase);
     renderBodies();
     renderRobotTarget();
+    renderSessionSkills();
     const goal = state.goal;
     const progress = goal ? ` · 目标进度：最大拼合 ${goal.largestGroup}/${goal.entities}，相邻关系 ${goal.satisfied}/${goal.total}${goal.complete ? '（完成）' : ''}` : '';
     setText($('task'), state.task ? `任务：${state.task}${progress}` : '');
@@ -1031,8 +1080,10 @@ function renderStatus() {
   const control = robot && robot.control ? `　机器人由 ${robot.control} 接管` : '';
   setText($('chatStatus'), (!a.available ? '不可用' : a.busy ? '处理中' : a.sessionId ? '会话进行中' : '新会话') + control);
   $('chatStatus').title = a.reason || a.sessionId || '';
-  $('chatSend').disabled = a.busy || !a.available;
-  $('chatStop').disabled = !a.busy;
+  const revisable = chatTarget === 'robot' && a.busy;
+  setText($('chatSend'), revisable ? '修订任务' : '发送');
+  $('chatSend').disabled = a.revising || (a.busy && !revisable) || !a.available;
+  $('chatStop').disabled = !a.busy && !a.revising;
   $('chatReset').title = `开始新的 ${a.label} 会话`;
 }
 let shownAlerts = [];
@@ -1174,18 +1225,113 @@ async function refreshChat() {
     renderRobotStatus(chatState);
     renderPlan(chatState);
     renderStatus();
-    const sig = JSON.stringify([chatTarget, Object.values(chatState.agents).map(a => a.busy), chatState.messages]);
+    renderSessionSkills();
+    void refreshPrompts();
+    const sig = JSON.stringify([chatTarget, Object.values(chatState.agents).map(a => [a.busy, a.revising]), chatState.messages]);
     if (sig !== chatSig && renderChat(chatState)) chatSig = sig;
     const a = chatState.agents[chatTarget];
     if (a && !a.available && !chatState.messages.length) setHtml($('chatMsgs'), `<div class="msg error">${esc(a.reason)}</div>`);
   } catch (e) { showError(e); }
 }
+const SKILL_LABELS = {
+  pick: '抓取', place: '放置', navigate: '导航', look_around: '原地巡视', open: '打开抽屉', close: '关闭抽屉',
+  pour: '倾倒', assemble_onto: '装配', insert_screw_into_hole: '插入螺钉', seat_screw: '安放螺钉',
+  drive_screw: '拧紧螺钉', fasten_onto: '紧固', flip_assembly: '翻转组件', regrasp_upright: '重新抓握并扶正',
+};
+const GRASP_MODES = { contact: '双指接触与摩擦', rigid: '理想附着' };
+const S0_LABELS = {
+  body_stop: '停止并保持', ego_motion_status: '查询停稳', ego_gripper_pose: '读取夹爪位姿',
+  body_set_joints: '设置关节角', body_set_gripper: '开合夹爪',
+};
+function renderSessionSkills() {
+  const robot = chatState?.agents?.robot;
+  const rid = state?.loaded && Object.keys(state.robots)[0];
+  const body = rid && state.robots[rid]?.embodiment;
+  const plan = robot?.plan;
+  let skills = [], note = '';
+  if (!rid) note = '等待加载机器人';
+  else if (!robot?.available) note = '机器人会话未就绪';
+  else if (!Object.hasOwn(robot, 'sessionSkills')) note = '当前服务未上报会话工具清单';
+  else if (plan?.body && plan.body !== body?.id) note = '正在读取新本体的技能…';
+  else if (!Array.isArray(plan?.availableSkills)) note = '等待当前构型的技能清单…';
+  else if (Array.isArray(robot.sessionSkills)) skills = robot.sessionSkills;
+  else note = robot.busy ? '正在读取本轮生效的 profile 工具…' : 'S2 开始一轮后会显示生效的技能';
+  const readOnly = Boolean(robot?.readOnly);
+  if (readOnly) note = robot.busy ? '只读保护复查中，S2 暂不能调用运动技能' : '上轮为只读保护复查，运动技能停用';
+  setText($('sessionSkillBody'), [body?.label, robot?.profile].filter(Boolean).join(' · '));
+  const list = $('sessionSkills');
+  list.classList.toggle('restricted', readOnly);
+  const graspMode = state?.holding?.[rid]?.graspMode;
+  setHtml(list, skills.map(skill => {
+    const mode = skill === 'pick' && Object.hasOwn(GRASP_MODES, graspMode)
+      ? `<span class="grasp-mode ${graspMode}">${GRASP_MODES[graspMode]}</span>` : '';
+    const label = Object.hasOwn(SKILL_LABELS, skill) ? ' ' + SKILL_LABELS[skill] : '';
+    return `<li><code>${esc(skill)}</code>${label}${mode}</li>`;
+  }).join(''));
+  setText($('sessionSkillNote'), note || (skills.length ? '' : '当前 profile 未开放此构型的运动技能'));
+  const s0Tools = rid && robot?.available && (!plan?.body || plan.body === body?.id)
+    ? robot.sessionS0Tools : null;
+  setHtml($('sessionS0Tools'), (s0Tools || []).map(({name, enabled}) => {
+    const label = Object.hasOwn(S0_LABELS, name) ? ' ' + S0_LABELS[name] : '';
+    return `<li${enabled ? '' : ' class="restricted"'}><code>${esc(name)}</code>${label}${enabled ? '' : ' · 只读复查停用'}</li>`;
+  }).join(''));
+  setText($('sessionS0Note'), Array.isArray(s0Tools)
+    ? (s0Tools.length ? '' : '当前会话未开放 S0 接口') : '等待会话上报 S0 接口');
+}
+let promptSession = null, promptRevision = '', promptLoading = false;
+async function refreshPrompts() {
+  const card = $('promptCard');
+  if (!card.open || promptLoading || selecting(card)) return;
+  const sessionId = chatState?.agents?.robot?.sessionId;
+  if (sessionId !== promptSession) {
+    promptSession = sessionId;
+    promptRevision = '';
+    $('promptContent').hidden = true;
+  }
+  if (!sessionId) {
+    setText($('promptStatus'), '等待机器人会话产生 Prompt');
+    return;
+  }
+  promptLoading = true;
+  try {
+    const data = await api('GET', `/console/prompts?after=${encodeURIComponent(promptRevision)}`);
+    if (!card.open || selecting(card) || data.sessionId !== chatState?.agents?.robot?.sessionId) return;
+    if (data.unchanged) {
+      setText($('promptStatus'), '');
+      return;
+    }
+    $('promptContent').hidden = !data.ready;
+    setText($('promptStatus'), data.ready ? '' : '等待本轮 Prompt 写入会话');
+    if (!data.ready) return;
+    const titles = { 'agent-instructions': '智能体指令', 'runtime-context': '运行时上下文',
+                     'skill-catalog': '技能目录', 'ego-reflection': 'Ego 反思' };
+    setText($('systemPrompt'), data.systemPrompt ?? '该会话没有记录 System Prompt');
+    setText($('operatorPrompt'), data.operatorPrompt ?? '该会话没有记录操作员输入');
+    setHtml($('injectedPrompts'), data.injectedPrompts.map(item =>
+      `<h3>${esc(titles[item.source] || item.source)}</h3><pre>${esc(item.text)}</pre>`).join(''));
+    promptRevision = data.revision;
+  } catch (error) {
+    if (card.open) setText($('promptStatus'), error.message);
+  } finally { promptLoading = false; }
+}
+$('openPrompts').onclick = () => {
+  const card = $('promptCard');
+  card.open = true;
+  card.scrollIntoView({block:'start'});
+  card.querySelector('summary').focus({preventScroll:true});
+};
+$('promptCard').addEventListener('toggle', () => {
+  $('openPrompts').setAttribute('aria-expanded', String($('promptCard').open));
+  void refreshPrompts();
+});
+
 async function sendChat() {
   const text = $('chatInput').value.trim();
   const a = chatState && chatState.agents[chatTarget];
-  if (!text || (a && a.busy)) return;
+  const revising = chatTarget === 'robot' && a && a.busy;
+  if (!text || (a && (a.revising || (a.busy && !revising)))) return;
   try {
-    await api('POST', '/console/chat', { agent: chatTarget, message: text });
+    await api('POST', revising ? '/console/chat/revise' : '/console/chat', { agent: chatTarget, message: text });
     $('chatInput').value = '';
     chatFollow = true;
     refreshChat();

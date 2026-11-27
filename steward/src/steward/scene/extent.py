@@ -47,6 +47,8 @@ def _geom_half_extents(model: mujoco.MjModel, gid: int) -> np.ndarray:
         return np.array([s[0], s[0], s[1] + extra])
     if gtype == _PLANE:
         return np.array([s[0], s[1], 0.0])
+    if gtype == _MESH:
+        return model.geom_aabb[gid, 3:]
     raise ValueError(f"unsupported geom type {gtype} for bounding boxes")
 
 

@@ -134,3 +134,6 @@ def test_each_runtime_process_names_itself_so_a_console_drops_the_activity_it_sh
     assert old.plan_view()["boot"] == old.plan_view()["boot"] != new.plan_view()["boot"]
     view = new.plan_view()
     assert view["plan"] is None and view["activity"] == []
+    assert view["body"] == "steward-bot"
+    assert {"navigate", "look_around", "pick", "place"} <= set(view["availableSkills"])
+    assert not any(skill.startswith("_") for skill in view["availableSkills"])

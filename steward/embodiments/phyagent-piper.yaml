@@ -1,0 +1,24 @@
+id: phyagent-piper
+display: PhyAgentOS PiPER
+reference:
+  skill: robot-control-sim
+  validated_version: 0.1.3
+  model: assets/robots/piper/mjcf/PIPER.xml
+  model_path_env: STEWARD_PIPER_MJCF
+mechanical:
+  base: fixed
+  arm_joints: [joint1, joint2, joint3, joint4, joint5, joint6]
+  joint_angle_unit: rad
+  gripper:
+    opening_unit: m
+    native_actuator: gripper
+    transmission: "actuator target = 2 × joint7 target; joint8 mirrors joint7"
+    simulation_grasp: native_finger_contact
+perception:
+  wrist_cam: native_wrist_camera
+  workspace_rgbd: simulated_calibrated_workstation_camera
+control:
+  backend: steward_mujoco
+  state: /motion
+  hold: /motion/hold
+  resume: /motion/resume

@@ -3,11 +3,20 @@ import { registerHooks, stripTypeScriptTypes, createRequire } from 'node:module'
 import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { Context } from '@deepseek-ai/cordis'
-import { SystemPrompt } from '@deepseek-ai/dsh-system-prompt'
 import { ToolRuntime, renderToolsSdk } from '@deepseek-ai/dsh-tools'
 const require = createRequire(import.meta.url)
-const dependency = Object.fromEntries(['@deepseek-ai/dsh-tools', '@deepseek-ai/schemastery', '@deepseek-ai/dsh-llm',
-  '@steward/dsh-ego', '@steward/dsh-novelanything', '@steward/dsh-rgbd-video-gen'].map(name => [name, pathToFileURL(require.resolve(name)).href]))
+const toolsRequire = createRequire(require.resolve('@deepseek-ai/dsh-tools'))
+const { SystemPrompt } = await import(pathToFileURL(toolsRequire.resolve('@deepseek-ai/dsh-system-prompt')).href)
+const dependency = Object.fromEntries(['@deepseek-ai/dsh-tools', '@deepseek-ai/schemastery'].map(
+  name => [name, pathToFileURL(require.resolve(name)).href]))
+dependency['@deepseek-ai/dsh-llm'] = pathToFileURL(toolsRequire.resolve('@deepseek-ai/dsh-llm')).href
+for (const [name, client] of [
+  ['ego', 'ego-runtime'], ['novelanything', 'novelanything'], ['rgbd-video-gen', 'rgbd-video-gen'],
+]) {
+  const service = `@steward/dsh-${name}`
+  const clientRequire = createRequire(require.resolve(`@steward/dsh-${client}-client`))
+  dependency[service] = pathToFileURL(clientRequire.resolve(service)).href
+}
 registerHooks({
   resolve(name, context, next) {
     if (dependency[name]) return { url: dependency[name], shortCircuit: true }

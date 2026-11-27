@@ -6,9 +6,10 @@
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { EgoError, EgoService } from '@steward/dsh-ego'
-import type { Annotation, Forgetting, Candidate, CandidateQuery, EgoQuery, FailureReport, Reflection, EgoSkill, FaceMatchResult, InspectResult, JsonObject, PredictionReceipt, ProblemReport, SkillJob, RecordingId } from '@steward/dsh-ego'
+import type { Annotation, Forgetting, Candidate, CandidateQuery, DirectBodyCommand, EgoQuery, FailureReport, Reflection, EgoSkill, FaceMatchResult, InspectResult, JsonObject, PredictionReceipt, ProblemReport, SkillJob, RecordingId } from '@steward/dsh-ego'
 import { saveCameraCapture } from './camera-capture.ts'
 import { parseCameraCalibration, parseGripperPose } from './sensor-packet.ts'
+import { reportSessionTools } from './session-tools.ts'
 import { baseUrl, HttpJsonError, requestJson } from '@steward/http-json'
 
 /** Validated plugin configuration. */
@@ -23,6 +24,12 @@ export interface Config {
   cameraMaxBytes: number
   /** Control owner sent with skill and explore requests. */
   owner?: string
+  /** Task revision captured for this model turn. */
+  intentRevision?: string
+  /** Route background job events to the current Harness task. */
+  taskId?: string
+  /** Deny motion calls from an automatic protection review. */
+  readOnly?: boolean
 }
 
 /** `ctx.ego` provider backed by HTTP calls to the Ego API. */
@@ -33,6 +40,9 @@ export class EgoRuntimeClient extends EgoService {
     cameraCaptureDir: z.string().default('var/camera-captures'),
     cameraMaxBytes: z.number().min(1).default(16 * 1024 * 1024),
     owner: z.string(),
+    intentRevision: z.string(),
+    taskId: z.string(),
+    readOnly: z.boolean().default(false),
   })
 
   private readonly base: string
@@ -42,6 +52,9 @@ export class EgoRuntimeClient extends EgoService {
   constructor(ctx: Context, readonly config: Config) {
     super(ctx)
     this.base = baseUrl(config.endpoint)
+    if (process.env.STEWARD_CONSOLE_SESSION_TOOLS === '1') {
+      reportSessionTools(ctx, config.readOnly === true)
+    }
   }
 
   /** Resolve and cache the profile from the runtime's unrecorded control response. */
@@ -88,6 +101,10 @@ export class EgoRuntimeClient extends EgoService {
     return this.call('POST', '/ego/observe', {}, signal)
   }
 
+  motionStatus(signal?: AbortSignal): Promise<JsonObject> {
+    return this.call('GET', '/ego/motion', undefined, signal)
+  }
+
   async captureCameras(signal?: AbortSignal): Promise<JsonObject> {
     const packet = await this.call<unknown>('POST', '/ego/cameras/capture', {}, signal)
     return saveCameraCapture(packet, this.config.cameraCaptureDir, this.config.cameraMaxBytes, signal)
@@ -130,11 +147,15 @@ export class EgoRuntimeClient extends EgoService {
 
 
   explore(signal?: AbortSignal, timeoutS = this.profile === 'toy' ? 120 : undefined): Promise<SkillJob> {
-    return this.call('POST', '/ego/explore', { owner: this.config.owner, ...(timeoutS === undefined ? {} : { timeoutS }) }, signal)
+    if (this.config.readOnly) throw new EgoError('This protection review only permits observation')
+    return this.call('POST', '/ego/explore', {
+      owner: this.config.owner, intentRevision: this.config.intentRevision, taskId: this.config.taskId,
+      ...(timeoutS === undefined ? {} : { timeoutS }),
+    }, signal)
   }
 
   predict(skill: EgoSkill, params: JsonObject, signal?: AbortSignal): Promise<PredictionReceipt> {
-    return this.call('POST', '/ego/predict', { skill, params }, signal)
+    return this.call('POST', '/ego/predict', { skill, params, intentRevision: this.config.intentRevision }, signal)
   }
 
   receipt(id: string, signal?: AbortSignal): Promise<PredictionReceipt> {
@@ -169,12 +190,34 @@ export class EgoRuntimeClient extends EgoService {
     return this.call('POST', '/ego/reflect', failure, signal)
   }
 
-  run(receiptId: string, signal?: AbortSignal): Promise<SkillJob> {
-    return this.call('POST', '/skill/run', { receipt: receiptId, owner: this.config.owner }, signal)
+  async run(receiptId: string, signal?: AbortSignal, notifyCompletion = false): Promise<SkillJob> {
+    if (this.config.readOnly) throw new EgoError('This protection review only permits observation')
+    try {
+      return await this.call('POST', '/skill/run', {
+        receipt: receiptId, owner: this.config.owner, intentRevision: this.config.intentRevision,
+        taskId: this.config.taskId, notifyCompletion: notifyCompletion || undefined,
+      }, signal)
+    } catch (error) {
+      if (signal?.aborted || !(error instanceof EgoError) ||
+        (error.status !== undefined && error.status < 500)) throw error
+      // POST may have reached the robot even when its response did not reach us.
+      const path = `/skill/status?receipt=${encodeURIComponent(receiptId)}`
+      const job = await this.call<Partial<SkillJob>>('GET', path, undefined, signal).catch(() => undefined)
+      if (job?.id) return job as SkillJob
+      const hold = await this.stop(signal).catch(() => undefined)
+      const state = hold ? 'motion hold requested' : 'motion hold could not be confirmed'
+      throw new EgoError(`dispatch result for ${receiptId} is unknown (${state}); inspect the robot before resuming`)
+    }
   }
 
   job(jobId: string, signal?: AbortSignal): Promise<SkillJob> {
     return this.call('GET', `/skill/status?job=${encodeURIComponent(jobId)}`, undefined, signal)
+  }
+
+  verifyPlacement(jobId: string, goal: JsonObject, signal?: AbortSignal): Promise<JsonObject> {
+    return this.call('POST', '/ego/verify-placement', {
+      job: jobId, goal, owner: this.config.owner, intentRevision: this.config.intentRevision,
+    }, signal)
   }
 
   wait(jobId: string, timeoutS: number, signal?: AbortSignal): Promise<SkillJob> {
@@ -182,7 +225,18 @@ export class EgoRuntimeClient extends EgoService {
   }
 
   stop(signal?: AbortSignal): Promise<JsonObject> {
-    return this.call('POST', '/skill/stop', {}, signal)
+    if (this.config.readOnly) throw new EgoError('This protection review only permits observation')
+    return this.call('POST', '/skill/stop', {
+      owner: this.config.owner, intentRevision: this.config.intentRevision,
+    }, signal)
+  }
+
+  directBody(command: DirectBodyCommand, signal?: AbortSignal): Promise<JsonObject> {
+    if (this.config.readOnly) throw new EgoError('This protection review only permits observation')
+    return this.call('POST', '/ego/body/command', {
+      ...command, owner: this.config.owner, intentRevision: this.config.intentRevision,
+      taskId: this.config.taskId,
+    }, signal)
   }
 
   reportProblem(report: ProblemReport, signal?: AbortSignal): Promise<JsonObject> {

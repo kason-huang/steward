@@ -45,6 +45,7 @@ from steward.scene.schema import Entity, RigidTree, SceneState
 _MOUNT_TO_CAMERA = quat_from_matrix(np.array([[0.0, 0.0, -1.0], [-1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]))
 _JOINT_KIND = {"revolute": "hinge", "prismatic": "slide", "ball": "ball"}
 _DEFAULT_AXIS = {"revolute": [0.0, 0.0, 1.0], "prismatic": [1.0, 0.0, 0.0]}
+_PIPER = "phyagent-piper"
 
 
 @dataclass
@@ -101,7 +102,7 @@ class MjcfBuild:
                 aid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, act_name)
                 if model.actuator_biastype[aid] == mujoco.mjtBias.mjBIAS_AFFINE:
                     jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, names.actuator_joints[key])
-                    data.ctrl[aid] = data.qpos[model.jnt_qposadr[jid]]
+                    data.ctrl[aid] = data.qpos[model.jnt_qposadr[jid]] * model.actuator_gear[aid, 0]
         mujoco.mj_forward(model, data)
 
 
@@ -135,7 +136,7 @@ def build_mjcf(
         raise ValueError(f"appearance must be 'flat' or 'textured', not {appearance!r}")
     root = ET.Element("mujoco", model=model_name)
     ET.SubElement(root, "compiler", angle="radian", autolimits="true")
-    ET.SubElement(root, "option", timestep=f"{timestep}", integrator="implicitfast")
+    option = ET.SubElement(root, "option", timestep=f"{timestep}", integrator="implicitfast")
     visual = ET.SubElement(root, "visual")
     # MuJoCo renders nothing larger than the offscreen buffer: it grows to the largest camera in the scene.
     sizes = [(s["intrinsics"]["width"], s["intrinsics"]["height"]) for ent in scene.entities
@@ -169,7 +170,16 @@ def build_mjcf(
     for ent in scene.entities:
         if not isinstance(ent.body, RigidTree):
             raise NotImplementedError(f"entity {ent.id}: deformable bodies are not simulated in Phase 0")
-        names[ent.id] = _emit_entity(world, actuators, ent, initial, textures, appearance)
+        if ent.role == "robot" and ent.category.value == _PIPER:
+            from steward.assets.piper import model_path
+
+            if textures.element.find(f"model[@name='{_PIPER}']") is None:
+                ET.SubElement(textures.element, "model", name=_PIPER, file=str(model_path()))
+                option.set("cone", "elliptic")
+                option.set("impratio", "10")
+            names[ent.id] = _attach_native_piper(world, ent, initial)
+        else:
+            names[ent.id] = _emit_entity(world, actuators, ent, initial, textures, appearance)
         for coupling in ent.body.couplings:
             ET.SubElement(equalities, "joint", joint1=names[ent.id].joints[coupling["joint1"]],
                           joint2=names[ent.id].joints[coupling["joint2"]],
@@ -207,6 +217,29 @@ def build_mjcf(
     ET.indent(root)
     return MjcfBuild(xml=ET.tostring(root, encoding="unicode"), names=names, initial_qpos=initial,
                      assets=textures.files, shadows=appearance == "textured", fastener_welds=fastener_welds)
+
+
+def _attach_native_piper(world: ET.Element, ent: Entity, initial: dict) -> EntityNames:
+    from steward.assets.piper import WRIST_CAMERA, native_actuators
+
+    if ent.rigid.root.value != "fixed":
+        raise ValueError("the PhyAgentOS PiPER requires a fixed base")
+    prefix = f"{ent.id}/"
+    base = ent.rigid.links[0]
+    at = ent.pose.value
+    mount = ET.SubElement(world, "body", name=f"{ent.id}::mount", pos=_fmt(at["p"]), quat=_fmt(at["q"]))
+    ET.SubElement(mount, "attach", model=_PIPER, body=base.id, prefix=prefix)
+    names = EntityNames(bodies={link.id: prefix + link.id for link in ent.rigid.links},
+                        joints={joint.id: prefix + joint.id for joint in ent.rigid.joints})
+    for joint_id, actuator in native_actuators().items():
+        names.actuators[joint_id] = prefix + actuator
+        names.actuator_joints[joint_id] = names.joints[joint_id]
+    for joint in ent.rigid.joints:
+        initial[names.joints[joint.id]] = list(joint.q.value)
+    names.cameras[WRIST_CAMERA] = prefix + WRIST_CAMERA
+    for sensor in base.sensors:
+        _emit_camera(mount, ent.id, names, sensor)
+    return names
 
 
 @dataclass
@@ -446,12 +479,16 @@ def _emit_link(body: ET.Element, ent: Entity, link_id: str, names: EntityNames, 
         ET.SubElement(body, "inertial", pos="0 0 0", mass=f"{mass}", diaginertia=_fmt([inertia] * 3))
     for sensor in link.sensors:
         if sensor.get("kind") in ("rgb", "depth", "rgbd"):
-            mount = sensor["mount"]
-            cam_name = f"{ent.id}::{sensor['id']}"
-            fovy = sensor.get("intrinsics", {}).get("fovy", 60.0)
-            ET.SubElement(body, "camera", name=cam_name, pos=_fmt(mount["p"]),
-                          quat=_fmt(quat_mul(mount["q"], _MOUNT_TO_CAMERA)), fovy=f"{fovy}")
-            names.cameras[sensor["id"]] = cam_name
+            _emit_camera(body, ent.id, names, sensor)
+
+
+def _emit_camera(body: ET.Element, entity_id: str, names: EntityNames, sensor: dict) -> None:
+    mount = sensor["mount"]
+    cam_name = f"{entity_id}::{sensor['id']}"
+    fovy = sensor.get("intrinsics", {}).get("fovy", 60.0)
+    ET.SubElement(body, "camera", name=cam_name, pos=_fmt(mount["p"]),
+                  quat=_fmt(quat_mul(mount["q"], _MOUNT_TO_CAMERA)), fovy=f"{fovy}")
+    names.cameras[sensor["id"]] = cam_name
 
 
 if _assembly_enabled():

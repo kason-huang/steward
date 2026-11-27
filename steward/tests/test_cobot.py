@@ -80,6 +80,7 @@ def test_sim_generic_joints_and_dual_gripper_grasp() -> None:
     bowl_at = [grip["p"][0] + 0.02, grip["p"][1], grip["p"][2] - 0.03]
 
     sim = WorldSim(_cobot_scene(bowl_at))
+    assert sim.status()["robots"]["w:cobot"]["graspMode"] == "rigid"
     sim.command("w:cobot", {"gripper": {"L_link6": "close"}})
     kinds = [e["type"] for e in sim.events]
     assert "grasp/attach" in kinds, f"expected an attach, events: {sim.events}"

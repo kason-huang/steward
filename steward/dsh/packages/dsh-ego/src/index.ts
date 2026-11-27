@@ -266,6 +266,10 @@ export class EgoError extends Error {
   }
 }
 
+export type DirectBodyCommand =
+  | { joints: Record<string, number> }
+  | { gripper: 'open' | 'close' }
+
 /**
  * The `ego` service. Every method accepts the caller's cancellation signal; providers must
  * stop waiting when it aborts.
@@ -397,9 +401,10 @@ export abstract class EgoService extends Service {
    * Execute the plan of a receipt. The runtime re-checks validity, expiry and risk.
    * @param receiptId - receipt to execute.
    * @param signal - caller cancellation.
+   * @param notifyCompletion - request an event for a skill the caller will leave running.
    * @returns the started job.
    */
-  abstract run(receiptId: string, signal?: AbortSignal): Promise<SkillJob>
+  abstract run(receiptId: string, signal?: AbortSignal, notifyCompletion?: boolean): Promise<SkillJob>
 
   /**
    * Read a job.
@@ -408,6 +413,9 @@ export abstract class EgoService extends Service {
    * @returns the job record.
    */
   abstract job(jobId: string, signal?: AbortSignal): Promise<SkillJob>
+
+  /** Judge a completed placement against an explicit goal using robot observations. */
+  abstract verifyPlacement(jobId: string, goal: JsonObject, signal?: AbortSignal): Promise<JsonObject>
 
   /**
    * Wait until a job leaves the running state or the timeout passes.
@@ -424,6 +432,12 @@ export abstract class EgoService extends Service {
    * @returns the id of the interrupted job, if any.
    */
   abstract stop(signal?: AbortSignal): Promise<JsonObject>
+
+  /** Read the S0 motion state and the current hold reason. */
+  abstract motionStatus(signal?: AbortSignal): Promise<JsonObject>
+
+  /** Issue a scoped S0 command and wait for encoder confirmation. */
+  abstract directBody(command: DirectBodyCommand, signal?: AbortSignal): Promise<JsonObject>
 
   /**
    * Tell the operator about a situation the robot cannot resolve by itself; the Steward console
@@ -444,7 +458,7 @@ export abstract class EgoService extends Service {
   /**
    * Read fixed RGB intrinsics and relative extrinsics without imaging or motion.
    * @param signal - caller cancellation.
-   * @returns RGB calibration; camera_to_reference maps each OpenCV camera into the middle camera, in metres.
+   * @returns RGB calibration; camera_to_reference maps each OpenCV camera into the named reference, in metres.
    */
   abstract cameraCalibration(signal?: AbortSignal): Promise<JsonObject>
 

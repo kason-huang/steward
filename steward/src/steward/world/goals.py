@@ -16,6 +16,29 @@ import math
 from steward.math3d import pose_compose, pose_inverse, quat_rotate, wrap_angle, yaw_from_quat
 
 
+def score_placement(scene: dict, goal: dict) -> dict:
+    """Independently score a released object on the requested support."""
+    entity, support = goal["entity"], goal["support"]
+    poses = {entry["id"]: entry["pose"]["value"] for entry in scene["entities"]}
+    if entity not in poses or support not in poses:
+        raise ValueError("placement score requires existing world entity and support IDs")
+    supported = any(r["type"] == "supported-by" and r["a"]["entity"] == entity and r["b"]["entity"] == support
+                    for r in scene["relations"])
+    released = not any(r["type"] == "attached" and entity in (r["a"]["entity"], r["b"]["entity"])
+                       for r in scene["relations"])
+    actual = pose_compose(pose_inverse(poses[support]), poses[entity])["p"][:2]
+    result = {"goal": goal, "supported": supported, "released": released, "observedOffsetM": actual,
+              "stamp": scene["stamp"], "complete": supported and released}
+    if "offset" in goal:
+        error = math.dist(goal["offset"], actual)
+        tolerance = goal.get("toleranceM")
+        if not isinstance(tolerance, (int, float)) or not math.isfinite(tolerance) or tolerance <= 0 or not math.isfinite(error):
+            raise ValueError("a precise world score requires a finite offset and positive toleranceM")
+        result["offsetErrorM"] = error
+        result["complete"] &= error <= tolerance
+    return result
+
+
 def evaluate(goal: dict, pose_of) -> dict:
     """Progress towards ``goal``.
 

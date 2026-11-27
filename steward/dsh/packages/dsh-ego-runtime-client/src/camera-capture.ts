@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { EgoError, type JsonObject } from '@steward/dsh-ego'
 
-import { object, matrix, parseGripperPose } from './sensor-packet.ts'
+import { object, matrix, parseGripperPose, validCameraId } from './sensor-packet.ts'
 
 
 /**
@@ -19,9 +19,9 @@ export async function saveCameraCapture(value: unknown, directory: string, maxBy
   const packet = object(value), views = object(packet.views)
   const cameraIds = Object.keys(views)
   if (typeof packet.stamp !== 'number' || !Number.isFinite(packet.stamp) || packet.stamp < 0
-    || packet.reference_camera !== 'head_camera' || packet.calibration_source !== 'rig_calibration'
+    || typeof packet.reference_camera !== 'string' || packet.calibration_source !== 'rig_calibration'
     || packet.camera_axes !== 'opencv_x_right_y_down_z_forward'
-    || cameraIds.length === 0 || !cameraIds.includes('head_camera') || !cameraIds.every(id => /^[a-z][a-z0-9_]*$/.test(id))) {
+    || !cameraIds.includes(packet.reference_camera) || !cameraIds.every(validCameraId)) {
     throw new EgoError('Invalid synchronized camera sensor packet')
   }
   const gripper_pose = parseGripperPose(packet.gripper_pose)

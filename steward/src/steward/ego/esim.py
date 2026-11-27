@@ -175,8 +175,17 @@ class PredictionError(ValueError):
     pass
 
 
+@dataclass(frozen=True)
+class TargetFreshness:
+    max_age_s: float
+    max_drift_m: float
+
+
 def _wrap(a: float) -> float:
     return (a + math.pi) % (2 * math.pi) - math.pi
+
+
+_FASTEN_SKILLS = ("seat_screw", "drive_screw", "fasten_onto", "flip_assembly", "regrasp_upright")
 
 
 class Esim:
@@ -185,7 +194,18 @@ class Esim:
         mobile kitchen robot's. Reach and lift use ``config``; wrist caps also respect the model's
         declared joint stops."""
         self.config = config or EsimConfig()
+        self._ids = itertools.count(1)
+        self._blockers: set[str] = set()
         tree = robot_model["body"]
+        self.arm = None
+        self._waypoint_planner = None
+        self._planners = {}
+        if tree["root"]["value"] == "fixed":
+            if robot_model["category"]["value"] == "phyagent-piper":
+                from steward.ego.piper_motion import PiperMotion
+
+                self._waypoint_planner = PiperMotion(robot_model)
+            return
         base = next(link for link in tree["links"] if link["id"] == "base")
         base_geom = base["geometry"]["collision"][0]
         if base_geom["kind"] == "primitive" and base_geom["shape"] == "box":
@@ -214,8 +234,30 @@ class Esim:
         self.reach_min, self.reach_max = self.arm.geometry.reach_min, self.arm.geometry.reach_max
         self.lift_min, self.lift_max = self.arm.geometry.lift_min, self.arm.geometry.lift_max
         self.tool_offset, self.lateral = self.arm.geometry.tool_offset, self.arm.geometry.lateral
-        self._ids = itertools.count(1)
-        self._blockers: set[str] = set()
+        self._planners = {
+            "navigate": self._predict_navigate,
+            "pick": self._predict_pick,
+            "place": self._predict_place,
+            "open": lambda state, args: self._predict_drawer(state, "open", args),
+            "close": lambda state, args: self._predict_drawer(state, "close", args),
+            "pour": self._predict_pour,
+            "assemble_onto": self._predict_assemble_onto,
+        }
+        if not _assembly_enabled():
+            self._planners["insert_screw_into_hole"] = self._predict_insert_screw_into_hole
+
+    def skill_names(self) -> tuple[str, ...]:
+        """Skills exposed through prediction for this robot's motion model."""
+        if self._waypoint_planner is not None:
+            return self._waypoint_planner.skill_names
+        return (*self._planners, *_FASTEN_SKILLS) if self.arm is not None else ()
+
+    def waypoint_skills(self) -> dict[str, TargetFreshness]:
+        """Skills whose planner produces a joint-waypoint program, with start-time target limits."""
+        planner = self._waypoint_planner
+        if planner is None:
+            return {}
+        return dict.fromkeys(planner.skill_names, planner.target_freshness)
 
     # ---------------------------------------------------------------- helpers
     def _self(self, es: SceneState) -> Entity:
@@ -1106,6 +1148,14 @@ class Esim:
 
     # ----------------------------------------------------------------- skills
     def predict(self, es: SceneState, skill: str, params: dict) -> dict:
+        if self.arm is None:
+            try:
+                if self._waypoint_planner is None:
+                    raise PredictionError("motion skill unavailable for this fixed base")
+                plan = self._waypoint_planner.plan(es, skill, params)
+                return self._receipt(es, skill, params, 0.15, [], plan)
+            except PredictionError as exc:
+                return self._receipt(es, skill, params, 1.0, [str(exc)], {}, feasible=False)
         self._blockers = set()
         if _assembly_enabled():
             try:
@@ -1164,31 +1214,17 @@ class Esim:
                     return driver_stroke(self, es, params)
                 if skill == "drive_screw" and self._is_held_driver_drive(es, params):
                     return self._predict_drive_screw(es, params)
-                if skill in ('seat_screw', 'drive_screw', 'fasten_onto', 'flip_assembly', 'regrasp_upright', '_fastener_contact', '_fastener_reset', '_stage_screw', '_upright_tool'):
+                if skill in (*_FASTEN_SKILLS, '_fastener_contact', '_fastener_reset', '_stage_screw', '_upright_tool'):
                     from steward.ego.fasten_plan import predict, contact, reset_tool
                     if skill == '_fastener_reset':
                         return reset_tool(self, es, params)
                     return contact(self, es, params) if skill in ('_fastener_contact', '_stage_screw', '_upright_tool') else predict(self, es, skill, params)
-                if skill == "assemble_onto":
-                    return self._predict_assemble_onto(es, params)
-                if skill == "navigate":
-                    return self._predict_navigate(es, params)
-                if skill == "pick":
-                    return self._predict_pick(es, params)
-                if skill == "place":
-                    return self._predict_place(es, params)
-                if skill in ("open", "close"):
-                    return self._predict_drawer(es, skill, params)
-                if skill == "pour":
-                    return self._predict_pour(es, params)
-                if skill == "tighten":
+                if skill == "tighten" and self.arm is not None:
                     return self._predict_tighten(es, params)
-                if skill == "insert_screw_into_hole":
-                    return self._predict_insert_screw_into_hole(es, params)
-                raise PredictionError(
-                    f"unknown skill {skill!r}; known: assemble_onto, navigate, pick, place, pour, open, close, "
-                    "tighten, drive_screw, insert_screw_into_hole, seat_screw, fasten_onto, flip_assembly, "
-                    "regrasp_upright")
+                planner = self._planners.get(skill)
+                if planner is not None:
+                    return planner(es, params)
+                raise PredictionError(f"unknown skill {skill!r}; known: {', '.join(self.skill_names())}")
             except PredictionError as exc:
                 blockers = self._describe_blockers(es)
                 issues = [str(exc)] + [

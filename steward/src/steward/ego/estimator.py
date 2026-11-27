@@ -269,6 +269,8 @@ class _ShutFollow:
 
 @dataclass
 class EstimatorConfig:
+    category_hint: Callable[[np.ndarray, float, np.ndarray], str | None] | None = None
+    """Optional robot-side category prior derived from the region's size, bottom and RGB."""
     hole_registration_extent_ratio: float = 1.4  # outline measurement compatibility, not task tolerance
     hole_registration_square_ratio: float = .9  # below this, long/short axes are distinguishable
     hole_registration_extent_slack_m: float = 0.03  # absolute outline error of a segmented small part
@@ -291,6 +293,8 @@ class EstimatorConfig:
     should be in view but was not segmented."""
     absence_free_share: float = 0.9
     """Share of a track's depth probes that must lie beyond its box for a view to count as free space."""
+    absence_depth_margin_m: float = 0.15
+    """Minimum depth beyond a probe for the ray to count as free space."""
     absence_interval_s: float = 0.5
     """Minimum world time between two counted free-space views of one track."""
     absence_views: int = 3
@@ -520,7 +524,7 @@ class EgoEstimator:
 
     def base_pose(self, odometry: dict | None = None) -> dict:
         o = self.odometry if odometry is None else odometry
-        return {"p": [o["x"], o["y"], 0.0], "q": quat_from_yaw(o["yaw"])}
+        return {"p": [o["x"], o["y"], o.get("z", 0.0)], "q": o.get("q") or quat_from_yaw(o["yaw"])}
 
     def camera_pose(self, odometry: dict | None = None, camera: str | None = None) -> dict:
         """World pose of a camera mount (looks along +x; ``camera`` None: the primary one), at the
@@ -533,7 +537,7 @@ class EgoEstimator:
         pose = pose_compose(self.link_pose(link_id), sensor["mount"])
         if odometry is None:
             return pose
-        base = {"p": [odometry["x"], odometry["y"], 0.0], "q": quat_from_yaw(odometry["yaw"])}
+        base = self.base_pose(odometry)
         in_base = pose_compose(pose_inverse(self.base_pose()), pose)
         return pose_compose(base, in_base)
 
@@ -847,6 +851,10 @@ class EgoEstimator:
         grows. A winning ``bottle`` label is replaced by the shape prior
         (:func:`shape_over_bottle`): that name has no template. The filled wine glass is renamed
         in :meth:`_reclassify_filled_height`."""
+        if not semantics and self.config.category_hint is not None:
+            category = self.config.category_hint(size, bottom, color)
+            if category is not None:
+                return {category: 1.0}
         if not semantics:
             return classify(size, bottom, color, invalid_frac, bottom_seen=bottom_seen)
         shape = classify(size, bottom, color, invalid_frac, bottom_seen=bottom_seen, min_prob=0.0)
@@ -973,6 +981,8 @@ class EgoEstimator:
                     # A cup, bear or bottle inside an open drawer is its own object. A piece of the
                     # drawer front is named drawer and is still part of the drawer.
                     named = max(m["probs"], key=m["probs"].get) if m["probs"] else ""
+                    if {track.category, named} == {"tray", "box"}:
+                        continue  # the object placed on the tray remains a separate track
                     # A content already has its own track. A later mask of the drawer or the
                     # furniture around it is not another view of it, and must not grow or rename it.
                     if (track.category in _CONTENT
@@ -1434,10 +1444,11 @@ class EgoEstimator:
                            "a thin unknown strip, not an object" if sliver else
                            "cabinet edge completed into scissors")
         base = np.array([self.odometry["x"], self.odometry["y"], 0.0])
+        mobile = self.robot_model["body"]["root"]["value"] == "planar"
         for track in list(self.tracks.values()):
             if track.id not in self.tracks or track.held or track.category == "wall":
                 continue
-            holds_robot = _inside(track, base, -0.05) and track.bottom() < 1.0
+            holds_robot = mobile and _inside(track, base, -0.05) and track.bottom() < 1.0
             wall_tall = track.top() >= self.config.wall_like_top and track.footprint >= 0.5
             # A table (open beneath its top) or an open drawer can look hollow from some viewpoints;
             # an object seen many times and identified with confidence, or one the segmenter keeps
@@ -1581,7 +1592,7 @@ class EgoEstimator:
                 if r is None or r[1] <= 0.05:
                     continue
                 d, seen = r
-                if seen > d + max(0.15, track.footprint / 2):
+                if seen > d + max(self.config.absence_depth_margin_m, track.footprint / 2):
                     free += 1
                 else:
                     filled += 1  # a surface where the track should be, or something nearer hiding it
@@ -1949,6 +1960,8 @@ class EgoEstimator:
                 if a.id not in self.tracks or b.id not in self.tracks or a.pinned or b.pinned:
                     continue
                 if _small_observations_apart(a.span, b.span):
+                    continue
+                if {a.category, b.category} == {"tray", "box"}:
                     continue
                 if ("receptacle" in a.affordances and "receptacle" in b.affordances
                         and self._separate_bowls(a.footprint, b.footprint, a.pos, b.pos, a.size, b.size)):
@@ -6504,6 +6517,7 @@ class EgoEstimator:
             self.stationary_assemblies.released(track_id, track.pos, target, track.placement["releasedAt"])
             track.var = np.maximum(track.var, 0.02**2)
             track.voxels = None
+            track.span = None  # the old observation corners describe the pickup location
             track.interface_motion_at = float(self.stamp)
             track.interface_last_geometry = None
             track.interface_views.clear()
@@ -6597,6 +6611,7 @@ class EgoEstimator:
             # the object replaces it, rather than an unobserved spot standing as an observation.
             track.predicted_spot = track.pos.copy()
             track.voxels = None
+            track.span = None  # the old observation corners describe the pickup location
             track.interface_motion_at = float(self.stamp)
             track.interface_last_geometry = None
             track.interface_views.clear()

@@ -43,6 +43,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from PIL import Image
 
+from steward.assets.piper import ARM_JOINTS, BODY_ID as PIPER_BODY
 from steward.ego.perception import (PerceptionConfig, box_of, decimated, decode_rgbd, face_colour_stats, match_face, resample_face, segments,
                                     top_face,
                                     top_face_array,
@@ -51,7 +52,7 @@ from steward.ego.kinematics import gripper_pose
 from steward.ego.arm import Arm
 from steward.ego.cobot_arm import PiperArm
 from steward.ego.esim import Esim, EsimConfig, PredictionError
-from steward.ego.estimator import SELF_ID, EgoEstimator, _CONTENT
+from steward.ego.estimator import SELF_ID, EgoEstimator, EstimatorConfig, _CONTENT
 from steward.ego.localization_feedback import LocalizationFeedback
 from steward.ego import reflection
 from steward.ego.reflection import ReflectionConfig
@@ -60,7 +61,10 @@ if _assembly_enabled():
     from steward.ego.public import public_json
 from steward.ego.segmenter import DepthClusters, Segmenter, SegmenterError
 from steward.ego.segmentation_preview import SegmentationPreview
-from steward.ego.skills import MotionConfig, SkillExecutor, SkillFailed
+from steward.ego.monitor import MonitorConfig, MotionMonitor
+from steward.ego.skill_adapter import RobotSkillAdapter, SkillRobot
+from steward.ego.skills import Job, MotionConfig, SkillExecutor, SkillFailed, SkillStopped
+from steward.ego.verification import placement_verdict
 from steward.math3d import matrix_from_quat, pose_compose, pose_inverse, quat_rotate, wrap_angle, yaw_from_quat
 from steward.net import HttpError, call
 from steward.scene.schema import SceneState
@@ -154,7 +158,9 @@ class RuntimeConfig:
     near_range_m: float = 1.5  # from the head at 1.5 m: a table top up to ~1.3 m ahead
     handoff_margin: float = 0.05
     esim: EsimConfig = field(default_factory=EsimConfig)
+    estimator: EstimatorConfig = field(default_factory=EstimatorConfig)
     motion: MotionConfig = field(default_factory=MotionConfig)
+    monitor: MonitorConfig = field(default_factory=MonitorConfig)
     roles: RoleConfig = field(default_factory=RoleConfig)
     reflection: ReflectionConfig = field(default_factory=ReflectionConfig)
     if _assembly_enabled():
@@ -294,12 +300,12 @@ class RobotLink:
         else:
             return call("GET", f"{self.url}/sensors")
 
-    def proprioception(self) -> dict:
+    def proprioception(self, timeout: float = 10.0) -> dict:
         """Joint encoders and gripper states only, without drawing a perception sample."""
         if _assembly_enabled():
-            return self._motion_call("GET", "/sensors/proprioception")
+            return self._motion_call("GET", "/sensors/proprioception", timeout=timeout)
         else:
-            return call("GET", f"{self.url}/sensors/proprioception")
+            return call("GET", f"{self.url}/sensors/proprioception", timeout=timeout)
 
     if _assembly_enabled():
         def rgbd(self, camera: str | None = None, *, timeout: float = 10.) -> bytes:
@@ -312,11 +318,21 @@ class RobotLink:
             raw imaging instead of detections."""
             return call("GET", f"{self.url}/sensors/rgbd" + ("" if camera is None else f"?camera={camera}"))
 
-    def command(self, cmd: dict) -> None:
+    def command(self, cmd: dict, motion_epoch: str | None = None, *, timeout: float = 10.0) -> None:
+        body = cmd if motion_epoch is None else {**cmd, "motionEpoch": motion_epoch}
         if _assembly_enabled():
-            self._motion_call("POST", "/command", cmd)
+            self._motion_call("POST", "/command", body, timeout=timeout)
         else:
-            call("POST", f"{self.url}/command", cmd)
+            call("POST", f"{self.url}/command", body, timeout=timeout)
+
+    def motion_status(self) -> dict:
+        return call("GET", f"{self.url}/motion", timeout=3)
+
+    def hold_motion(self, reason: str = "protection") -> dict:
+        return call("POST", f"{self.url}/motion/hold", {"reason": reason}, timeout=3)
+
+    def resume_motion(self, epoch: str) -> dict:
+        return call("POST", f"{self.url}/motion/resume", {"epoch": epoch}, timeout=3)
 
     def telemetry(self, scene: dict) -> None:
         call("POST", f"{self.url}/telemetry", scene)
@@ -489,7 +505,7 @@ class EgoRuntime:
         self._fusion_stats = {"mappedHeaders": 0, "visualFrames": 0, "acceptedVisual": 0,
                               "independentSamRequests": 0, "visualErrors": 0}
         self._localization_segmenter = None
-        self.estimator = EgoEstimator(robot_model=robot_model)
+        self.estimator = EgoEstimator(robot_model=robot_model, config=replace(self.config.estimator))
         self.localizer = None
         self._localization_status = {"enabled": False}
         if self.config.localization_config is not None:
@@ -526,6 +542,7 @@ class EgoRuntime:
         self._pose_sample: tuple[float, float, float] | None = None
         self._still_since: float | None = None
         self._missing_cameras: frozenset[str] = frozenset()
+        self.camera_errors: dict[str, str] = {}
         self.segmentation = {"frames": 0, "cached": 0, "skipped": 0, "failures": 0, "lastSeconds": None,
                              "lastError": None}
         self.esim = Esim(robot_model, self.config.esim, arm)
@@ -539,16 +556,25 @@ class EgoRuntime:
                 planner._ids = self.esim._ids
                 self._arm_esims[side] = planner
         self._arm_selection_lock = threading.RLock()
+        self._waypoint_skills = self.esim.waypoint_skills()
+        self.body_id = (robot_model.get("category") or {}).get("value")
+        self.gripper_link = self.arm.geometry.gripper if self.arm is not None else self.estimator._grasp_link(None)
         self.out_dir = out_dir
         if _assembly_enabled():
             self.estimator.precision_probe_path = out_dir / 'precision_probe.jsonl' if out_dir is not None else None
         self._lock = threading.RLock()
+        self._dispatch_lock = threading.RLock()
         self._running = False
         self._thread: threading.Thread | None = None
         self.receipts: dict[str, dict] = {}
         self.last_error: str | None = None
         self._last_clock_alert: str | None = None
         self.control_owner: str | None = None
+        self._intent_revisions: dict[str, str] = {}
+        self._ended_tasks: set[str] = set()
+        self._direct_motion: tuple[str, str] | None = None  # command id, task id, guarded by _dispatch_lock
+        self._hold_unconfirmed = False
+        self.verifications: collections.deque[dict] = collections.deque(maxlen=200)
         self.perception_mode: str | None = None
         self.alerts: list[dict] = []
         self.plan: dict | None = None
@@ -563,8 +589,11 @@ class EgoRuntime:
         self._input_lock = threading.Lock()
         self.inputs: list[dict] = []  # Ego API requests as applied, with their world time (:meth:`apply`)
         self._alert_ids = itertools.count(1)
+        self._skill_robot: SkillRobot = RobotSkillAdapter(
+            lambda: self._feedback_header(self.link.sensors()), self._body_command, self._read_motion_belief,
+            lambda: self._generation, lambda: self.arm)
         if _assembly_enabled():
-            self.executor = SkillExecutor(lambda cmd: self.link.command(self.arm.command(cmd)), self._motion_state,
+            self.executor = SkillExecutor(self._skill_robot.command, self._motion_state,
                                           self._mark_held, self.config.motion,
                                           shift=self._shift_track, on_error=lambda msg: self.alert(msg, "skill"),
                                           on_finish=self._skill_finished, on_release=self._released,
@@ -579,11 +608,13 @@ class EgoRuntime:
                                           pin=self._pin_track, furniture=self._furniture_id,
                                           contents=self._content_ids, content_positions=self._content_positions,
                                           resettle=self._resettle_contents,
-                                          home_empty=lambda tick: self.arm.home_empty(self.link.command, tick),
-                                          deploy_working=(lambda tick: self.arm.deploy_working(self.link.command, tick)
+                                          home_empty=(None if self.arm is None
+                                                      else lambda tick: self.arm.home_empty(self._body_command, tick)),
+                                          deploy_working=(lambda tick: self.arm.deploy_working(self._body_command, tick)
                                                           if callable(getattr(self.arm, "deploy_working", None))
                                                           else None),
-                                          motion_policy=self.arm.motion_policy)
+                                          motion_policy=self.arm.motion_policy if self.arm is not None else None,
+                                          waypoint_skills=frozenset(self._waypoint_skills))
             from steward.ego.assembly_release_height import enforce_floor
             self.executor._assembly_release_floor = lambda plan: enforce_floor(self, plan)
             self.executor._frame_period_s = self.config.keyframe_max_s
@@ -604,7 +635,7 @@ class EgoRuntime:
             from steward.ego.memory_checkpoint import create
             self._memory_checkpoint = create(self)
         else:
-            self.executor = SkillExecutor(lambda cmd: self.link.command(self.arm.command(cmd)), self._motion_state,
+            self.executor = SkillExecutor(self._skill_robot.command, self._motion_state,
                                           self._mark_held, self.config.motion,
                                           shift=self._shift_track, on_error=lambda msg: self.alert(msg, "skill"),
                                           on_finish=self._skill_finished, on_release=self._released,
@@ -619,17 +650,20 @@ class EgoRuntime:
                                           pin=self._pin_track, furniture=self._furniture_id,
                                           contents=self._content_ids, content_positions=self._content_positions,
                                           resettle=self._resettle_contents,
-                                          home_empty=lambda tick: self.arm.home_empty(self.link.command, tick),
-                                          deploy_working=(lambda tick: self.arm.deploy_working(self.link.command, tick)
+                                          home_empty=(None if self.arm is None
+                                                      else lambda tick: self.arm.home_empty(self._body_command, tick)),
+                                          deploy_working=(lambda tick: self.arm.deploy_working(self._body_command, tick)
                                                           if callable(getattr(self.arm, "deploy_working", None))
                                                           else None),
                                           verify_screw_seat=self._verify_screw_seat,
                                           replan_pick=self._replan_pick,
                                           replan_insert_place=self._replan_insert_place,
-                                          motion_policy=self.arm.motion_policy)
+                                          motion_policy=self.arm.motion_policy if self.arm is not None else None,
+                                          waypoint_skills=frozenset(self._waypoint_skills))
+        self.monitor = MotionMonitor(self, self.config.monitor)
         self._view_scene: tuple[dict, int, float] | None = None  # (ES dict, version, stamp) for the view
         # The belief part of the motion state, recorded under ``_lock`` at each read and around each
-        # perception update; :meth:`_motion_state` falls back on it while another thread holds the lock.
+        # perception update; :meth:`_read_motion_belief` falls back on it while another thread holds the lock.
         self._motion_belief: dict | None = None
         self._latest_frame: dict | None = None  # the perception loop's latest primary camera frame, for fresh looks
         self.face_error: str | None = None  # why the latest camera image for faces could not be fetched
@@ -648,10 +682,12 @@ class EgoRuntime:
         self._thread.start()
         self._face_thread = threading.Thread(target=self._face_loop, name="ego-faces", daemon=True)
         self._face_thread.start()
+        self.monitor.start()
         self.view.start()
 
     def stop(self) -> None:
         self._running = False
+        self.monitor.stop()
         self.link.closed = True
         self.view.stop()
         for thread in (self._thread, self._face_thread):
@@ -710,7 +746,7 @@ class EgoRuntime:
             cameras = self._cameras(frame)
             if mode in ("rgbd", "rgbd-segmenter"):
                 due = [c for c in cameras if mode == "rgbd" or self._keyframe_due(frame, c)]
-                whole = [decode_rgbd(self.link.rgbd(camera)) for camera in due]
+                whole = self._read_rgbd(due)
                 if mode == "rgbd" and whole:
                     # Keep the primary camera's frame for fresh looks: renders stay on this thread
                     # alone. One fetched from a skill thread starves against that skill's own clock
@@ -741,6 +777,7 @@ class EgoRuntime:
                     self._publish_view_scene()
                     self._keep_motion_belief()
                 return
+            self.camera_errors = {}
             frame = {**frame, "cameras": [c for c in frame.get("cameras", []) if c["id"] in cameras],
                      "detections": [d for d in frame.get("detections", []) if d.get("camera") in cameras]}
             localization_frames = self._localization_frames(frame, [])
@@ -754,6 +791,19 @@ class EgoRuntime:
                 self.estimator.update(frame)
                 self._publish_view_scene()
                 self._keep_motion_belief()
+
+    def _read_rgbd(self, cameras: list[str]) -> list[dict]:
+        frames = []
+        errors = dict(self.camera_errors)
+        for camera in cameras:
+            try:
+                frames.append(decode_rgbd(self.link.rgbd(camera)))
+            except (HttpError, OSError, ValueError) as exc:
+                errors[camera] = str(exc)
+            else:
+                errors.pop(camera, None)
+        self.camera_errors = errors
+        return frames
 
     if _assembly_enabled():
         def _observe_decision(self, reason, skill=None):
@@ -837,7 +887,7 @@ class EgoRuntime:
                 targeted = set(request['cameras']) & set(due) if request and not request.get('captured') and frame['stamp'] > request['after'] else set()
                 if targeted:
                     self._observation_reason = 'targeted_request'
-                whole = [decode_rgbd(self.link.rgbd(camera)) for camera in due]
+                whole = self._read_rgbd(due)
                 if mode == "rgbd" and whole:
                     self._latest_frame = whole[0]
                 self._latest_native_frames = {**getattr(self, '_latest_native_frames', {}),
@@ -1633,63 +1683,64 @@ class EgoRuntime:
         base still at the first set point. While another thread holds the lock, the objects are
         those recorded when the perception update in progress began (everything changed before
         it is in there) or at the last read, whichever came later."""
-        if _assembly_enabled():
-            if self._lock.acquire(blocking=False):
-                try:
-                    belief = self._keep_motion_belief()
-                finally:
-                    self._lock.release()
-            else:
-                belief = self._motion_belief
-                if belief is None:  # obey the exploration budget even on the first belief read
-                    from steward.ego.look_timeout import active, remaining, LookExpired
-                    from steward.ego.fasten_sequence import active as drive_active
-                    acquired = self._lock.acquire(timeout=remaining(math.inf)) if active() or drive_active() else self._lock.acquire()
-                    if not acquired:
-                        remaining(math.inf)
-                        raise LookExpired('exploration waiting for initial belief')
-                    try:
-                        belief = self._keep_motion_belief()
-                    finally:
-                        self._lock.release()
+        if not _assembly_enabled():
+            return self._skill_robot.observe()
+        if self._lock.acquire(blocking=False):
+            try:
+                belief = self._keep_motion_belief()
+            finally:
+                self._lock.release()
         else:
-            if self._lock.acquire(blocking=False):
+            belief = self._motion_belief
+            if belief is None:  # obey the exploration budget even on the first belief read
+                from steward.ego.look_timeout import active, remaining, LookExpired
+                from steward.ego.fasten_sequence import active as drive_active
+                acquired = self._lock.acquire(timeout=remaining(math.inf)) if active() or drive_active() else self._lock.acquire()
+                if not acquired:
+                    remaining(math.inf)
+                    raise LookExpired('exploration waiting for initial belief')
                 try:
                     belief = self._keep_motion_belief()
                 finally:
                     self._lock.release()
-            else:
-                belief = self._motion_belief
-                if belief is None:  # nothing recorded yet: nothing to fall back on but waiting
-                    with self._lock:
-                        belief = self._keep_motion_belief()
         state = {key: dict(value) if isinstance(value, dict) else value for key, value in belief.items()}
-        if _assembly_enabled():
-            ids = state.pop('_observation_frames', ())
-            skill = decision_views.context(self.executor)[0]
-            state['entities'] = decision_views.Evidence(state['entities'],
-                lambda: self.observation_audit.consume(skill, ids, 'motion_entities_read'))
+        ids = state.pop('_observation_frames', ())
+        skill = decision_views.context(self.executor)[0]
+        state['entities'] = decision_views.Evidence(state['entities'],
+            lambda: self.observation_audit.consume(skill, ids, 'motion_entities_read'))
         state.pop("generation", None)
         try:
             live = self.link.sensors()
         except Exception:  # noqa: BLE001 - the belief is still a usable answer when the body cannot be reached
-            return self.arm.virtualize(state)
+            return self.arm.virtualize(state) if self.arm is not None else state
         # A body from another episode than the objects (a reset race: a clock behind the belief's,
         # or another episode number) is not mixed in: the body and the objects of one answer
         # belong to one episode, so the belief is returned whole.
         if (live.get("stamp") is not None and belief.get("stamp") is not None and live["stamp"] < belief["stamp"] - 1e-6) \
                 or (live.get("episode") is not None and belief.get("episode") is not None
                     and live["episode"] != belief["episode"]) or belief.get("generation") != self._generation:
-            return self.arm.virtualize(state)
+            return self.arm.virtualize(state) if self.arm is not None else state
         live = self._feedback_header(live)
-        if _assembly_enabled():
-            memory = getattr(self, "_memory_checkpoint", None)
-            if memory is not None:
-                memory.note_body(live)
+        memory = getattr(self, "_memory_checkpoint", None)
+        if memory is not None:
+            memory.note_body(live)
         for key in ("stamp", "odometry", "joints", "gripper", "grippers"):
             if live.get(key) is not None:
                 state[key] = live[key]
-        return self.arm.virtualize(state)
+        return self.arm.virtualize(state) if self.arm is not None else state
+
+    def _read_motion_belief(self) -> dict:
+        """Keep the motion loop independent of long RGB-D updates using the last belief snapshot."""
+        if self._lock.acquire(blocking=False):
+            try:
+                return self._keep_motion_belief()
+            finally:
+                self._lock.release()
+        belief = self._motion_belief
+        if belief is not None:
+            return belief
+        with self._lock:  # the first snapshot has no earlier observation to fall back to
+            return self._keep_motion_belief()
 
     def _keep_motion_belief(self) -> dict:
         """Record (and return) the belief part of the motion state; the caller holds ``_lock``."""
@@ -1724,9 +1775,9 @@ class EgoRuntime:
                 if not self._same_episode(generation, body):  # the skill or the body is another episode's
                     return track_id
                 body = self._feedback_header(body)
-                held = self.estimator.mark_held(track_id, at, gripper=self.arm.geometry.gripper, body=body, verify_binding=True)
+                held = self.estimator.mark_held(track_id, at, gripper=self.gripper_link, body=body, verify_binding=True)
                 track = getattr(self.estimator, 'tracks', {}).get(held)
-                if track is not None and track.held_tool_feature is not None:
+                if self.arm is not None and track is not None and track.held_tool_feature is not None:
                     virtual = self.arm.joints_of((body or {}).get('joints', self.estimator.joints),
                                                 (body or {}).get('odometry', self.estimator.odometry))
                     track.held_tool_feature['graspWrist'] = {k:virtual.get(k,0.) for k in ('wrist_roll','wrist_pitch')}
@@ -1739,9 +1790,9 @@ class EgoRuntime:
                 if not self._same_episode(generation, body):  # the skill or the body is another episode's
                     return track_id
                 body = self._feedback_header(body)
-                held = self.estimator.mark_held(track_id, at, gripper=self.arm.geometry.gripper, body=body)
+                held = self.estimator.mark_held(track_id, at, gripper=self.gripper_link, body=body)
                 track = getattr(self.estimator, 'tracks', {}).get(held)
-                if track is not None and track.held_tool_feature is not None:
+                if self.arm is not None and track is not None and track.held_tool_feature is not None:
                     virtual = self.arm.joints_of((body or {}).get('joints', self.estimator.joints),
                                                 (body or {}).get('odometry', self.estimator.odometry))
                     track.held_tool_feature['graspWrist'] = {k:virtual.get(k,0.) for k in ('wrist_roll','wrist_pitch')}
@@ -1890,7 +1941,7 @@ class EgoRuntime:
         p = me.pose.value
         holding_by_gripper = {r.b.get("link", "gripper"): r.a["entity"]
                               for r in es.relations if r.type == "attached"}
-        held = holding_by_gripper.get(self.arm.geometry.gripper, holding_by_gripper.get("gripper"))
+        held = holding_by_gripper.get(self.gripper_link, holding_by_gripper.get("gripper"))
         supports = {r.a["entity"]: r.b["entity"] for r in es.relations if r.type == "supported-by"}
         objects = []
         for ent in es.entities:
@@ -1964,23 +2015,26 @@ class EgoRuntime:
                     "holdingBelief":getattr(self.estimator,"holding_belief",None)}
                     if sr.holding_enabled() or sr.size_enabled() or sr.role_enabled() else {}),
                 "runtimeError": self.last_error,
+                **({"cameraErrors": dict(self.camera_errors)} if self.camera_errors else {}),
                 "faceCaptureError": self.face_error,
             })
         else:
+            joints = {j.id: j.q.value[0] for j in me.rigid.joints if j.q.value}
+            if self.arm is not None:
+                joints = self.arm.joints_of(joints, {"x": p["p"][0], "y": p["p"][1], "yaw": yaw_from_quat(p["q"])})
             return {
                 "version": es.version,
                 "t": round(es.stamp, 3),
                 "self": {"x": round(p["p"][0], 3), "y": round(p["p"][1], 3),
                          "yawDeg": round(math.degrees(yaw_from_quat(p["q"])), 1),
-                         "holding": held, "holdingByGripper": holding_by_gripper, "joints": {k: round(v, 3) for k, v in self.arm.joints_of(
-                             {j.id: j.q.value[0] for j in me.rigid.joints if j.q.value},
-                             {"x": p["p"][0], "y": p["p"][1], "yaw": yaw_from_quat(p["q"])}).items()}},
+                         "holding": held, "joints": {k: round(v, 3) for k, v in joints.items()}},
                 "objects": objects,
                 "dropped": dropped,
                 "currentSkill": job,
                 "perception": self.perception_mode,
                 **({"segmentation": dict(self.segmentation)} if self.perception_mode == "rgbd-segmenter" else {}),
                 "runtimeError": self.last_error,
+                **({"cameraErrors": dict(self.camera_errors)} if self.camera_errors else {}),
                 "faceCaptureError": self.face_error,
             }
 
@@ -2338,8 +2392,9 @@ class EgoRuntime:
 
     def _gripper_pose(self, packet: dict) -> dict:
         """The pose of the gripper the arm works with, its joints read as the arm's virtual joints."""
-        return gripper_pose(self.estimator.robot_model, packet, self.arm.geometry.gripper,
-                            self.arm.joints_of(packet["joint_encoders"], {"x": 0.0, "y": 0.0, "yaw": 0.0}))
+        joints = packet["joint_encoders"]
+        virtual = None if self.arm is None else self.arm.joints_of(joints, {"x": 0.0, "y": 0.0, "yaw": 0.0})
+        return gripper_pose(self.estimator.robot_model, packet, self.gripper_link, virtual)
 
     def camera_calibration(self) -> dict:
         """Read fixed camera calibration through the robot sensor port, with no absolute poses."""
@@ -2651,6 +2706,8 @@ class EgoRuntime:
 
     def _arm_load_issue(self, planner: Esim) -> str | None:
         """Drawer-handle following is shared; object loads belong to individual hands."""
+        if planner.arm is None:
+            return None
         gripper = planner.arm.geometry.gripper
         with self._lock:
             other = next((g for g, report in self.estimator.grippers.items()
@@ -2717,7 +2774,7 @@ class EgoRuntime:
 
     if _assembly_enabled():
         @timed("prediction")
-        def predict(self, skill: str, params: dict) -> dict:
+        def predict(self, skill: str, params: dict, intent_revision: str | None = None) -> dict:
             self._observe_decision('prediction', skill)
             self.observation_audit.consume(skill, reason='prediction')
             params = {k:v for k,v in params.items() if k != 'preconditionContext'}
@@ -2765,6 +2822,8 @@ class EgoRuntime:
             limit = self.config.max_pick_risk if receipt.get("skill") == "pick" else self.config.max_risk
             receipt["withinRiskLimit"] = receipt["feasible"] and receipt["risk"] <= limit
             receipt["maxRisk"] = limit
+            if intent_revision is not None:
+                receipt["intentRevision"] = intent_revision
             if getattr(self, '_configuration_pending', False):
                 receipt['capabilityConfiguration'] = deepcopy(self.capability_configuration)
                 self._configuration_pending = False
@@ -2778,11 +2837,11 @@ class EgoRuntime:
                 current().emit('primitive_predict', skill=skill, receipt=deepcopy(receipt))
             return receipt
     else:
-        def predict(self, skill: str, params: dict) -> dict:
+        def predict(self, skill: str, params: dict, intent_revision: str | None = None) -> dict:
             planner = self._planner_for(params)
             if isinstance(planner.arm, PiperArm):
                 params = {**params, "arm": planner.arm.config.arm}
-            if skill in ("drive_screw", "insert_screw_into_hole"):
+            if self.arm is not None and skill in ("drive_screw", "insert_screw_into_hole"):
                 # Refresh cameras before trusting screw tip / head-up (same as ego_screw_holes).
                 try:
                     self._poll_once()
@@ -2801,7 +2860,7 @@ class EgoRuntime:
                 # The drawer the robot pulled open is closed by that pull (handle, axis, distance)
                 # unless the caller names another: views of the open drawer box it deeper than it is.
                 params = {**self.executor.pull_of(str(params.get("target", ""))), **params}
-            if skill == "drive_screw":
+            if planner.arm is not None and skill == "drive_screw":
                 gate = self._drive_screw_tip_gate(params.get("target"))
                 if gate is not None:
                     receipt = planner._receipt(
@@ -2813,7 +2872,7 @@ class EgoRuntime:
                         self.receipts[receipt["id"]] = receipt
                         self._receipt_generation[receipt["id"]] = self._generation
                     return receipt
-            if skill == "insert_screw_into_hole":
+            if planner.arm is not None and skill == "insert_screw_into_hole":
                 gate = self._insert_screw_tip_gate(params.get("object") or params.get("target"), planner.arm.geometry.gripper)
                 if gate is not None:
                     receipt = planner._receipt(
@@ -2829,6 +2888,8 @@ class EgoRuntime:
             limit = self.config.max_pick_risk if receipt.get("skill") == "pick" else self.config.max_risk
             receipt["withinRiskLimit"] = receipt["feasible"] and receipt["risk"] <= limit
             receipt["maxRisk"] = limit
+            if intent_revision is not None:
+                receipt["intentRevision"] = intent_revision
             with self._lock:
                 self.receipts[receipt["id"]] = receipt
                 self._receipt_generation[receipt["id"]] = self._generation
@@ -2986,7 +3047,17 @@ class EgoRuntime:
             if protected and skill != 'flip_assembly':
                 raise SkillFailed(protected['guidance'])
             self._check_skill_preconditions(receipt.get('plan', {}), phase='begin')
-        plan = (receipt.get("plan") or {}) if skill == "pick" else {}
+        plan = receipt.get("plan") or {}
+        freshness = self._waypoint_skills.get(skill)
+        if freshness is not None:
+            with self._lock:
+                track = self.estimator.tracks.get(plan.get("target"))
+                if (track is None or self._motion_state()["stamp"] - track.last_seen > freshness.max_age_s
+                        or math.dist(track.pos, plan["targetP"]) > freshness.max_drift_m):
+                    raise SkillFailed("target moved or the observation expired; observe and predict again")
+            return
+        if skill != "pick":
+            return
         if plan.get('assemblyGrip'):
             return  # commanded release/frozen body frame; inspect after the grasp
         target, before = plan.get("target"), plan.get("targetP")
@@ -3020,6 +3091,7 @@ class EgoRuntime:
         if _assembly_enabled():
             from steward.ego.preconditions import publish
             publish(job)
+        self.monitor.finished(job)
         result = {"succeeded": "完成", "failed": "失败", "stopped": "被停止"}.get(job.state, job.state)
         self._log("skill", f"{job.skill} {result}" + (f"：{job.message}" if job.state != "succeeded" else ""))
         if _assembly_enabled():
@@ -3075,7 +3147,7 @@ class EgoRuntime:
         entries newer than ``since``.
 
         :param since: the id of the newest activity entry the caller already has.
-        :returns: ``{"plan", "skill", "activity", "activityLast", "boot", "t"}`` (``activityLast`` is
+        :returns: ``{"plan", "skill", "body", "availableSkills", "activity", "activityLast", "boot", "t"}`` (``activityLast`` is
             the newest id, lower than ``since`` after the runtime restarted; ``boot`` names this
             runtime process, so a client tells a new process from the one it was reading).
         """
@@ -3084,7 +3156,15 @@ class EgoRuntime:
             plan = dict(self.plan) if self.plan else None
         with self._lock:
             newest = self.activity[-1]["id"] if self.activity else 0
-        return {"plan": plan, "skill": running.to_dict() if running else None, "activity": self.activity_since(since),
+        if _assembly_enabled() and self.arm is not None:
+            from steward.ego.skill_catalog import PUBLIC_SKILLS
+            skill_names = PUBLIC_SKILLS
+        else:
+            skill_names = self.esim.skill_names()
+        available = [*skill_names, "look_around"] if self.arm is not None else list(skill_names)
+        return {"plan": plan, "skill": running.to_dict() if running else None,
+                "body": self.body_id, "availableSkills": available,
+                "activity": self.activity_since(since),
                 "activityLast": newest, "boot": self.boot, "t": round(self.estimator.stamp, 2)}
 
     # ----------------------------------------------------------------- control
@@ -3092,20 +3172,25 @@ class EgoRuntime:
         return {"owner": self.control_owner}
 
     def acquire_control(self, owner: str) -> dict:
-        """Give ``owner`` exclusive use of skills until it releases control; the running skill stops.
+        """Give ``owner`` exclusive control until it releases control; previous motion stops.
         Clients that are not the owner cannot start skills meanwhile, but anyone may still stop."""
         if not owner:
             raise ValueError("control needs an owner name")
-        with self._lock:
+        with self._dispatch_lock:
             if self.control_owner not in (None, owner):
                 raise PermissionError(f"the robot is already controlled by {self.control_owner}")
+            handoff = None
+            job = self.executor.current
+            if self._direct_motion is not None or (job is not None and job.state == "running"):
+                handoff = self._hold_motion("control-handoff")
             self.control_owner = owner
-        self.executor.stop()
-        return self.control()
+            return self.control() if handoff is None else {**self.control(), "handoff": handoff}
 
     def release_control(self, owner: str) -> dict:
-        with self._lock:
+        with self._dispatch_lock:
             if self.control_owner == owner:
+                if self._direct_motion is not None:
+                    self._hold_motion("control-handoff")
                 self.control_owner = None
         return self.control()
 
@@ -3368,21 +3453,22 @@ class EgoRuntime:
             ownership = session_inventory.guard(self, receipt.get('skill'), receipt.get('params', {}))
             if ownership:
                 raise PermissionError(ownership['message'])
-        if self._receipt_generation.get(receipt_id) != self._generation:
-            raise PermissionError('receipt belongs to a different sensor session')
-        now = self.estimator.stamp
-        if receipt.get("used"):
-            raise PermissionError(f"receipt {receipt_id} was already executed; predict again")
-        if not receipt["feasible"]:
-            raise PermissionError(f"receipt {receipt_id} is not feasible: {'; '.join(receipt['issues'])}")
-        if now > receipt["expiresAt"]:
-            raise PermissionError(f"receipt {receipt_id} expired at t={receipt['expiresAt']:.1f}s; predict again")
-        limit = receipt.get("maxRisk", self.config.max_risk)
-        if receipt["risk"] > limit:
-            raise PermissionError(f"receipt risk {receipt['risk']:.2f} exceeds the limit {limit:.2f}")
-        if _assembly_enabled():
-            self._check_skill_preconditions(receipt['plan'], phase='consume')
-        receipt["used"] = True
+        with self._lock:
+            if self._receipt_generation.get(receipt_id) != self._generation:
+                raise PermissionError('receipt belongs to a different sensor session')
+            if self.receipts[receipt_id].get("used"):
+                raise PermissionError(f"receipt {receipt_id} was already executed; query its job")
+            if not receipt["feasible"]:
+                raise PermissionError(f"receipt {receipt_id} is not feasible: {'; '.join(receipt['issues'])}")
+            now = self.estimator.stamp
+            if now > receipt["expiresAt"]:
+                raise PermissionError(f"receipt {receipt_id} expired at t={receipt['expiresAt']:.1f}s; predict again")
+            limit = receipt.get("maxRisk", self.config.max_risk)
+            if receipt["risk"] > limit:
+                raise PermissionError(f"receipt risk {receipt['risk']:.2f} exceeds the limit {limit:.2f}")
+            if _assembly_enabled():
+                self._check_skill_preconditions(receipt['plan'], phase='consume')
+            self.receipts[receipt_id]["used"] = True
         if _assembly_enabled():
             from steward.ego.assembly_session import current
             if current() is not None:
@@ -3390,25 +3476,37 @@ class EgoRuntime:
                                predictedAt=receipt.get('createdAt'), consumedAt=now)
         return receipt['plan']
 
-    def run(self, receipt_id: str, owner: str | None = None) -> dict:
+    def run(self, receipt_id: str, owner: str | None = None, intent_revision: str | None = None,
+            *, task_id: str | None = None, notify_completion: bool = False) -> dict:
         """Execute a predicted plan. The runtime re-checks the receipt here, where the motion happens."""
-        self._check_control(owner)
-        with self._arm_selection_lock:
+        with self._dispatch_lock:
+            self._check_control(owner)
+            self._check_intent_revision(owner, intent_revision)
+            self._check_task(task_id)
+            if self._direct_motion is not None:
+                raise PermissionError("wait for the active S0 command before starting a skill")
+            receipt = self.receipt(receipt_id)
+            if receipt.get("intentRevision") != intent_revision:
+                raise PermissionError("prediction receipt belongs to an earlier task intent")
             current = self.executor.current
             if current is not None and current.state == "running":
                 raise RuntimeError(f"skill {current.skill} ({current.id}) is still running")
-            receipt = self.receipt(receipt_id)
             planner = self._planner_for(receipt.get("params") or {})
             issue = self._arm_load_issue(planner)
             if issue is not None:
                 raise PermissionError(issue)
+            epoch = self._ready_motion_epoch()
             self._consume_receipt(receipt)
             if planner.arm is not self.arm and isinstance(planner.arm, PiperArm):
                 planner.arm.invalidate_target()
             self.esim, self.arm = planner, planner.arm
-            with self._lock:
-                self.estimator.select_gripper(self.arm.geometry.gripper)
-            job = self.executor.start(receipt["skill"], receipt).to_dict()
+            if self.arm is not None:
+                self.gripper_link = self.arm.geometry.gripper
+            if self.arm is not None:
+                with self._lock:
+                    self.estimator.select_gripper(self.arm.geometry.gripper)
+            job = self.executor.start(receipt["skill"], receipt, motion_epoch=epoch,
+                                      task_id=task_id, notify_completion=notify_completion).to_dict()
         if _assembly_enabled():
             from steward.ego.memory_checkpoint import result_fields
             job.update(result_fields(self))
@@ -3417,27 +3515,32 @@ class EgoRuntime:
         self._log("skill", f"{receipt['skill']} 开始" + (f"：{target}" if target else ""))
         return job
 
-    if _assembly_enabled():
-        def explore(self, owner: str | None = None, timeout_s: float = 120.) -> dict:
-            """Look around in place. Rotation without translation needs no receipt.
+    def explore(self, owner: str | None = None, intent_revision: str | None = None,
+                *, task_id: str | None = None, timeout_s: float = 120.) -> dict:
+        """Look around in place. Rotation without translation needs no receipt.
 
-            With ASSEMBLY_ACTION_BUDGET, timeout_s bounds simulation time; the measured wall watchdog only
-            guards stalled IO. With ASSEMBLY_ACTION_BUDGET disabled it bounds wall lifetime. On expiry it
-            returns the accumulated Ego observations. The bounded scan does not append drawer
-            inspection or arm homing; STEWARD_LOOK_TIMEOUT=0 retains the legacy behaviour."""
-            self._check_control(owner)
-            with self._arm_selection_lock:
-                return self.executor.start("look_around", {"id": "look-around", "plan": {"timeoutS": timeout_s}}).to_dict()
-    else:
-        def explore(self, owner: str | None = None) -> dict:
-            """Look around in place. Rotation without translation needs no receipt.
+        When ``MotionConfig.inspect_closed_drawers`` is set, each closed drawer is opened, looked
+        into, and closed afterwards. Those visits are planned from the ego state at the time and
+        skipped when they are not feasible.
 
-            When ``MotionConfig.inspect_closed_drawers`` is set, each closed drawer is opened, looked
-            into, and closed afterwards. Those visits are planned from the ego state at the time and
-            skipped when they are not feasible."""
+        With ASSEMBLY_ACTION_BUDGET, timeout_s bounds simulation time; the measured wall watchdog only
+        guards stalled IO. With ASSEMBLY_ACTION_BUDGET disabled it bounds wall lifetime. On expiry it
+        returns the accumulated Ego observations. The bounded scan does not append drawer
+        inspection or arm homing; STEWARD_LOOK_TIMEOUT=0 retains the legacy behaviour."""
+        if _assembly_enabled():
+            plan = {"timeoutS": timeout_s}
+        else:
+            plan = {}
+        if self.arm is None:
+            raise ValueError("this fixed robot does not support base exploration; use ego_observe")
+        with self._dispatch_lock:
             self._check_control(owner)
-            with self._arm_selection_lock:
-                return self.executor.start("look_around", {"id": "look-around", "plan": {}}).to_dict()
+            self._check_intent_revision(owner, intent_revision)
+            self._check_task(task_id)
+            epoch = self._ready_motion_epoch()
+            return self.executor.start("look_around", {"id": "look-around", "plan": plan,
+                                                     "intentRevision": intent_revision},
+                                       motion_epoch=epoch, task_id=task_id).to_dict()
 
     def _closed_drawer_ids(self) -> list[str]:
         """Closed pullable drawers already seen enough times to open, nearest first."""
@@ -3483,8 +3586,248 @@ class EgoRuntime:
             raise KeyError(f"unknown job {job_id!r}")
         return self.executor.jobs[job_id].to_dict()
 
+    def job_for_receipt(self, receipt_id: str) -> dict:
+        """Recover a dispatch result without repeating the motion request."""
+        with self._dispatch_lock:
+            if receipt_id not in self.receipts:
+                raise KeyError(f"unknown receipt {receipt_id!r}")
+            for job in self.executor.jobs.copy().values():
+                if job.receipt == receipt_id:
+                    return job.to_dict()
+            return {"receipt": receipt_id, "state": "unknown"}
+
+    def verify_placement(self, job_id: str, goal: dict, owner: str | None = None,
+                         intent_revision: str | None = None) -> dict:
+        """Record the latest goal, the job facts and the robot-side placement evidence."""
+        with self._dispatch_lock, self._lock:
+            self._check_intent_revision(owner, intent_revision)
+            job = self.executor.jobs[job_id]
+            receipt = self.receipts[job.receipt]
+            if receipt.get("intentRevision") != intent_revision:
+                raise PermissionError("job belongs to an earlier task intent")
+            record = placement_verdict(self.estimator, job, receipt, goal)
+            record["intentRevision"] = intent_revision
+            record["episode"] = self._episode
+            self.verifications.append(record)
+            if self.out_dir is not None:
+                self.out_dir.mkdir(parents=True, exist_ok=True)
+                with (self.out_dir / "verifications.jsonl").open("a", encoding="utf-8") as stream:
+                    stream.write(json.dumps(record, ensure_ascii=False) + "\n")
+            return record
+
     def wait(self, job_id: str, timeout: float = 120.0) -> dict:
         return self.executor.wait(job_id, timeout).to_dict()
 
-    def stop_motion(self) -> dict:
-        return self.executor.stop()
+    def _check_task(self, task_id: str | None) -> None:
+        if task_id is not None and (not isinstance(task_id, str) or not task_id):
+            raise ValueError("taskId must identify an Ego Harness task")
+        if task_id in self._ended_tasks:
+            raise PermissionError("the Ego Harness task has ended")
+
+    def direct_body(self, body: dict, cancelled: Callable[[], bool]) -> dict:
+        """Command PiPER and wait for measured feedback while keeping stop available."""
+        if self.body_id != PIPER_BODY:
+            raise PermissionError("this body does not support PiPER direct commands")
+        owner, revision, task_id = (body.get(key) for key in ("owner", "intentRevision", "taskId"))
+        limits = {joint["id"]: joint["limits"]["value"] for joint in self.estimator.robot_model["body"]["joints"]}
+        joints = body.get("joints")
+        gripper = body.get("gripper")
+        if joints is not None and gripper is None:
+            if not isinstance(joints, dict) or not joints.keys() or not joints.keys() <= set(ARM_JOINTS):
+                raise ValueError("joints must contain one or more PiPER arm joints (joint1 through joint6)")
+            for joint, angle in joints.items():
+                lo, hi = limits[joint]["lo"], limits[joint]["hi"]
+                if type(angle) not in (int, float) or not lo <= angle <= hi:
+                    raise ValueError(f"{joint} must be a finite angle in radians within [{lo}, {hi}]")
+            command, tolerance = {"joints": joints}, 0.01
+            targets = joints
+        elif joints is None and gripper in ("open", "close"):
+            command, tolerance = {"gripper": gripper}, 0.002
+            targets = {"joint7": limits["joint7"]["hi"], "joint8": limits["joint8"]["lo"]} if gripper == "open" else {
+                "joint7": limits["joint7"]["lo"], "joint8": limits["joint8"]["hi"]}
+        else:
+            raise ValueError("provide either joints or gripper ('open' or 'close')")
+
+        token = (uuid.uuid4().hex, task_id)
+        completed = False
+        try:
+            with self._dispatch_lock:
+                if not owner or owner != self.control_owner or not task_id:
+                    raise PermissionError("direct S0 commands require an active, controlled Ego Harness task")
+                self._check_intent_revision(owner, revision)
+                self._check_task(task_id)
+                job = self.executor.current
+                if self._direct_motion is not None or (job is not None and job.state == "running"):
+                    raise PermissionError("wait for current motion to finish before issuing a direct S0 command")
+                if cancelled():
+                    raise CancelledError()
+                epoch = self._ready_motion_epoch()
+                start = self.link.proprioception(timeout=1.0)
+                if cancelled():
+                    raise CancelledError()
+                self._direct_motion = token
+                self.link.command(command, epoch, timeout=2.0)
+
+            deadline = time.monotonic() + 6.0
+            reached_at = None
+            while time.monotonic() < deadline:
+                if cancelled():
+                    raise CancelledError()
+                with self._dispatch_lock:
+                    if self._direct_motion is not token:
+                        raise PermissionError("direct S0 command was interrupted")
+                frame = self.link.proprioception(timeout=1.0)
+                if frame["episode"] != start["episode"]:
+                    raise PermissionError("the simulation restarted during the S0 command")
+                measured = {joint: frame["joints"][joint] for joint in targets}
+                at_target = all(abs(measured[joint] - value) <= tolerance for joint, value in targets.items())
+                grip = frame["gripper"]
+                if gripper == "open":
+                    at_target = at_target and not grip["holding"]
+                elif gripper == "close":
+                    at_target = at_target or grip["holding"]
+                stamp = frame["stamp"]
+                if at_target and stamp > start["stamp"]:
+                    if reached_at is None:
+                        reached_at = stamp
+                    if stamp - reached_at >= 0.06:
+                        with self._dispatch_lock:
+                            if self._direct_motion is not token or self._ready_motion_epoch() != epoch:
+                                raise PermissionError("direct S0 command was interrupted")
+                            self._log("s0", f"S0 到达目标 {command}，编码器 {measured}")
+                            completed = True
+                            return {"id": token[0], "state": "reached", "command": command,
+                                    "joints": measured, "gripper": grip, "stamp": stamp}
+                else:
+                    reached_at = None
+                time.sleep(0.04)
+            raise RuntimeError("direct S0 command timed out waiting for encoder confirmation")
+        finally:
+            with self._dispatch_lock:
+                if self._direct_motion is token:
+                    if completed:
+                        self._direct_motion = None
+                    else:
+                        self._hold_motion("protection")
+
+    def stop_motion(self, *, owner: str | None = None, intent_revision: str | None = None,
+                    task_id: str | None = None, hold_during_handoff: bool = False) -> dict:
+        with self._dispatch_lock:
+            self._check_intent_revision(owner, intent_revision)
+            if task_id is not None:
+                if not isinstance(task_id, str) or not task_id:
+                    raise ValueError("taskId must identify an Ego Harness task")
+                self._ended_tasks.add(task_id)
+                job = self.executor.current
+                active_job = job is not None and job.state == "running" and job.task_id == task_id
+                active_direct = self._direct_motion is not None and self._direct_motion[1] == task_id
+                if not hold_during_handoff and not active_job and not active_direct:
+                    return {"stopped": None}
+            return self._hold_motion("protection")
+
+    def _hold_motion(self, reason: str) -> dict:
+        current = self.executor.current
+        direct = self._direct_motion
+        affected = direct[0] if direct is not None else (
+            current.id if current is not None and current.state == "running" else None)
+        self._direct_motion = None
+        self.executor.cancel()
+        try:
+            motion = self.link.hold_motion(reason)
+        except (HttpError, OSError):
+            self._hold_unconfirmed = True
+            raise
+        else:
+            self._hold_unconfirmed = False
+        finally:
+            self.executor.stop(hold_body=False)
+        result = {"stopped": affected, "motion": motion}
+        if direct is not None:
+            result["direct"] = True
+        return result
+
+    def protect_job(self, job: Job, watched_target: dict | None = None, grip_loss: bool = False) -> dict | None:
+        """Stop the job observed by the monitor, if it still owns the body."""
+        with self._dispatch_lock:
+            if self.executor.current is not job or job.state != "running":
+                return None
+            if watched_target is not None and job.watched_target is not watched_target:
+                return None
+            if grip_loss and job.skill != "navigate" and not job.expects_grip:
+                return None
+            return self._hold_motion("protection")["motion"]
+
+    def target_change(self, job: Job, target: dict, stamp: float | None) -> dict | None:
+        """Find fresh RGB-D evidence of motion or replacement near the planned target."""
+        if stamp is None or not self._lock.acquire(blocking=False):
+            return None
+        try:
+            tracks = self.estimator.tracks
+            planned = tracks.get(target["id"])
+            recent = planned is not None and stamp - planned.last_seen < 0.25
+            candidates = [planned] if recent else [
+                track for track in tracks.values()
+                if track.category == target["category"] and track is not planned
+                and (target["category"] != "tray" or planned is not None and track.color == planned.color)
+            ]
+            changes = []
+            for track in candidates:
+                observation = track.assembly_observation
+                if (observation is None or observation.get("truncated")
+                        or not job.started < observation["stamp"] <= stamp
+                        or stamp - observation["stamp"] >= 0.25):
+                    continue
+                offset = math.dist(target["position"], observation["centreM"])
+                if 0.035 < offset < 0.18:
+                    changes.append({"target": target["id"], "observedEntity": track.id,
+                                    "observationStamp": observation["stamp"],
+                                    "observedPosition": observation["centreM"], "displacementM": offset})
+            return changes[0] if len(changes) == 1 else None
+        finally:
+            self._lock.release()
+
+    def revise_intent(self, owner: str, instruction: str) -> dict:
+        if not owner or not instruction.strip():
+            raise ValueError("an intent revision requires an owner and an instruction")
+        with self._dispatch_lock:
+            self._check_control(owner)
+            revision = uuid.uuid4().hex
+            self._intent_revisions[owner] = revision
+            self._log("intent", instruction)
+            job = self.executor.current
+            active = self._direct_motion is not None or (job is not None and job.state == "running")
+            result = self._hold_motion("intent-revision") if active else None
+            return {"intentRevision": revision, "interrupted": result}
+
+    def _check_intent_revision(self, owner: str | None, revision: str | None) -> None:
+        expected = self._intent_revisions.get(owner) if owner is not None else None
+        if revision != expected:
+            raise PermissionError("task intent is stale; observe and plan with the current instruction")
+        if revision is not None and owner != self.control_owner:
+            raise PermissionError("the Ego turn has released control")
+
+    def resume_motion(self, epoch: str, owner: str | None = None) -> dict:
+        with self._dispatch_lock:
+            self._check_control(owner)
+            job = self.executor.current
+            if self._direct_motion is not None or (job is not None and job.state == "running"):
+                raise PermissionError("wait for the previous motion to terminate before resuming")
+            motion = self.link.resume_motion(epoch)
+            self._hold_unconfirmed = False
+            return motion
+
+    def _ready_motion_epoch(self) -> str:
+        if self._hold_unconfirmed:
+            raise PermissionError("motion hold has not been confirmed; reconcile it before resuming")
+        status = self.link.motion_status()
+        if status["state"] != "ready":
+            raise PermissionError("robot motion is on hold; confirm standstill and authorize resume")
+        return status["epoch"]
+
+    def _body_command(self, command: dict) -> None:
+        try:
+            self.link.command(command, self.executor.motion_epoch)
+        except HttpError as exc:
+            if exc.status == 409:
+                raise SkillStopped() from exc
+            raise
