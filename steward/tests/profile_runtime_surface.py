@@ -72,6 +72,10 @@ def surface(check_catalog=False):
     assert ('GET', '/ego/control') in server.UNRECORDED
     from steward.assembly_profile import enabled
     expected_control = dict(runtime.control())
+    expected_control['capabilities'] = {
+        **runtime.describe_body(),
+        's0Tools': {'body_stop': 'control', 'ego_motion_status': 'read', 'ego_gripper_pose': 'read'},
+    }
     if enabled():
         expected_control['assemblyProfile'] = 'toy'
     assert routes['GET', '/ego/control']({}, {}) == expected_control

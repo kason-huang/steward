@@ -69,6 +69,54 @@ for (const artifact of ['src/index.ts', 'lib/index.js']) {
       assert.deepEqual(registered, [])
     })
   }
+  for (const body of ['xlerobot', 'phyagent-piper']) test(`${artifact}: discovers ${body} and forwards a common TCP request`, async t => {
+    const calls = []
+    const skills = body === 'xlerobot' ? ['navigate', 'pick', 'place', 'look_around'] : ['pick', 'place']
+    const target = { position: [0.27, -0.155, 0.85], orientation: [0, 1, 0, 0] }
+    const feedback = { id: 'command', state: 'reached', pose: target, stamp: 1, gripper: { holding: false } }
+    const capabilities = { body, skills, cameras: ['camera'], arms: [{ id: 'working' }],
+      s0Tools: { ego_gripper_pose: 'read', body_set_pose: 'control', body_set_gripper: 'control',
+        ...(body === 'phyagent-piper' ? { body_set_joints: 'control' } : {}) },
+      tcp: { frame: 'base', orientationOrder: 'wxyz' } }
+    t.mock.method(globalThis, 'fetch', async (url, options) => {
+      const path = new URL(url).pathname
+      if (path === '/ego/control') return Response.json({ owner: null, capabilities })
+      assert.equal(path, '/ego/body/command')
+      calls.push(JSON.parse(options.body))
+      return Response.json(feedback)
+    })
+    const ctx = new Context()
+    t.after(() => ctx.fiber.dispose())
+    const config = { endpoint: 'http://ego.invalid', timeoutMs: 1000, owner: 'operator',
+      taskId: 'task', intentRevision: 'revision' }
+    const ego = new EgoRuntimeClient(ctx, config)
+    const registered = []
+    await apply({ ego, tools: { register: tool => registered.push(tool) } })
+    assert.deepEqual(registered.filter(tool => tool.name.startsWith('body_set_')).map(tool => tool.name),
+      ['body_set_pose', 'body_set_gripper'])
+    const poseTool = registered.find(tool => tool.name === 'body_set_pose')
+    const execution = { signal: new AbortController().signal }
+    assert.deepEqual(await poseTool.execute(target, execution), feedback)
+    assert.deepEqual(calls, [{ pose: target, owner: 'operator', taskId: 'task', intentRevision: 'revision' }])
+    const description = await registered.find(tool => tool.name === 'ego_capabilities').execute({}, execution)
+    assert.equal(description.body, body)
+    assert.deepEqual(description.skills, skills)
+    assert.equal(description.s0Tools.body_set_joints, undefined)
+    assert.deepEqual(registered.find(tool => tool.name === 'ego_predict').parameters.properties.skill.enum.sort(),
+      skills.filter(skill => skill !== 'look_around').sort())
+    assert.equal(registered.some(tool => tool.name === 'ego_explore'), body === 'xlerobot')
+
+    const readOnlyContext = new Context()
+    t.after(() => readOnlyContext.fiber.dispose())
+    const readOnly = new EgoRuntimeClient(readOnlyContext, { ...config, readOnly: true })
+    const restricted = []
+    await apply({ ego: readOnly, tools: { register: tool => restricted.push(tool) } }, { allowDirectS0: true })
+    assert.ok(!restricted.some(tool => tool.name.startsWith('body_set_')))
+    const readOnlyDescription = await restricted.find(tool => tool.name === 'ego_capabilities').execute({}, execution)
+    assert.deepEqual(readOnlyDescription.s0Tools, { ego_gripper_pose: 'read' })
+    assert.throws(() => readOnly.directBody({ pose: target }), /only permits observation/)
+    assert.equal(calls.length, 1)
+  })
   test(`${artifact}: connection failure prevents registration instead of guessing`, async t => {
     t.mock.method(globalThis, 'fetch', async () => { throw Error('unavailable') })
     const ctx = new Context(); t.after(() => ctx.fiber.dispose())

@@ -66,6 +66,20 @@ class EsimConfig:
     # Take a large object by its edge even when its centre is in reach: held so, it hangs ahead of
     # the gripper and can be set down (or poured) deeper on a surface than an arm of short reach gets.
     edge_grasp_first: bool = False
+    worktop_carry_clearance: float = 0.10
+    """Height added to a worktop grasp for initial transport, in metres."""
+    compact_worktop_max_extent_m: float = 0.0
+    """Maximum extent for the asymmetric jaw's near-side worktop grip, or zero to disable it."""
+    compact_worktop_grasp_pitches: tuple[float, ...] = (0.0,)
+    """Tool pitches in radians, ordered from the preferred upright grasp to fallback tilts."""
+    compact_place_dock_margin_m: float = 0.0
+    """Reach margin required throughout the descent for a compact load on a shallow support."""
+    place_approach_clearance: float = 0.0
+    """Pre-release clearance required by the body's worktop approach, in metres."""
+    place_pitch_change: float = 0.0
+    """Additional forward tool tilt the body permits while approaching a worktop to release."""
+    gentle_carry: bool = False
+    """Use smooth base acceleration and the lower drive limits while carrying."""
     # Turned over (place with ``flip``), what a gripper pinches from above ends with the tool
     # pointing up. An arm whose tool cannot point up at the surface turns it over above the spot,
     # its tool tilted forward so that it points up only so far, and lowers it as far as it reaches
@@ -869,6 +883,16 @@ class Esim:
             out += [out[-1] + (h - out[-1]) * k / n for k in range(1, n + 1)]
         return out
 
+    def _compact_worktop_load(self, entity: Entity) -> bool:
+        """Recognize small, similarly sized extents from the object's estimated geometry."""
+        if not self.config.compact_worktop_max_extent_m:
+            return False
+        box, bottom, top = entity_box(entity)
+        extents = (2.0 * box.hx, 2.0 * box.hy, top - bottom)
+        return (max(extents) <= self.config.compact_worktop_max_extent_m
+                and min(extents) >= 0.70 * max(extents)
+                and not self._affords(entity, "container") and not self._affords(entity, "receptacle"))
+
     @staticmethod
     def _edge_facing(offset: tuple[float, float]) -> Callable[[float], str | None] | None:
         """For an edge grasp (``offset`` from the object's centre), a ``heading_issue`` refusing the
@@ -1316,8 +1340,8 @@ class Esim:
             issues.append(f"path passes within {clearance:.2f} m of an obstacle")
             risk = 0.2
         plan = {"path": [list(p) for p in path], "yaw": yaw, "pathLength": path_length(path)}
-        if held is not None and self._affords(held, "pourable"):
-            plan["gentle"] = True  # a container with its contents: driven fast, they slide out
+        if held is not None and (self.config.gentle_carry or self._affords(held, "pourable")):
+            plan["gentle"] = True
         if _assembly_enabled():
             receipt = self._receipt(es, "navigate", params, risk, issues, plan)
             from steward.ego.navigation_escape import goal_evidence
@@ -1389,6 +1413,7 @@ class Esim:
             # below that presses into the surface; a noisy ES centre well above it closes in air.
             surface_lift = entity_box(support)[2] + (target_top - target_bottom) / 2
             tp[2] = min(max(tp[2], surface_lift), surface_lift + 0.03)
+        axial_grip = None
         if _assembly_enabled():
             from steward.ego import axial_release
             axial_grip = axial_release.pinch(target, es.stamp) if params.get('axialFastener') else None
@@ -1406,7 +1431,7 @@ class Esim:
         elif on_floor:
             carry_lift = self.config.floor_furniture_height + 0.10
         else:
-            carry_lift = tp[2] + 0.10
+            carry_lift = tp[2] + self.config.worktop_carry_clearance
         over = None
         if support is not None and not on_floor:
             rim = entity_box(support)[2]
@@ -1524,7 +1549,42 @@ class Esim:
         floor = self.config.elevated_grasp_floor
         in_drawer = support is not None and support.category.value == "drawer"
         approach_over = None
-        if _assembly_enabled():
+        stock_clearance = None
+        compact_grasp = False
+        if (support is not None and self._affords(support, "support-surface") and self._compact_worktop_load(target)
+                and not assembly_grip and not axial_grip and driver_heading is None and not params.get("flip")):
+            # Close across the load from its near side, where the hinged finger sweeps forward.
+            setback = min(target_box.hx, target_box.hy) + 0.003
+
+            def near_side_pinch(heading: float) -> tuple[float, float]:
+                return tp[0] - setback * math.cos(heading), tp[1] - setback * math.sin(heading)
+
+            top = entity_box(support)[2]
+            half_span = max(0.0, min(target_box.hx, target_box.hy) - self._sigma_xy(target))
+            close_lift = max(top, min(target_bottom, top + 0.025)) + 0.8 * min(half_span, (target_top - target_bottom) / 2)
+            hover_lift = close_lift + self.config.worktop_carry_clearance
+            lift_off = close_lift + 0.055
+            lifts = [hover_lift, close_lift, lift_off]
+
+            def extend_above_worktop(yaw: float, reach: float, near: float, pitch: float) -> bool:
+                count = max(1, math.ceil((reach - near) / self.config.lift_check_step))
+                return self.arm.reachable_path([{"lift": hover_lift, "reach": near + (reach - near) * i / count,
+                                                 "wrist_pitch": pitch} for i in range(count + 1)])
+
+            compact_pitches = (0.0,) if params.get("topGrasp") else self.config.compact_worktop_grasp_pitches
+            for pitch in compact_pitches:
+                try:
+                    approach = self._approach(es, anchor, near_side_pinch, close_lift, {target.id}, pitches=(pitch,),
+                                              lifts=lifts, approach_path=extend_above_worktop)
+                    break
+                except PredictionError as exc:
+                    first = exc
+            if approach is not None:
+                compact_grasp = True
+                grasp_z, carry_lift = close_lift, lift_off
+                x, y = near_side_pinch(approach["yaw"])
+                grasp_offset = (x - tp[0], y - tp[1])
+        if approach is None and _assembly_enabled():
             from steward.ego import seating_geometry
             stock_clearance = (seating_geometry.pick_clearance(self, es, target, support, tp[2])
                                if params.get('axialFastener') else None)
@@ -1618,7 +1678,7 @@ class Esim:
                     break
                 if approach is not None:
                     break
-        else:
+        elif approach is None:
             for xy, offset in (assembly_points or self._grasp_points(es, target, tp)):
                 furniture = (self._drawer_furniture(es, support)
                              if in_drawer and most > 0 and self.config.drawer_entry_pitch > 0 else None)
@@ -1817,7 +1877,7 @@ class Esim:
                     "support": "floor" if on_floor else ("unknown" if blind else support.id),
                     "carryLift": carry_lift, "keepReach": carried_low,
                     "captureRadius": r, "inspectHand": bool(params.get("inspectHand")),
-                    "gentle": self._affords(target, "pourable")}
+                    "gentle": self.config.gentle_carry or self._affords(target, "pourable")}
             if axial_grip:
                 plan.update(axialGrip=axial_grip, protectGraspFrame=True)
                 if 'worldHeading' in axial_grip:
@@ -1830,7 +1890,7 @@ class Esim:
                     "support": "floor" if on_floor else ("unknown" if blind else support.id),
                     "carryLift": carry_lift, "keepReach": carried_low,
                     "captureRadius": r,
-                    "gentle": self._affords(target, "pourable")}
+                    "gentle": self.config.gentle_carry or self._affords(target, "pourable")}
         if params.get('stayNear'):
             plan['stayNear'] = True
         if _assembly_enabled():
@@ -1866,6 +1926,8 @@ class Esim:
             plan["topGraspProbes"] = True
         if grasp_z > tp[2]:
             plan["graspDz"] = grasp_z - tp[2]  # an edge grasp closes on the rim, above the centre
+        if compact_grasp:
+            plan.update(fixedGraspHeight=True, approachLift=hover_lift)
         if grasp_offset is not None and any(grasp_offset):
             plan["graspOffset"] = list(grasp_offset)
             issues.append(f"{target.id} is taken by its edge, {math.hypot(*grasp_offset):.2f} m from its centre")
@@ -2024,6 +2086,16 @@ class Esim:
             raise PredictionError(f"{support.existence:.2f} existence probability is too low to place on {support.id} "
                                   f"(under {self.config.min_target_existence:.2f}); observe it again first, "
                                   "then predict the place anew")
+        shallow_release = False
+        if (self._compact_worktop_load(held) and self._affords(support, "support-surface")
+                and not self._affords(support, "receptacle") and params.get("closeRelease", True)
+                and not any(params.get(key) for key in ("flip", "alignTo", "alignHoles", "hole", "seatBody"))
+                and place_roll is None):
+            landing_box, landing_bottom, landing_top = entity_box(support)
+            shallow_release = (landing_top - landing_bottom <= 0.5 * min(landing_box.hx, landing_box.hy)
+                               and max(landing_box.hx, landing_box.hy) <= 4.0 * held_half)
+        if shallow_release:
+            params = {"closeRelease": True, **params}
         support_orientation = getattr(support, "state_vars", {}).get("orientation")
         support_posture = ((support_orientation.value or {}).get("posture", {})
                            if support_orientation is not None else {})
@@ -2311,7 +2383,7 @@ class Esim:
                 edge = self._edge_margin(sbox, spot, ex, ey)
                 sigma = self._sigma_xy(support)
                 risk = 0.02
-                if edge < 2 * sigma + 0.03 and self._affords(support, "support-surface"):
+                if not shallow_release and edge < 2 * sigma + 0.03 and self._affords(support, "support-surface"):
                     issues.append(f"placement is {edge * 100:.0f} cm from the edge with {sigma * 100:.1f} cm support uncertainty")
                     risk = 0.4
             else:
@@ -2357,12 +2429,76 @@ class Esim:
         # host furniture footprint there (it often still covers the mouth in the estimate).
         drawer_mouth = self._affords(support, "pullable")
         drawer_clear = self._drawer_mouth_clear(es, support) if drawer_mouth else None
-        if _assembly_enabled():
+        place_pitch_change = max(self.config.place_pitch_change, 0.70) if shallow_release else self.config.place_pitch_change
+
+        def placement_heights(release: float) -> list[float] | None:
+            above = over
+            if self.config.place_approach_clearance > 0.0:
+                clearance_height = release + self.config.place_approach_clearance
+                above = clearance_height if above is None else max(above, clearance_height)
+            return [above, release] if above is not None else None
+
+        lifts = placement_heights(height)
+        release_height_check = None
+        if shallow_release and mate is None and seat_entry is None:
+            # Recompute both the target height and XY pinch when the compact load rotates with the jaw.
+            current = self._arm_joints(es)
+            lx, ly, *_ = self._held_relative(es)
+            offset = np.array([lx - self.tool_offset - current["reach"], ly - self.lateral, -self._hold_dz(es, held)])
+            held_pitch = current["wrist_pitch"]
+            held_yaw = current.get("wrist_yaw", 0.0)
+            held_roll = current.get("wrist_roll", 0.0)
+            local_offset = self.arm.tool_rotation(held_yaw, held_roll, held_pitch).T @ offset
+            object_height = height + offset[2]
+            pitches = self._placement_pitches(held_pitch, place_pitch_change)
+            release_spots = [(spot, [])]
+            if place_params.get("offset") is None:
+                radius = max(0.0, min(area.hx, area.hy) - held_half - 0.008)
+                rx, ry, _ = self._robot_xy_yaw(es)
+                c, s = math.cos(area.yaw), math.sin(area.yaw)
+                dx, dy = rx - area.cx, ry - area.cy
+                local_base = (c * dx + s * dy, -s * dx + c * dy)
+                sides = sorted(((1, 0), (-1, 0), (0, 1), (0, -1)),
+                               key=lambda side: -(side[0] * local_base[0] + side[1] * local_base[1]))
+                for fraction in (0.5, 0.75, 1.0):
+                    for sx, sy in sides:
+                        try:
+                            candidate = self._choose_spot(
+                                es, support, area, held, held_box, [fraction * radius * sx, fraction * radius * sy],
+                                yaw_goal, float(place_params.get("clearance", 0.015)))
+                        except PredictionError:
+                            continue
+                        if candidate not in release_spots:
+                            release_spots.append(candidate)
+            for (candidate, spot_issues), pitch in itertools.product(release_spots, pitches):
+                moved = self.arm.tool_rotation(held_yaw, held_roll, pitch) @ local_offset
+                release_lift = float(object_height - moved[2])
+                lifts = placement_heights(release_lift)
+                try:
+                    approach, grip = self._grip_approach(
+                        es, self._anchor(es, support), held, candidate, release_lift, wrist_turn, flip, turn,
+                        lifts=lifts, fixed_pitch=float(pitch), endpoint_offset=local_offset,
+                        dock_clear=drawer_clear, mouth_only=drawer_mouth,
+                        dock_reach_margin=self.config.compact_place_dock_margin_m)
+                except PredictionError as rejected:
+                    failure = rejected
+                    continue
+                spot, height = candidate, release_lift
+                issues += spot_issues
+                break
+            else:
+                raise failure
+            edge = min(area.hx, area.hy) - math.hypot(spot[0] - area.cx, spot[1] - area.cy) - 0.01
+            sigma = self._sigma_xy(support)
+            if edge < 2 * sigma + 0.03:
+                issues.append(f"placement is {edge * 100:.0f} cm from the edge with {sigma * 100:.1f} cm support uncertainty")
+                risk = max(risk, 0.4)
+        elif _assembly_enabled():
             approach, grip = self._grip_approach(es, self._anchor(es, support), held, spot, height, wrist_turn, flip, turn,
-                                                 lifts=[over, height] if over is not None else None, tool_roll=tool_roll,
+                                                 lifts=lifts, tool_roll=tool_roll,
                                                  exact_rotation=assembly_placement is not None or pair_placement,
-                                                 dock_clear=drawer_clear, mouth_only=drawer_mouth)
-            release_height_check = None
+                                                 dock_clear=drawer_clear, mouth_only=drawer_mouth,
+                                                 place_pitch_change=place_pitch_change)
             from steward.ego.edge_geometry import enabled as contact_window_enabled
             if assembly_release is not None or (contact_window_enabled() and edge_placement is not None and edge_placement.get('contactWindow')):
                 # Rotate the complete grasp offset, including pitch, before choosing
@@ -2393,15 +2529,18 @@ class Esim:
                     previousLiftM=height, commandedLiftM=exact_height, source='registered_grasp_and_wrist_kinematics')
                 if abs(exact_height-height) > 1e-9:
                     height = exact_height
+                    lifts = placement_heights(height)
                     approach, grip = self._grip_approach(es, self._anchor(es, support), held, spot, height,
-                        wrist_turn, flip, turn, lifts=[over, height] if over is not None else None,
-                        tool_roll=tool_roll, exact_rotation=True, dock_clear=drawer_clear, mouth_only=drawer_mouth)
+                        wrist_turn, flip, turn, lifts=lifts,
+                        tool_roll=tool_roll, exact_rotation=True, dock_clear=drawer_clear, mouth_only=drawer_mouth,
+                        place_pitch_change=place_pitch_change)
         else:
             approach, grip = self._grip_approach(
                 es, self._anchor(es, support), held, spot, height, wrist_turn, flip, turn,
-                lifts=[over, height] if over is not None else None, tool_roll=tool_roll,
+                lifts=lifts, tool_roll=tool_roll,
                 exact_rotation=assembly_placement is not None,
-                dock_clear=drawer_clear, mouth_only=drawer_mouth)
+                dock_clear=drawer_clear, mouth_only=drawer_mouth,
+                place_pitch_change=place_pitch_change)
         assembly_turn = None
         if assembly_placement is not None and flip and not self.config.flip_in_air:
             low, high = assembly_placement
@@ -2425,6 +2564,10 @@ class Esim:
         plan = {**approach, "object": held.id, "support": support.id, "spot": list(spot), "gripSpot": list(grip),
                 "lift": height, "supportBox": {"cx": area.cx, "cy": area.cy, "yaw": area.yaw, "hx": area.hx, "hy": area.hy},
                 "heldHalf": held_half}
+        if shallow_release:
+            plan["slowJawRelease"] = True
+            if self.config.compact_place_dock_margin_m:
+                plan["dockReachMarginM"] = self.config.compact_place_dock_margin_m
         if _assembly_enabled():
             if release_height_check is not None:
                 plan['edgeReleaseHeight'] = release_height_check
@@ -2484,8 +2627,8 @@ class Esim:
                 plan["releaseHalfXY"] = list(self._turned_half(held_box, float(aligned_yaw), area.yaw))
         if mating_on:
             plan["mate"] = True
-        if over is not None:
-            plan["approachLift"] = over
+        if lifts is not None:
+            plan["approachLift"] = lifts[0]
         if yaw_goal is not None:
             plan["wristYaw"] = self._wrist_for(es, held, float(yaw_goal), approach["yaw"], bool(params.get("flip")))
             plan["placementTarget"] = {
@@ -2574,9 +2717,10 @@ class Esim:
                     opening = self.arm.geometry.jaw_opening or min(held_half*2, held_h)
                     plan.update(edgeLowRelease=True, edgeDescentM=opening*.25,
                         edgeVerticalClearanceM=min(opening, max(0., self.lift_max-height)))
-            plan["gentle"] = bool(plan.get("edgeLowRelease")) or self._affords(held, "pourable")
+            plan["gentle"] = (self.config.gentle_carry or bool(plan.get("edgeLowRelease"))
+                              or self._affords(held, "pourable"))
         else:
-            plan["gentle"] = self._affords(held, "pourable")
+            plan["gentle"] = self.config.gentle_carry or self._affords(held, "pourable")
         plan['stayNear'] = bool(params.get('stayNear', False))
         if _assembly_enabled():
             if params.get('controlledSeat') and seat_entry is not None:
@@ -3121,6 +3265,10 @@ class Esim:
         """The tool pitch the held object was taken at, the only one it is carried and set down at."""
         return [self._arm_joints(es).get("wrist_pitch", 0.0)]
 
+    def _placement_pitches(self, pitch: float, change: float) -> list[float]:
+        limit = max(pitch, min(pitch + change, self.arm.geometry.wrist_pitch_max))
+        return np.linspace(pitch, limit, 1 + math.ceil((limit - pitch) / 0.05)).tolist()
+
     def _grip_approach(self, es: SceneState, anchor: Entity, held: Entity, spot: tuple[float, float], height: float,
                        wrist_turn: Callable[[float], float], flip: bool,
                        heading_issue: Callable[[float], str | None] | None = None,
@@ -3129,7 +3277,8 @@ class Esim:
                        tool_over_spot: bool = False, endpoint_offset: np.ndarray | None = None,
                        fixed_pitch: float | None = None, record_path: bool = False,
                        dock_clear: set[str] | None = None,
-                       mouth_only: bool = False) -> tuple[dict, tuple[float, float]]:
+                       mouth_only: bool = False, place_pitch_change: float = 0.0,
+                       dock_reach_margin: float = 0.0) -> tuple[dict, tuple[float, float]]:
         """The approach that brings the held object's centre over ``spot``, and the gripper's spot
         for it: on each side of the support, where the gripper goes for the heading docked there.
 
@@ -3142,6 +3291,7 @@ class Esim:
         and also checks the press heights and reverse withdrawal. Other placements use
         ``tool_roll`` to preserve the reach-axis grasp offset.
         ``dock_clear`` / ``mouth_only`` are forwarded to :meth:`_approach` (open-drawer place).
+        A positive ``dock_reach_margin`` checks the descent at both extremes of the dock error.
         """
         def grip_at(heading: float) -> tuple[float, float]:
             try:
@@ -3188,6 +3338,11 @@ class Esim:
             # The carrying posture may lie outside the planning range: the path starts at the nearest
             # posture in range, and its first waypoint is still solved continuously from the encoders.
             yaw, roll = wrist_at(heading)
+            if dock_reach_margin and not all(
+                    self.arm.reachable(z, r, yaw, roll, pitch)
+                    for r in (reach - dock_reach_margin, reach + dock_reach_margin)
+                    for z in self._lift_steps(lifts or [height])):
+                return False
             g = self.arm.geometry
             at = {"wrist_yaw": 0.0, "wrist_roll": 0.0, "wrist_pitch": 0.0, **current}
             at["reach"] = min(max(at["reach"], g.reach_min), g.reach_max)
@@ -3221,6 +3376,8 @@ class Esim:
             hold_pitch = [fixed_pitch]
         elif flip and self.config.flip_in_air:
             hold_pitch = [self.arm.geometry.wrist_pitch_max]
+        elif place_pitch_change > 0:
+            hold_pitch = self._placement_pitches(hold_pitch[0], place_pitch_change)
         # After a tilted pick the skill untilts on exit: FK then reports ~0 while a deep place/pour
         # dock still sits past the tool-down envelope. Try tool-down first, then ``pitch_for``.
         elif abs(float(hold_pitch[0])) < 1e-3:

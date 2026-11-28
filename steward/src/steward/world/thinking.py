@@ -1,5 +1,5 @@
-"""The robot agent's live thinking for the console: the reasoning blocks of the latest DSH
-session under the robot's Harness home, read from the newest ``session.v4.jsonl.zstd`` file.
+"""The robot agent's live thinking and S0 commands from the latest DSH session under its
+Harness home, read from the newest ``session.v4.jsonl.zstd`` file.
 
 Reads are cached per file: a session file that did not change (same modification time and size)
 is not decoded again, and each robot's read is limited to ``_TIME_BUDGET_S`` so a growing session
@@ -18,6 +18,7 @@ import zstandard
 
 _TEXT_LIMIT = 2000
 _TIME_BUDGET_S = 0.5
+_S0_COMMANDS = frozenset({"body_set_joints", "body_set_pose", "body_set_gripper", "body_stop"})
 
 _cache: dict[str, tuple[float, int, list[dict]]] = {}
 _lock = threading.Lock()
@@ -104,31 +105,72 @@ def _reasoning(row: dict) -> str:
     return "".join(p["text"] for p in row["data"]["message"]["content"] if p["type"] == "reasoning").strip()
 
 
+def _s0_dispatches(rows: list[dict]) -> dict[str, dict[str, dict]]:
+    """Index recorded S0 dispatches by root tool call, retaining one row per invocation."""
+    calls: dict[str, dict[str, dict]] = {}
+    for row in rows:
+        if row.get("type") not in ("tool/ptc-dispatch-start", "tool/ptc-dispatch"):
+            continue
+        data = row["data"]
+        if data.get("name") in _S0_COMMANDS:
+            calls.setdefault(data["rootCallId"], {})[data["subCallId"]] = data
+    return calls
+
+
+def _s0_call(data: dict) -> dict:
+    """Expose the command and status with encoder values from confirmed arrivals."""
+    call = {"name": data["name"], "arguments": data.get("arguments"), "status": "started"}
+    if "isError" not in data:
+        return call
+    if data["isError"]:
+        return {**call, "status": "failed"}
+    call["status"] = "completed"
+    try:
+        result = json.loads(_prompt_text(data))
+    except json.JSONDecodeError:
+        return call  # Some direct tools return plain text.
+    if isinstance(result, dict) and result.get("state") == "reached":
+        call["status"] = "reached"
+        call["measuredJoints"] = result.get("joints")
+        if data["name"] == "body_set_pose":
+            call["measuredPose"] = result.get("pose")
+    return call
+
+
 def _thinking_of(rows: list[dict], limit: int, path: str) -> list[dict]:
-    """One entry per step that has reasoning: its step number, whether it is the step still being
-    thought out (after the latest ``step/start``), its preview and its conclusion (the names of the
-    tools it called), oldest first. Each preview includes an opaque full-text id, original character
-    count and explicit truncation flag."""
+    """Preview steps with reasoning or nested S0 commands, oldest first.
+
+    Include the step number, recency, top-level tool names and recorded S0 calls. Reasoning
+    previews carry an opaque full-text id, original character count and truncation flag.
+    """
     starts = [r for r in rows if r.get("type") == "step/start"]
     last_start = starts[-1]["time"] if starts else 0
+    s0_dispatches = _s0_dispatches(rows)
     out = []
     for index, row in enumerate(rows):
-        reasoning = _reasoning(row)
-        if not reasoning:
+        if row.get("type") != "assistant/message":
             continue
+        reasoning = _reasoning(row)
         message = row["data"]["message"]
-        tools = [p["name"] for p in message["content"] if p["type"] == "tool-call"]
-        out.append({"id": _entry_id(path, index), "step": row["data"]["step"], "active": row["time"] >= last_start,
-                    "text": reasoning[-_TEXT_LIMIT:], "truncated": len(reasoning) > _TEXT_LIMIT,
-                    "totalChars": len(reasoning), "conclusion": tools})
-    return out[-limit:]
+        tools = [p for p in message["content"] if p["type"] == "tool-call"]
+        s0 = [dispatch for tool in tools for dispatch in s0_dispatches.get(tool.get("id"), {}).values()]
+        if not (reasoning or s0):
+            continue
+        out.append((index, row, reasoning, tools, s0))
+    return [
+        {"id": _entry_id(path, index), "step": row["data"]["step"], "active": row["time"] >= last_start,
+         "text": reasoning[-_TEXT_LIMIT:], "truncated": len(reasoning) > _TEXT_LIMIT,
+         "totalChars": len(reasoning), "conclusion": [p["name"] for p in tools],
+         **({"s0Calls": [_s0_call(data) for data in s0]} if s0 else {})}
+        for index, row, reasoning, tools, s0 in out[-limit:]
+    ]
 
 
 def thinking_state(robot_homes: dict[str, str], limit: int = 3, exclude: frozenset[str] = frozenset()) -> dict[str, dict]:
-    """Live thinking per robot: its latest reasoning blocks and conclusions.
+    """Live thinking per robot, including the latest reasoning and recorded S0 commands.
 
     :param robot_homes: robot id to its DSH home directory.
-    :param limit: reasoning blocks per robot, newest last.
+    :param limit: displayed steps per robot, newest last.
     :param exclude: session files not to read (those of an episode the operator reset).
     :returns: per robot ``{entries, error}`` (one of them None)."""
     deadline = time.monotonic() + _TIME_BUDGET_S

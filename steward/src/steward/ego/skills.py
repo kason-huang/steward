@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from steward.math3d import wrap_angle
-from steward.ego.motion_errors import OutOfReach, SkillFailed, SkillStopped
+from steward.ego.motion_errors import DockOutsideReceipt, OutOfReach, SkillFailed, SkillStopped
 from steward.ego.motion_policy import MotionPolicy, PlanarMotionPolicy
 
 if _assembly_enabled():
@@ -119,6 +119,8 @@ class MotionConfig:
     """Robot time after a joint command at which a joint still short of its target (sagging under
     a load) gets one corrected setpoint."""
     grasp_wait_s: float = 0.1
+    verify_pick_hold: bool = False
+    """Require a physical grip after pickup and during transport in a placement skill."""
     release_wait_s: float = 0.15
     release_joint_tol: float = 0.01
     """Maximum measured lift/reach error before opening, including load sag and IK residual.
@@ -271,7 +273,8 @@ class SkillExecutor:
                      replan_pick: Callable[[str], dict | None] | None = None,
                      replan_insert_place: Callable[[dict], dict | None] | None = None,
                      motion_policy: MotionPolicy | None = None,
-                     waypoint_skills: frozenset[str] = frozenset()):
+                     waypoint_skills: frozenset[str] = frozenset(),
+                     read_place_grip: Callable[[], bool] | None = None):
             """``clock`` is the robot link whose world clock times the control ticks (one hold per job,
             ``skill/<job id>``); without it a tick sleeps ``tick_s`` of wall time.
 
@@ -281,6 +284,8 @@ class SkillExecutor:
 
             ``motion_policy`` owns body-dependent approach, withdrawal and recovery sequences;
             the executor supplies cancellable motion primitives and owns job state.
+            ``read_place_grip`` reads live grip feedback for placement. Without a separate reader,
+            the supplied state function must provide live grip feedback.
 
             ``closed_drawers`` lists drawers to open after a look-around, and ``drawer_plan`` returns
             the open or close plan for one of them, with the reason when there is no plan. A close may
@@ -318,6 +323,7 @@ class SkillExecutor:
             self._command = command_writer(command)
             from steward.ego.action_budget import reader
             self._state = reader(self, state_reader(state))
+            self._read_place_grip = read_place_grip or (lambda: self._state()["gripper"]["holding"])
             from steward.ego import base_command_ledger
             if base_command_ledger.enabled():
                 base_command_ledger.install(self)
@@ -374,12 +380,15 @@ class SkillExecutor:
                      replan_pick: Callable[[str], dict | None] | None = None,
                      replan_insert_place: Callable[[dict], dict | None] | None = None,
                      motion_policy: MotionPolicy | None = None,
-                     waypoint_skills: frozenset[str] = frozenset()):
+                     waypoint_skills: frozenset[str] = frozenset(),
+                     read_place_grip: Callable[[], bool] | None = None):
             """``clock`` is the robot link whose world clock times the control ticks (one hold per job,
             ``skill/<job id>``); without it a tick sleeps ``tick_s`` of wall time.
 
             ``motion_policy`` owns body-dependent approach, withdrawal and recovery sequences;
             the executor supplies cancellable motion primitives and owns job state.
+            ``read_place_grip`` reads live grip feedback for placement. Without a separate reader,
+            the supplied state function must provide live grip feedback.
 
             ``closed_drawers`` lists drawers to open after a look-around, and ``drawer_plan`` returns
             the open or close plan for one of them, with the reason when there is no plan. A close may
@@ -422,6 +431,7 @@ class SkillExecutor:
             self._replan_insert_place = replan_insert_place
             self._command = command
             self._state = state
+            self._read_place_grip = read_place_grip or (lambda: self._state()["gripper"]["holding"])
             if waypoint_skills - {"pick", "place"}:
                 raise ValueError("joint-waypoint execution supports only pick and place")
             self._waypoint_skills = waypoint_skills
@@ -650,7 +660,11 @@ class SkillExecutor:
             except SkillFailed as exc:
                 job.state, job.message = "failed", (f"{job.message or skill + ' completed'}; homing failed: {exc}"
                                                     if homing else str(exc))
-                if not homing and self._arm_engaged:
+                if isinstance(exc, DockOutsideReceipt):
+                    job.postcondition = {**(job.postcondition or {}), "reason": "dock-outside-receipt",
+                                         "measuredBasePose": exc.measured_pose, "releaseExecuted": False,
+                                         "nextAction": "refresh-observations-and-replan"}
+                elif not homing and self._arm_engaged:
                     self._safe_retract()
             except Exception as exc:  # noqa: BLE001 - surfaced to the caller through the job record
                 detail = f"{type(exc).__name__}: {exc}"
@@ -724,7 +738,11 @@ class SkillExecutor:
             except SkillFailed as exc:
                 job.state, job.message = "failed", (f"{job.message or skill + ' completed'}; homing failed: {exc}"
                                                     if homing else str(exc))
-                if not homing and self._arm_engaged:
+                if isinstance(exc, DockOutsideReceipt):
+                    job.postcondition = {**(job.postcondition or {}), "reason": "dock-outside-receipt",
+                                         "measuredBasePose": exc.measured_pose, "releaseExecuted": False,
+                                         "nextAction": "refresh-observations-and-replan"}
+                elif not homing and self._arm_engaged:
                     self._safe_retract()
             except Exception as exc:  # noqa: BLE001 - surfaced to the caller through the job record
                 detail = f"{type(exc).__name__}: {exc}"
@@ -791,23 +809,28 @@ class SkillExecutor:
             self._move_joints(program["clearView"])
             self._report_placement(job, plan["object"])
 
-    def _move_joints(self, target: dict[str, float]) -> None:
-        """Ramp physical joint goals and wait for the encoders to reach the final goal."""
+    def _move_joints(self, target: dict[str, float], *, speed: float | None = None,
+                     until: Callable[[dict], bool] | None = None) -> None:
+        """Ramp physical targets until the encoders settle or feedback meets `until`."""
         previous = self._state()
         start = {key: previous["joints"][key] for key in target}
         distance = max(abs(target[key] - start[key]) for key in target)
-        duration = max(0.1, distance / self.config.waypoint_speed_rad_s)
+        duration = max(0.1, distance / (speed if speed is not None else self.config.waypoint_speed_rad_s))
         for step in range(1, max(1, math.ceil(duration / self.config.tick_s)) + 1):
             fraction = min(1.0, step * self.config.tick_s / duration)
             self._command({"joints": {key: start[key] + fraction * (value - start[key])
                                        for key, value in target.items()}})
             state = self._tick()
+            if until is not None and until(state):
+                return
         deadline = state["stamp"] + self.config.waypoint_settle_timeout_s
         while any(abs(state["joints"][key] - value) > self.config.waypoint_tolerance_rad
                   for key, value in target.items()):
             if state["stamp"] >= deadline:
                 raise SkillFailed("the joint encoders did not reach the predicted pose")
             state = self._tick()
+            if until is not None and until(state):
+                return
 
     if _assembly_enabled():
         def _released(self, object_id: str, spot: list[float], target: dict | None = None) -> None:
@@ -1286,6 +1309,29 @@ class SkillExecutor:
             while self._tick()["stamp"] - t0 < seconds:
                 pass
 
+    def _check_receipt_dock(self, plan: dict, odometry: dict) -> None:
+        """Validate the stopped base before a receipt with a checked dock margin can descend."""
+        margin = plan.get("dockReachMarginM")
+        if margin is None:
+            return
+        error = math.hypot(odometry["x"] - plan["dock"][0], odometry["y"] - plan["dock"][1])
+        yaw_error = abs(wrap_angle(odometry["yaw"] - plan["yaw"]))
+        if error > margin or yaw_error > self.config.dock_yaw_tol:
+            raise DockOutsideReceipt(
+                f"stopped base is {error:.3f} m and {yaw_error:.3f} rad from the checked dock "
+                f"(limits {margin:.3f} m and {self.config.dock_yaw_tol:.3f} rad); load kept in gripper", odometry)
+
+    def _translate_to_receipt_dock(self, plan: dict) -> None:
+        margin = plan.get("dockReachMarginM")
+        if margin is None:
+            self._translate_to(*plan["dock"], plan["yaw"], tol=self.config.dock_position_tol)
+            return
+        try:
+            self._translate_to(*plan["dock"], plan["yaw"], tol=min(self.config.dock_position_tol, margin / 2))
+        except SkillFailed as exc:
+            raise DockOutsideReceipt(f"docking did not settle: {exc}; load kept in gripper",
+                                     self._state()["odometry"]) from exc
+
     if _assembly_enabled():
         @timed("dock")
         @observation_action('dock', transport=True)
@@ -1295,8 +1341,10 @@ class SkillExecutor:
             docking does not enable Cartesian arm recovery."""
             self._arm_engaged = False
             self._drive(job, plan["path"], plan["yaw"])
-            self._translate_to(plan["dock"][0], plan["dock"][1], plan["yaw"], tol=self.config.dock_position_tol)
+            self.motion_policy.stage_before_dock(self, plan)
+            self._translate_to_receipt_dock(plan)
             o = self._state()["odometry"]
+            self._check_receipt_dock(plan, o)
             dist = math.hypot(o["x"] - plan["dock"][0], o["y"] - plan["dock"][1])
             dyaw = abs(wrap_angle(o["yaw"] - plan["yaw"]))
             if dist > self.config.dock_tol or dyaw > self.config.dock_yaw_tol:
@@ -1314,8 +1362,10 @@ class SkillExecutor:
             docking does not enable Cartesian arm recovery."""
             self._arm_engaged = False
             self._drive(job, plan["path"], plan["yaw"])
-            self._translate_to(plan["dock"][0], plan["dock"][1], plan["yaw"], tol=self.config.dock_position_tol)
+            self.motion_policy.stage_before_dock(self, plan)
+            self._translate_to_receipt_dock(plan)
             o = self._state()["odometry"]
+            self._check_receipt_dock(plan, o)
             dist = math.hypot(o["x"] - plan["dock"][0], o["y"] - plan["dock"][1])
             dyaw = abs(wrap_angle(o["yaw"] - plan["yaw"]))
             if dist > self.config.dock_tol or dyaw > self.config.dock_yaw_tol:
@@ -1375,17 +1425,17 @@ class SkillExecutor:
     def _backoff(self, plan: dict) -> None:
         self._translate_to(plan["predock"][0], plan["predock"][1], plan["yaw"])
 
-    def _reach_to(self, target_xy: list[float]) -> float:
-        """Wrist extension that puts the gripper over ``target_xy``, within the joint's travel.
+    def _reach_to(self, target_xy: list[float], *, clamp: bool = True) -> float:
+        """Wrist extension that puts the gripper over ``target_xy``.
 
-        The plan's reach and the pose the base actually stopped at differ by a few centimetres; a
-        target a little beyond the arm used to fail the whole pick with "joint reach did not
-        reach", when all it costs is that the gripper closes short — inside its capture radius."""
+        Picks can accept a short reach within their capture radius. Dock correction reads the
+        unclamped extension to measure the full distance the base needs to recover."""
         st = self._state()
         o = st["odometry"]
         heading = np.array([math.cos(o["yaw"]), math.sin(o["yaw"])])
         rel = np.array(target_xy) - np.array([o["x"], o["y"]])
-        return min(self.config.reach_max, float(rel @ heading) - st["toolOffset"])
+        reach = float(rel @ heading) - st["toolOffset"]
+        return min(self.config.reach_max, reach) if clamp else reach
 
     def _over_support(self, plan: dict) -> bool:
         """True when the held object is released over the support top.
@@ -1741,7 +1791,9 @@ class SkillExecutor:
         # Off the floor the planned height (its base at floor level) outranks the noisy live estimate.
         # An elevated drawer grasp stores its working height in plan["lift"] (via graspDz); prefer it
         # so the live centre cannot pull the tilt back into the USD hole.
-        pick_lift = (plan["lift"] if plan.get("support") == "floor" or "drawerEntry" in plan
+        fixed_height = bool(plan.get("fixedGraspHeight"))
+        over_rim = plan.get("approachLift") is not None and not fixed_height
+        pick_lift = (plan["lift"] if plan.get("support") == "floor" or "drawerEntry" in plan or fixed_height
                      else max(float(target["p"][2]), float(plan["lift"])))
         # Furniture-top: do not let a high live centre pull the close well above the planned height.
         if plan.get("liftMax") is not None:
@@ -1749,7 +1801,7 @@ class SkillExecutor:
         # A tilted close at the dock reach may need a raised floor; tool-down closes (closePitch≈0)
         # keep the object's true height so the gripper does not close in air above a short bottle.
         close_pitch = abs(float(plan.get("closePitch") or 0.0))
-        if ("drawerEntry" not in plan and float(plan.get("wristPitch") or 0.0) > 0.4 and plan.get("approachLift") is not None
+        if ("drawerEntry" not in plan and float(plan.get("wristPitch") or 0.0) > 0.4 and over_rim
                 and close_pitch >= 0.15):
             pick_lift = max(pick_lift, min(float(plan["approachLift"]), float(plan.get("lift", pick_lift) + 0.12)))
         self._reach_over(plan, target["p"][:2], pick_lift)
@@ -1763,10 +1815,10 @@ class SkillExecutor:
         # plan's capture so TCP settle noise does not refuse a grasp that probes would find.
         capture = float(plan.get("captureRadius", 0.05))
         if _assembly_enabled():
-            if not stock_pick and plan.get("approachLift") is not None and abs(float(plan.get("closePitch") or 0.0)) < 1e-3:
+            if not stock_pick and over_rim and abs(float(plan.get("closePitch") or 0.0)) < 1e-3:
                 capture = max(capture, 0.14)
         else:
-            if plan.get("approachLift") is not None and abs(float(plan.get("closePitch") or 0.0)) < 1e-3:
+            if over_rim and abs(float(plan.get("closePitch") or 0.0)) < 1e-3:
                 capture = max(capture, 0.14)
         if miss > capture:
             self._withdraw(plan)
@@ -1795,7 +1847,7 @@ class SkillExecutor:
         # that height has no IK past ~0.35 m (grasp missed with pitch=0.00).
         # Furniture-top short pieces: denser downward Z so a slightly high centre still finds contact.
         if live_pitch <= 0.5:
-            if plan.get("approachLift") is not None:
+            if over_rim:
                 z_probes = (0.02, 0.04)
             elif top_probes:
                 z_probes = self.config.grasp_probe_z_top
@@ -1826,7 +1878,7 @@ class SkillExecutor:
                         # Drawer closes only: 0.52 m @ ~0.65 m @ mild tilt packs joint2. Table / flip
                         # picks keep the planned reach (high tilt at elevated lift needs the full dock).
                         td_cap = self.config.tool_down_reach_mid
-                        if plan.get("approachLift") is not None and live_pitch <= 0.5 and need > td_cap:
+                        if over_rim and live_pitch <= 0.5 and need > td_cap:
                             o2 = self._state()["odometry"]
                             fwd = (math.cos(o2["yaw"]), math.sin(o2["yaw"]))
                             for _ in range(6):
@@ -1837,9 +1889,9 @@ class SkillExecutor:
                             need = max(0.05, min(td_cap, self._reach_to(goal.tolist())))
                         # Shorten / untilt before lowering: lift-first at long reach sits in the USD hole.
                         # Keep a mild tilt under a rim — full untilt at drawer-close height fails IK.
-                        if dz < 0.0 and live_pitch >= self.config.joint_tol:
+                        if not fixed_height and dz < 0.0 and live_pitch >= self.config.joint_tol:
                             self._set_joint("reach", min(need, td_cap), ramp=False)
-                            if plan.get("approachLift") is not None:
+                            if over_rim:
                                 keep = 0.25 if live_pitch >= 0.25 else live_pitch
                                 if abs(float(self._state()["joints"].get("wrist_pitch", 0.0)) - keep) >= self.config.joint_tol:
                                     self._set_joint("wrist_pitch", keep)
@@ -1850,7 +1902,8 @@ class SkillExecutor:
                             floor = float(plan["lift"]) + dz
                             need = max(0.05, min(td_cap, self._reach_to(goal.tolist())))
                         self._set_joint("reach", need, ramp=False)
-                        self._set_joint("lift", max(float(latest["p"][2] + dz), floor))
+                        lift_goal = pick_lift + dz if fixed_height else max(float(latest["p"][2] + dz), floor)
+                        self._set_joint("lift", lift_goal)
                     except (OutOfReach, SkillFailed) as e:
                         job.log.append(f"skipped probe {n}: {e}")
                         continue
@@ -1882,7 +1935,7 @@ class SkillExecutor:
                         # Drawer closes only: 0.52 m @ ~0.65 m @ mild tilt packs joint2. Table / flip
                         # picks keep the planned reach (high tilt at elevated lift needs the full dock).
                         td_cap = self.config.tool_down_reach_mid
-                        if plan.get("approachLift") is not None and live_pitch <= 0.5 and need > td_cap:
+                        if over_rim and live_pitch <= 0.5 and need > td_cap:
                             o2 = self._state()["odometry"]
                             fwd = (math.cos(o2["yaw"]), math.sin(o2["yaw"]))
                             for _ in range(6):
@@ -1893,9 +1946,9 @@ class SkillExecutor:
                             need = max(0.05, min(td_cap, self._reach_to(goal.tolist())))
                         # Shorten / untilt before lowering: lift-first at long reach sits in the USD hole.
                         # Keep a mild tilt under a rim — full untilt at drawer-close height fails IK.
-                        if dz < 0.0 and live_pitch >= self.config.joint_tol:
+                        if not fixed_height and dz < 0.0 and live_pitch >= self.config.joint_tol:
                             self._set_joint("reach", min(need, td_cap), ramp=False)
-                            if plan.get("approachLift") is not None:
+                            if over_rim:
                                 keep = 0.25 if live_pitch >= 0.25 else live_pitch
                                 if abs(float(self._state()["joints"].get("wrist_pitch", 0.0)) - keep) >= self.config.joint_tol:
                                     self._set_joint("wrist_pitch", keep)
@@ -1906,7 +1959,7 @@ class SkillExecutor:
                             floor = float(plan["lift"]) + dz
                             need = max(0.05, min(td_cap, self._reach_to(goal.tolist())))
                         self._set_joint("reach", need, ramp=False)
-                        lift_goal = max(float(latest["p"][2] + dz), floor)
+                        lift_goal = pick_lift + dz if fixed_height else max(float(latest["p"][2] + dz), floor)
                         if plan.get("liftMax") is not None:
                             lift_goal = min(lift_goal, float(plan["liftMax"]) + dz)
                         self._set_joint("lift", lift_goal)
@@ -1946,6 +1999,7 @@ class SkillExecutor:
             except KeyError as exc:
                 raise SkillFailed(str(exc).strip("'")) from None
         job.log.append(f"grasped {held}")
+        job.expects_grip = self.config.verify_pick_hold
         # Rise at the grasp reach first. Stretching back to the planned dock reach at the low close
         # height (e.g. 0.50 m @ 0.60 m @ ~0.25 rad after a drawer untilt-close) often has no USD IK;
         # the carry/exit floors are what make a tilted retract feasible.
@@ -1953,8 +2007,9 @@ class SkillExecutor:
         live_tilt = abs(float(self._state()["joints"].get("wrist_pitch", 0.0)))
         pitched = plan_tilt > 0.5 or live_tilt > 0.5
         mild_tilt = (not pitched) and (plan_tilt > 0.2 or live_tilt > 0.2)
-        carry = max(float(plan["carryLift"]),
-                    self.config.tilted_carry_floor if (pitched or mild_tilt) else 0.0)
+        carry = float(plan["carryLift"])
+        if not fixed_height and (pitched or mild_tilt):
+            carry = max(carry, self.config.tilted_carry_floor)
         self.motion_policy.prepare_carry(self, plan)
         self._set_joint("lift", carry)
         if _assembly_enabled():
@@ -1974,7 +2029,9 @@ class SkillExecutor:
                 diagnostic(held)
         else:
             if not plan.get("keepReach"):
-                if pitched:
+                if fixed_height:
+                    self._exit_long_reach(plan)
+                elif pitched:
                     # Short retract while most-tilted needs the exit floor; keep tilt for pour/flip carry.
                     self._set_joint("lift", max(carry, self.config.tilted_exit_lift, self.config.stow_lift))
                     self._retract(plan)
@@ -1989,6 +2046,8 @@ class SkillExecutor:
                 self._translate_to(plan["retreat"][0], plan["retreat"][1], plan["yaw"])
             elif not plan.get('stayNear'):
                 self._backoff(plan)
+        if self.config.verify_pick_hold and not self._state()["gripper"]["holding"]:
+            raise SkillFailed("the object slipped during lifting or retreat")
         job.message = f"holding {held}"
 
     if _assembly_enabled():
@@ -2017,7 +2076,7 @@ class SkillExecutor:
         landed long. A long dock asks past the tilted envelope the receipt checked (e.g. 0.55 m at
         a pitch that only holds through ~0.50 m)."""
         want = plan.get("reach")
-        if want is None:
+        if want is None or "dockReachMarginM" in plan:
             return
         for _ in range(12):
             live = self._reach_to(xy)
@@ -2067,10 +2126,23 @@ class SkillExecutor:
                 return True
             return False
 
+    def _start_carrying_for_place(self, job: Job) -> None:
+        """Monitor the load before moving a placement job toward its destination."""
+        job.expects_grip = self.config.verify_pick_hold
+        if job.expects_grip and not self._read_place_grip():
+            raise SkillFailed("the gripper is empty before placement")
+
+    def _allow_place_release(self, job: Job) -> None:
+        """Check for a load immediately before opening and allow the intentional loss of grip."""
+        if job.expects_grip and not self._read_place_grip():
+            raise SkillFailed("the load was lost before release")
+        job.expects_grip = False
+
     if _assembly_enabled():
         @timed("place")
         @observation_action('place')
         def _place(self, job: Job, plan: dict) -> None:
+            self._start_carrying_for_place(job)
             if self._prepare_place_surface is not None and not plan.get('surfaceRefreshed'):
                 replacement = self._prepare_place_surface(job, plan)
                 if replacement is not plan:
@@ -2112,7 +2184,9 @@ class SkillExecutor:
                 self._set_joint('wrist_roll', plan['wristRoll'], ramp=False, tol=.02)
             elif "wristRoll" in plan:
                 self._ramp_joint("wrist_roll", plan["wristRoll"], self.config.wrist_turn_s)
-            if "placementToleranceM" in plan:
+            if "dockReachMarginM" in plan:
+                self._check_receipt_dock(plan, self._state()["odometry"])
+            elif "placementToleranceM" in plan:
                 self._align_lateral(grip, tol=min(self.config.dock_position_tol, plan["placementToleranceM"] / 4))
             else:
                 self._align_lateral(grip)
@@ -2187,7 +2261,7 @@ class SkillExecutor:
             component_finish = getattr(self, '_precision_component_finish', None)
             if component_finish:
                 component_finish(plan)
-            self._command({"gripper": "open"})
+            self.motion_policy.release_onto(self, job, plan)
             plan["releaseExecuted"] = True
             binding = getattr(self, '_load_binding_receipt', lambda eid: None)(plan['object'])
             if binding:
@@ -2277,6 +2351,7 @@ class SkillExecutor:
             self._report_placement(job, plan["object"])
     else:
         def _place(self, job: Job, plan: dict) -> None:
+            self._start_carrying_for_place(job)
             # Flip-in-air: keep the planned release lift (turn_over already chose the lowest safe drop).
             # Raising it to the carry floor here made pieces bounce onto neighbours on the table.
             if "turnLift" in plan:
@@ -2306,7 +2381,9 @@ class SkillExecutor:
                 self._set_joint('wrist_roll', plan['wristRoll'], ramp=False, tol=.02)
             elif "wristRoll" in plan:
                 self._ramp_joint("wrist_roll", plan["wristRoll"], self.config.wrist_turn_s)
-            if "placementToleranceM" in plan:
+            if "dockReachMarginM" in plan:
+                self._check_receipt_dock(plan, self._state()["odometry"])
+            elif "placementToleranceM" in plan:
                 self._align_lateral(grip, tol=min(self.config.dock_position_tol, plan["placementToleranceM"] / 4))
             else:
                 self._align_lateral(grip)
@@ -2322,7 +2399,7 @@ class SkillExecutor:
                 raise SkillFailed(f"gripper is not over {plan['support']}; keeping {plan['object']}" + detail)
             if self._validate_placement is not None:
                 self._validate_placement(plan)
-            self._command({"gripper": "open"})
+            self.motion_policy.release_onto(self, job, plan)
             tip = float(plan["wristRoll"]) if "wristRoll" in plan else None
             self._released(plan["object"], plan["spot"], target=plan.get("placementTarget"), tip_roll=tip)
             stamp = self._state().get('stamp')
@@ -2726,6 +2803,7 @@ class SkillExecutor:
         The arm keeps its carrying reach, or extends to the plan's ``reach`` where the object would
         otherwise land on the base: retracting it would pull the object over the base. ``wristRoll``
         tips the object (for example π/2 onto its side) before the gripper opens."""
+        self._start_carrying_for_place(job)
         self._dock(job, plan, retract=False)
         if "reach" in plan:
             self._set_joint("reach", plan["reach"])
@@ -2743,6 +2821,7 @@ class SkillExecutor:
             before_release = getattr(self, '_precision_before_release', None)
             if before_release:
                 before_release(plan)
+        self._allow_place_release(job)
         self._command({"gripper": "open"})
         if _assembly_enabled():
             plan.update(releaseExecuted=True, releasedAt=self._state()['stamp'])

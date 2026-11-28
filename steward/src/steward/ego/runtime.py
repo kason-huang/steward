@@ -43,7 +43,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 from PIL import Image
 
-from steward.assets.piper import ARM_JOINTS, BODY_ID as PIPER_BODY
 from steward.ego.perception import (PerceptionConfig, box_of, decimated, decode_rgbd, face_colour_stats, match_face, resample_face, segments,
                                     top_face,
                                     top_face_array,
@@ -558,6 +557,9 @@ class EgoRuntime:
         self._arm_selection_lock = threading.RLock()
         self._waypoint_skills = self.esim.waypoint_skills()
         self.body_id = (robot_model.get("category") or {}).get("value")
+        from steward.ego.bodies import direct_control
+
+        self.body_control = direct_control(self.body_id, robot_model, self.arm)
         self.gripper_link = self.arm.geometry.gripper if self.arm is not None else self.estimator._grasp_link(None)
         self.out_dir = out_dir
         if _assembly_enabled():
@@ -614,7 +616,8 @@ class EgoRuntime:
                                                           if callable(getattr(self.arm, "deploy_working", None))
                                                           else None),
                                           motion_policy=self.arm.motion_policy if self.arm is not None else None,
-                                          waypoint_skills=frozenset(self._waypoint_skills))
+                                          waypoint_skills=frozenset(self._waypoint_skills),
+                                          read_place_grip=self._read_place_grip)
             from steward.ego.assembly_release_height import enforce_floor
             self.executor._assembly_release_floor = lambda plan: enforce_floor(self, plan)
             self.executor._frame_period_s = self.config.keyframe_max_s
@@ -659,7 +662,8 @@ class EgoRuntime:
                                           replan_pick=self._replan_pick,
                                           replan_insert_place=self._replan_insert_place,
                                           motion_policy=self.arm.motion_policy if self.arm is not None else None,
-                                          waypoint_skills=frozenset(self._waypoint_skills))
+                                          waypoint_skills=frozenset(self._waypoint_skills),
+                                          read_place_grip=self._read_place_grip)
         self.monitor = MotionMonitor(self, self.config.monitor)
         self._view_scene: tuple[dict, int, float] | None = None  # (ES dict, version, stamp) for the view
         # The belief part of the motion state, recorded under ``_lock`` at each read and around each
@@ -1668,6 +1672,13 @@ class EgoRuntime:
                     live = None  # older than the belief, or another episode's body: the belief's own
                 return est.to_scene(self._feedback_header(live))
 
+    def _read_place_grip(self) -> bool:
+        """Read the gripper directly so an older belief cannot authorize a release."""
+        try:
+            return self.link.proprioception(timeout=self.config.monitor.feedback_timeout_s)["gripper"]["holding"]
+        except (HttpError, OSError, KeyError) as exc:
+            raise SkillFailed("cannot confirm the load from live gripper feedback") from exc
+
     def _motion_state(self) -> dict:
         """What the body is doing now, for the motion loop.
 
@@ -2388,7 +2399,11 @@ class EgoRuntime:
 
     def gripper_pose(self) -> dict:
         """Current gripper-link pose relative to the base and the robot cameras, without imaging."""
-        return self._gripper_pose(self.link.kinematics())
+        packet = self.link.kinematics()
+        result = self._gripper_pose(packet)
+        if self.body_control is not None:
+            result["tcp_pose"] = self.body_control.measured_pose(packet["joint_encoders"]).to_dict()
+        return result
 
     def _gripper_pose(self, packet: dict) -> dict:
         """The pose of the gripper the arm works with, its joints read as the arm's virtual joints."""
@@ -3156,16 +3171,28 @@ class EgoRuntime:
             plan = dict(self.plan) if self.plan else None
         with self._lock:
             newest = self.activity[-1]["id"] if self.activity else 0
+        return {"plan": plan, "skill": running.to_dict() if running else None,
+                "body": self.body_id, "availableSkills": self.available_skills(),
+                "activity": self.activity_since(since),
+                "activityLast": newest, "boot": self.boot, "t": round(self.estimator.stamp, 2)}
+
+    def available_skills(self) -> list[str]:
+        """Return the skills supported by the attached embodiment."""
         if _assembly_enabled() and self.arm is not None:
             from steward.ego.skill_catalog import PUBLIC_SKILLS
+
             skill_names = PUBLIC_SKILLS
         else:
             skill_names = self.esim.skill_names()
-        available = [*skill_names, "look_around"] if self.arm is not None else list(skill_names)
-        return {"plan": plan, "skill": running.to_dict() if running else None,
-                "body": self.body_id, "availableSkills": available,
-                "activity": self.activity_since(since),
-                "activityLast": newest, "boot": self.boot, "t": round(self.estimator.stamp, 2)}
+        return [*skill_names, "look_around"] if self.arm is not None else list(skill_names)
+
+    def describe_body(self) -> dict:
+        """Describe the attached robot's supported operations and sensor ids."""
+        arms = ([self.body_control.describe_arm()] if self.body_control is not None else
+                [{"id": link["id"], "gripper": link["id"]} for link in self.estimator.robot_model["body"]["links"]
+                 if any(a.get("value") == "grasp-point" for a in link.get("affordances", []))])
+        return {"body": self.body_id, "skills": self.available_skills(), "arms": arms,
+                "cameras": list(self.estimator.cameras)}
 
     # ----------------------------------------------------------------- control
     def control(self) -> dict:
@@ -3625,28 +3652,16 @@ class EgoRuntime:
             raise PermissionError("the Ego Harness task has ended")
 
     def direct_body(self, body: dict, cancelled: Callable[[], bool]) -> dict:
-        """Command PiPER and wait for measured feedback while keeping stop available."""
-        if self.body_id != PIPER_BODY:
-            raise PermissionError("this body does not support PiPER direct commands")
+        """Command native targets and wait for measured feedback while keeping stop available."""
+        adapter = self.body_control
+        if adapter is None:
+            raise PermissionError("this body does not support direct S0 commands")
         owner, revision, task_id = (body.get(key) for key in ("owner", "intentRevision", "taskId"))
-        limits = {joint["id"]: joint["limits"]["value"] for joint in self.estimator.robot_model["body"]["joints"]}
-        joints = body.get("joints")
-        gripper = body.get("gripper")
-        if joints is not None and gripper is None:
-            if not isinstance(joints, dict) or not joints.keys() or not joints.keys() <= set(ARM_JOINTS):
-                raise ValueError("joints must contain one or more PiPER arm joints (joint1 through joint6)")
-            for joint, angle in joints.items():
-                lo, hi = limits[joint]["lo"], limits[joint]["hi"]
-                if type(angle) not in (int, float) or not lo <= angle <= hi:
-                    raise ValueError(f"{joint} must be a finite angle in radians within [{lo}, {hi}]")
-            command, tolerance = {"joints": joints}, 0.01
-            targets = joints
-        elif joints is None and gripper in ("open", "close"):
-            command, tolerance = {"gripper": gripper}, 0.002
-            targets = {"joint7": limits["joint7"]["hi"], "joint8": limits["joint8"]["lo"]} if gripper == "open" else {
-                "joint7": limits["joint7"]["lo"], "joint8": limits["joint8"]["hi"]}
-        else:
-            raise ValueError("provide either joints or gripper ('open' or 'close')")
+        joints, gripper, tool_pose = (body.get(key) for key in ("joints", "gripper", "pose"))
+        if sum(value is not None for value in (joints, gripper, tool_pose)) != 1:
+            raise ValueError("provide one of joints, gripper ('open' or 'close'), or pose")
+        if gripper is not None and gripper not in ("open", "close"):
+            raise ValueError("gripper must be 'open' or 'close'")
 
         token = (uuid.uuid4().hex, task_id)
         completed = False
@@ -3665,8 +3680,18 @@ class EgoRuntime:
                 start = self.link.proprioception(timeout=1.0)
                 if cancelled():
                     raise CancelledError()
+                if tool_pose is not None:
+                    move = adapter.pose_move(tool_pose, start["joints"])
+                elif joints is not None:
+                    move = adapter.joint_move(joints)
+                else:
+                    move = adapter.gripper_move(gripper)
+                if cancelled():
+                    raise CancelledError()
                 self._direct_motion = token
-                self.link.command(command, epoch, timeout=2.0)
+                self.link.command(move.command, epoch, timeout=2.0)
+                if move.accepted is not None:
+                    move.accepted()
 
             deadline = time.monotonic() + 6.0
             reached_at = None
@@ -3679,8 +3704,11 @@ class EgoRuntime:
                 frame = self.link.proprioception(timeout=1.0)
                 if frame["episode"] != start["episode"]:
                     raise PermissionError("the simulation restarted during the S0 command")
-                measured = {joint: frame["joints"][joint] for joint in targets}
-                at_target = all(abs(measured[joint] - value) <= tolerance for joint, value in targets.items())
+                measured = {joint: frame["joints"][joint] for joint in move.joints}
+                at_target = all(abs(measured[joint] - value) <= move.tolerance for joint, value in move.joints.items())
+                pose = adapter.measured_pose(frame["joints"]) if move.target_pose is not None else None
+                if pose is not None:
+                    at_target = at_target and pose.matches(move.target_pose)
                 grip = frame["gripper"]
                 if gripper == "open":
                     at_target = at_target and not grip["holding"]
@@ -3694,10 +3722,11 @@ class EgoRuntime:
                         with self._dispatch_lock:
                             if self._direct_motion is not token or self._ready_motion_epoch() != epoch:
                                 raise PermissionError("direct S0 command was interrupted")
-                            self._log("s0", f"S0 到达目标 {command}，编码器 {measured}")
+                            self._log("s0", f"S0 到达目标 {move.command}，编码器 {measured}")
                             completed = True
-                            return {"id": token[0], "state": "reached", "command": command,
-                                    "joints": measured, "gripper": grip, "stamp": stamp}
+                            return {"id": token[0], "state": "reached", "gripper": grip, "stamp": stamp,
+                                    **({"pose": pose.to_dict()} if pose is not None else
+                                       {"command": move.command, "joints": measured})}
                 else:
                     reached_at = None
                 time.sleep(0.04)
@@ -3812,7 +3841,11 @@ class EgoRuntime:
             job = self.executor.current
             if self._direct_motion is not None or (job is not None and job.state == "running"):
                 raise PermissionError("wait for the previous motion to terminate before resuming")
+            resumed = (self.body_control.prepare_resume(lambda: self.link.proprioception(timeout=1.0)["joints"])
+                       if self.body_control is not None else None)
             motion = self.link.resume_motion(epoch)
+            if resumed is not None:
+                resumed()
             self._hold_unconfirmed = False
             return motion
 

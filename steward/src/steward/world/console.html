@@ -79,21 +79,26 @@
   .targets button { flex: 1; font-size: 12px; }
   .targets button.on.world { border-color: var(--gt); color: #cfe6ff; }
   .targets button.on.robot { border-color: var(--ego); color: #ffd2a6; }
-  .session-skills { margin: 2px 0 8px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px;
-                    background: #11151a; font-size: 12px; }
-  .skill-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 8px; }
-  .skill-heading .sub { color: var(--muted); }
-  .session-skills h3 { margin: 0; color: var(--text); font-size: inherit; font-weight: 600; }
-  .skill-list { display: flex; flex-wrap: wrap; gap: 5px; max-height: 6em; overflow-y: auto; margin: 0; padding: 0; list-style: none; }
-  .skill-list:not(:empty) { margin-top: 5px; }
-  .skill-list li { padding: 2px 6px; border-radius: 5px; background: #232a33; overflow-wrap: anywhere; }
+  .session-skills { padding: 16px; }
+  .session-skills > h2 { color: var(--text); font-size: 16px; margin-bottom: 12px; }
+  .session-skills > h2 .sub { color: var(--muted); font-size: 12px; }
+  .session-skills h3 { margin: 0; color: var(--text); font-size: 14px; font-weight: 600; }
+  .skill-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr));
+                gap: 8px; margin: 0; padding: 0; list-style: none; }
+  .skill-list:not(:empty) { margin-top: 8px; }
+  .skill-list li { padding: 9px 11px; border: 1px solid var(--line); border-radius: 7px;
+                   background: #11151a; overflow-wrap: anywhere; }
+  .skill-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 8px; }
+  .skill-list p { margin: 4px 0 0; }
+  .skill-scope, .skill-disabled { color: var(--muted); font-size: 12px; }
   .skill-list code { color: #ffd2a6; }
   .grasp-mode { margin-inline-start: 5px; padding: 0 4px; border: 1px solid var(--line); border-radius: 4px;
                 font-size: 11px; color: var(--muted); }
-  .skill-list:not(.restricted) .grasp-mode.contact { color: #8fe0b8; border-color: #2f7a57; }
-  .skill-list.restricted li, .skill-list.restricted code { color: var(--muted); }
+  .skill-list li:not(.restricted) .grasp-mode.contact { color: #8fe0b8; border-color: #2f7a57; }
   .skill-list li.restricted, .skill-list li.restricted code { color: var(--muted); }
-  .s0-tools { margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--line); }
+  .tool-groups { display: grid; gap: 16px; margin-top: 12px; }
+  .tool-group + .tool-group { padding-top: 12px; border-top: 1px solid var(--line); }
+  .tool-group .skill-list:empty { display: none; }
   .skill-note { color: var(--muted); }
   .skill-note:not(:empty) { margin-top: 4px; }
   .prompt-card { scroll-margin-top: 100px; }
@@ -184,6 +189,8 @@
   <button id="load">加载</button>
   <button id="reset">重置</button>
   <button id="pause">暂停</button>
+  <button id="motionResume" type="button" hidden>解除保护</button>
+  <span id="motionResumeStatus" class="sub" role="status"></span>
   <select id="speed" title="仿真倍速">
     <option value="0.5">0.5×</option><option value="1">1×</option><option value="2">2×</option>
     <option value="4">4×</option><option value="8">8×</option><option value="max">最快</option>
@@ -263,19 +270,6 @@
       <button data-target="world" class="on world">世界 · World Harness</button>
       <button data-target="robot" class="robot">机器人</button>
     </div>
-    <section class="session-skills" aria-labelledby="sessionSkillsTitle">
-      <div class="skill-heading">
-        <h3 id="sessionSkillsTitle">S2 可调用的 S1 技能</h3>
-        <span id="sessionSkillBody" class="sub"></span>
-      </div>
-      <ul class="skill-list" id="sessionSkills"></ul>
-      <div class="skill-note" id="sessionSkillNote" role="status">正在读取机器人技能…</div>
-      <div class="s0-tools">
-        <h3 id="sessionS0Title">S0 本体接口 · S2 直调</h3>
-        <ul class="skill-list" id="sessionS0Tools" aria-labelledby="sessionS0Title"></ul>
-        <div class="skill-note" id="sessionS0Note" role="status"></div>
-      </div>
-    </section>
     <div class="msgs" id="chatMsgs"></div>
     <div class="chips" id="chatChips"></div>
     <div class="composer">
@@ -284,6 +278,28 @@
     </div>
   </section>
   </div>
+  <section class="card session-skills" aria-labelledby="sessionSkillsTitle">
+    <h2 id="sessionSkillsTitle">机器人工具 <span class="sub" id="sessionSkillBody"></span></h2>
+    <div class="skill-note" id="sessionSkillNote" role="status">正在读取机器人工具…</div>
+    <div class="tool-groups">
+      <section class="tool-group" aria-labelledby="perceptionToolsTitle">
+        <h3 id="perceptionToolsTitle">感知 · Perception</h3>
+        <ul class="skill-list" id="perceptionTools" aria-labelledby="perceptionToolsTitle"></ul>
+      </section>
+      <section class="tool-group" aria-labelledby="planningToolsTitle">
+        <h3 id="planningToolsTitle">运动规划 · Motion planning</h3>
+        <ul class="skill-list" id="planningTools" aria-labelledby="planningToolsTitle"></ul>
+      </section>
+      <section class="tool-group" aria-labelledby="actionToolsTitle">
+        <h3 id="actionToolsTitle">动作 · Action</h3>
+        <ul class="skill-list" id="actionTools" aria-labelledby="actionToolsTitle"></ul>
+      </section>
+      <section class="tool-group" aria-labelledby="codeToolsTitle">
+        <h3 id="codeToolsTitle">代码 · Code</h3>
+        <ul class="skill-list" id="codeTools" aria-labelledby="codeToolsTitle"></ul>
+      </section>
+    </div>
+  </section>
   <details class="card prompt-card" id="promptCard">
     <summary>机器人会话 Prompt</summary>
     <div class="task" id="promptStatus" role="status"></div>
@@ -739,6 +755,14 @@ document.querySelectorAll('[data-view]').forEach(btn => btn.onclick = () => {
 
 // ------------------------------------------------------------------ refresh
 const thinkingExpanded = new Map();
+const THINKING_S0_STATUS = { started: '已发起', completed: '已返回', reached: '已到达', failed: '失败' };
+function thinkingS0Call(call) {
+  const target = call.arguments && Object.keys(call.arguments).length
+    ? ` · 目标 ${esc(JSON.stringify(call.arguments))}` : '';
+  const measured = call.measuredJoints ? ` · 编码器 ${esc(JSON.stringify(call.measuredJoints))}` : '';
+  const pose = call.measuredPose ? ` · 实测位姿 ${esc(JSON.stringify(call.measuredPose))}` : '';
+  return `<div>S0 调用 <code>${esc(call.name)}</code> · ${THINKING_S0_STATUS[call.status]}${target}${measured}${pose}</div>`;
+}
 function renderThinking() {
   const t = state.thinking && state.thinking[robotId];
   if (!t) { thinkingExpanded.clear(); setText($('thinkMeta'), ''); setText($('thinkBody'), '尚无思考记录'); return; }
@@ -750,16 +774,18 @@ function renderThinking() {
   setHtml($('thinkBody'), entries.map(e => {
     const detail = thinkingExpanded.get(e.id);
     const full = detail && detail.text !== null;
+    const conclusion = e.conclusion?.length ? `<div>后续调用：${e.conclusion.map(esc).join('、')}</div>` : '';
+    const s0 = (e.s0Calls || []).map(thinkingS0Call).join('');
     return `<section class="thinking-entry${e.active ? ' active' : ''}" aria-label="第 ${esc(e.step)} 步思考">`
     + `<div class="thinking-head"><span class="thinking-step">第 ${esc(e.step)} 步</span>`
     + `<span class="thinking-status">${e.active ? '最近一步' : '历史记录'}</span></div>`
-    + `<div class="thinking-text" id="thinking-${esc(e.id)}">${esc(full ? detail.text : e.text)}</div>`
+    + (e.text ? `<div class="thinking-text" id="thinking-${esc(e.id)}">${esc(full ? detail.text : e.text)}</div>` : '')
     + (e.truncated ? `<div class="thinking-preview"><span>${full ? '全文' : '已截断'} · 共 ${esc(e.totalChars)} 字符${full ? '' : '，预览为末尾内容'}</span>`
       + `<button type="button" data-thinking-toggle="${esc(e.id)}" aria-expanded="${!!detail}" aria-controls="thinking-${esc(e.id)}">${detail ? '收起' : '展开全文'}</button>`
       + (detail?.loading ? '<span>正在读取全文…</span>' : '')
       + (detail?.error ? `<span class="thinking-error" role="alert">读取全文失败，请重试</span><button type="button" data-thinking-retry="${esc(e.id)}">重试</button>` : '')
       + '</div>' : '')
-    + (e.conclusion && e.conclusion.length ? `<div class="thinking-conclusion">后续调用：${e.conclusion.map(esc).join('、')}</div>` : '')
+    + (conclusion || s0 ? `<div class="thinking-conclusion">${conclusion}${s0}</div>` : '')
     + `</section>`;
   }).join('') || '尚无思考记录');
 }
@@ -791,7 +817,7 @@ async function refresh() {
   try {
     state = await api('GET', '/console/state');
     showError(null);
-    if (!state.loaded) { stopNavigation(false); setText($('clock'), '未加载 Episode'); renderSessionSkills(); return; }
+    if (!state.loaded) { stopNavigation(false); setText($('clock'), '未加载 Episode'); renderSessionSkills(); renderMotionResume(); return; }
     robotId = robotId && state.robots[robotId] ? robotId : Object.keys(state.robots)[0];
     const key = `${state.scenario}|${state.view.lookat}|${state.view.distance}`;
     if (key !== viewKey) { stopNavigation(false); viewKey = key; view = presetView('south'); panes.world.rendered = panes.ego.rendered = null;
@@ -803,6 +829,7 @@ async function refresh() {
     renderBodies();
     renderRobotTarget();
     renderSessionSkills();
+    renderMotionResume();
     const goal = state.goal;
     const progress = goal ? ` · 目标进度：最大拼合 ${goal.largestGroup}/${goal.entities}，相邻关系 ${goal.satisfied}/${goal.total}${goal.complete ? '（完成）' : ''}` : '';
     setText($('task'), state.task ? `任务：${state.task}${progress}` : '');
@@ -1226,6 +1253,7 @@ async function refreshChat() {
     renderPlan(chatState);
     renderStatus();
     renderSessionSkills();
+    renderMotionResume();
     void refreshPrompts();
     const sig = JSON.stringify([chatTarget, Object.values(chatState.agents).map(a => [a.busy, a.revising]), chatState.messages]);
     if (sig !== chatSig && renderChat(chatState)) chatSig = sig;
@@ -1233,50 +1261,127 @@ async function refreshChat() {
     if (a && !a.available && !chatState.messages.length) setHtml($('chatMsgs'), `<div class="msg error">${esc(a.reason)}</div>`);
   } catch (e) { showError(e); }
 }
-const SKILL_LABELS = {
-  pick: '抓取', place: '放置', navigate: '导航', look_around: '原地巡视', open: '打开抽屉', close: '关闭抽屉',
-  pour: '倾倒', assemble_onto: '装配', insert_screw_into_hole: '插入螺钉', seat_screw: '安放螺钉',
-  drive_screw: '拧紧螺钉', fasten_onto: '紧固', flip_assembly: '翻转组件', regrasp_upright: '重新抓握并扶正',
+const S1_SKILLS = {
+  navigate: ['导航', '规划并执行底盘到目标位置的避障路径。', '移动本体的可通行区域，路径需为底盘和随行物体留出空间。'],
+  pick: ['抓取', '接近指定物体，合爪并提起。', '已观测、可抓且有可达接近姿态的物体。'],
+  place: ['放置', '将手中物体移到指定位置并释放。', '夹爪已持物，目标支撑面或地面位置可达；落点可在释放后独立核验。'],
+  open: ['打开抽屉', '抓住把手并拉开抽屉。', '已识别、把手可达的可拉动抽屉。'],
+  close: ['关闭抽屉', '通过把手或面板将打开的抽屉推回。', '已观测且可接近的打开抽屉。'],
+  pour: ['倾倒', '倾斜手中的容器，把内容物倒向指定位置。', '夹爪已持可倾倒容器，且目标和倾倒轨迹可达。'],
+  assemble_onto: ['装配零件', '将零件放到指定本体或装配面上。', '已识别配对关系且安装位可达的零件。'],
+  insert_screw_into_hole: ['插入螺钉', '将手持螺钉对准孔位并插入。', '螺钉尖端、孔位和插入方向均已确认。'],
+  seat_screw: ['安放螺钉', '将螺钉放入指定孔位以准备紧固。', '已有可用螺钉与可定位、可接近的孔位。'],
+  drive_screw: ['拧紧螺钉', '驱动螺丝刀沿螺钉轴线执行拧紧。', '螺钉已就位，且工具、螺钉头和接近方向可用。'],
+  fasten_onto: ['紧固零件', '按指定孔位为装配零件拧紧螺钉。', '已对齐的零件和可验证的孔位，需要螺钉及适用工具。'],
+  flip_assembly: ['翻转组件', '将装配组件翻面以暴露另一侧。', '可夹持、可翻转且有足够空间和支撑面的组件。'],
+  regrasp_upright: ['重新抓握并扶正', '调整物体姿态，再从可用位置重新抓取。', '当前姿态不利于后续操作，但可安全放下和重抓的物体。'],
+  complete_assembly: ['完成装配', '按装配进度安排零件就位和紧固。', '已建立装配目标且可识别零件、安装面和接口的任务。'],
 };
 const GRASP_MODES = { contact: '双指接触与摩擦', rigid: '理想附着' };
-const S0_LABELS = {
-  body_stop: '停止并保持', ego_motion_status: '查询停稳', ego_gripper_pose: '读取夹爪位姿',
-  body_set_joints: '设置关节角', body_set_gripper: '开合夹爪',
+const S0_SKILLS = {
+  body_stop: ['停止并保持', '请求停止当前运动并进入保持状态。', '需要中止正在执行的运动时使用。'],
+  ego_motion_status: ['查询运动状态', '读取当前运动和停稳状态。', '只读接口，适合确认停机或保护状态。'],
+  ego_gripper_pose: ['读取夹爪位姿', '读取由编码器计算的夹爪位姿。', '只读接口，适合观测实际工具位置。'],
+  body_set_joints: ['设置关节角', '向驱动发送目标关节角并检查到位。', '支持关节直调的本体，用于显式的关节操作。'],
+  body_set_pose: ['设置末端位姿', '按底座坐标系发送末端位置和四元数，返回编码器确认的实测位姿。', '支持位姿直调的本体。用 ego_capabilities 查询运动约束，抓放和避障使用 S1。'],
+  body_set_gripper: ['开合夹爪', '直接张开或闭合夹爪。', '支持夹爪直调的本体，用于操作员明确要求的开合动作。'],
 };
+const ROBOT_TOOLS = {
+  ...S0_SKILLS,
+  ego_capabilities: ['读取本体能力', '查询本体支持的手臂、相机、技能和 S0 接口。', '调用前确认会话可用接口和末端位姿约束。'],
+  ego_state: ['读取自我态', '读取机器人当前相信的物体、位姿和持物状态。', '只读。适合了解机器人已掌握的信息。'],
+  ego_query: ['查询自我态', '按对象或条件查询当前自我态。', '只读。适合缩小对象范围。'],
+  ego_observe: ['获取当前观测', '读取相机当前能看到的目标及观测信息。', '适合在规划前确认可见目标。'],
+  ego_capture_cameras: ['读取相机图像', '获取机器人相机图像、标定和同步的夹爪位姿。', '适合检查相机视角或执行前后的视觉证据。'],
+  ego_rgb_recording_start: ['开始相机录像', '开始采集选定相机的 RGB 帧。', '用于需要连续视觉证据的任务。'],
+  ego_rgb_recording_status: ['查询录像状态', '检查录像进度、帧数和错误。', '只读。适用于已发起的录像。'],
+  ego_rgb_recording_stop: ['结束相机录像', '停止采集并保存已有帧。', '适用于已发起的录像。'],
+  ego_camera_calibration: ['读取相机标定', '读取相机内参和安装参考坐标。', '只读。适合核对视角或坐标系。'],
+  ego_explore: ['主动巡视', '移动本体或转向以更新可见目标。', '适合补足当前视角的观测，需有安全运动空间。'],
+  ego_inspect: ['检查物体', '读取指定对象的视觉和几何信息。', '适合确认机器人已定位的目标。'],
+  ego_screw_holes: ['读取孔位', '读取机器人估计的螺钉孔位。', '适合核对识别出的孔位及其观测来源。'],
+  ego_match_face: ['匹配物体表面', '在已观测的对象中比较表面特征。', '适合需要辨认配对表面的任务。'],
+  ego_candidates: ['查找候选物体', '列出与类别、尺寸等条件相符的对象。', '用于目标名称或身份尚未确定时。'],
+  ego_annotate: ['标注自我态', '更新对象名称、角色或可供性等标注。', '适合用已有证据纠正机器人对物体的理解。'],
+  ego_forget: ['移除物体记录', '从自我态中移除指定对象的记录。', '用于有证据表明某条记录已失效的情况。'],
+  ego_verify_placement: ['验证落点', '用释放后的观测核对目标支撑面和落点。', '适用于已执行的放置，需要新鲜、清晰的释放后观测。'],
+  ego_predict: ['预测动作', '为指定技能计算可达性和风险，并生成执行收据。', '导航、抓放等技能执行前使用。'],
+  skill_run: ['执行技能', '使用规划收据启动一个 S1 技能。', '需要当前会话具有运动权限和仍有效的收据。'],
+  skill_status: ['查询技能状态', '读取技能作业的状态和结果。', '只读。适合检查正在运行或已结束的作业。'],
+  report_problem: ['报告执行问题', '向操作员报告当前遇到的问题。', '适用于执行异常或多次尝试后仍无法继续的任务。'],
+  run_code: ['运行代码', '执行组合感知、规划和动作调用的程序。', '程序通过当前会话已开放的工具操作机器人。'],
+  capability_list: ['列出已保存程序', '查看可复用程序及其运行记录。', '编写新程序前查找已有能力。'],
+  capability_get: ['读取已保存程序', '按名称获取程序及其输入要求。', '用于在 run_code 中复用已有能力。'],
+  capability_save: ['保存可复用程序', '将经过运行的程序及其输入要求保存到能力库。', '适用于能跨任务复用的操作或流程。'],
+  capability_delete: ['移除已保存程序', '从能力库移除一个已保存程序。', '适用于已失效或已被替代的程序。'],
+};
+const TOOL_GROUPS = {
+  perceptionTools: ['ego_capabilities', 'ego_state', 'ego_query', 'ego_observe', 'ego_capture_cameras', 'ego_rgb_recording_start',
+    'ego_rgb_recording_status', 'ego_rgb_recording_stop', 'ego_camera_calibration', 'ego_gripper_pose',
+    'ego_explore', 'ego_inspect', 'ego_screw_holes', 'ego_match_face', 'ego_candidates', 'ego_annotate',
+    'ego_forget', 'ego_verify_placement'],
+  planningTools: ['ego_predict'],
+  actionTools: ['skill_run', 'skill_status', 'body_set_pose', 'body_set_joints', 'body_set_gripper',
+    'body_stop', 'ego_motion_status', 'report_problem'],
+  codeTools: ['run_code', 'capability_list', 'capability_get', 'capability_save', 'capability_delete'],
+};
+const S0_READ_TOOLS = new Set(['ego_gripper_pose', 'ego_motion_status']);
+const MOTION_TOOLS = new Set(['ego_explore', 'skill_run', 'body_set_pose', 'body_set_joints', 'body_set_gripper']);
+function skillCard(name, catalogue, { badge = '', restricted = false, status = '' } = {}) {
+  const [label, purpose, scope] = Object.hasOwn(catalogue, name) ? catalogue[name] : [];
+  const title = label ? `<strong>${esc(label)}</strong>` : '';
+  const detail = purpose ? `<p>${esc(purpose)}</p><p class="skill-scope">适用范围 · ${esc(scope)}</p>`
+    : '<p class="skill-scope">暂无用途和适用范围说明。</p>';
+  return `<li${restricted ? ' class="restricted"' : ''}><div class="skill-name">${title}<code>${esc(name)}</code>${badge}</div>`
+    + detail + (status ? `<p class="skill-disabled">${esc(status)}</p>` : '') + '</li>';
+}
 function renderSessionSkills() {
   const robot = chatState?.agents?.robot;
   const rid = state?.loaded && Object.keys(state.robots)[0];
   const body = rid && state.robots[rid]?.embodiment;
   const plan = robot?.plan;
-  let skills = [], note = '';
+  const readOnly = Boolean(robot?.readOnly);
+  const hasPlan = Array.isArray(plan?.availableSkills);
+  const currentBody = rid && robot?.available && hasPlan && (!plan.body || plan.body === body?.id);
+  const sessionKnown = currentBody && Array.isArray(robot.sessionTools);
+  let skills = [], names = new Set(), s0 = new Map(), note = '';
   if (!rid) note = '等待加载机器人';
   else if (!robot?.available) note = '机器人会话未就绪';
-  else if (!Object.hasOwn(robot, 'sessionSkills')) note = '当前服务未上报会话工具清单';
   else if (plan?.body && plan.body !== body?.id) note = '正在读取新本体的技能…';
-  else if (!Array.isArray(plan?.availableSkills)) note = '等待当前构型的技能清单…';
-  else if (Array.isArray(robot.sessionSkills)) skills = robot.sessionSkills;
-  else note = robot.busy ? '正在读取本轮生效的 profile 工具…' : 'S2 开始一轮后会显示生效的技能';
-  const readOnly = Boolean(robot?.readOnly);
-  if (readOnly) note = robot.busy ? '只读保护复查中，S2 暂不能调用运动技能' : '上轮为只读保护复查，运动技能停用';
+  else if (!hasPlan) note = '等待当前构型的工具清单…';
+  else {
+    skills = Array.isArray(robot.sessionSkills) ? robot.sessionSkills : sessionKnown ? [] : plan.availableSkills;
+    s0 = new Map(Array.isArray(robot.sessionS0Tools)
+      ? robot.sessionS0Tools.map(({name, enabled}) => [name, enabled])
+      : Object.entries(plan.availableS0Tools ?? {}).map(([name, access]) => [name, access === 'read' || !readOnly]));
+    names = new Set(sessionKnown ? robot.sessionTools : ['ego_state', 'ego_observe', 'ego_capture_cameras', 'run_code',
+      ...(skills.includes('place') ? ['ego_verify_placement'] : []),
+      ...(skills.includes('look_around') ? ['ego_explore'] : []),
+      ...(skills.some(skill => skill !== 'look_around') ? ['ego_predict', 'skill_run', 'skill_status'] : []),
+      ...s0.keys()]);
+    if (!sessionKnown) note = '工具目录预览。会话上报工具清单后显示实际开放的接口。';
+    if (readOnly) note += '只读保护复查，当前会话的运动能力受限。';
+  }
   setText($('sessionSkillBody'), [body?.label, robot?.profile].filter(Boolean).join(' · '));
-  const list = $('sessionSkills');
-  list.classList.toggle('restricted', readOnly);
+  setText($('sessionSkillNote'), note);
   const graspMode = state?.holding?.[rid]?.graspMode;
-  setHtml(list, skills.map(skill => {
+  const skillCards = skills.filter(skill => skill !== 'look_around').map(skill => {
     const mode = skill === 'pick' && Object.hasOwn(GRASP_MODES, graspMode)
       ? `<span class="grasp-mode ${graspMode}">${GRASP_MODES[graspMode]}</span>` : '';
-    const label = Object.hasOwn(SKILL_LABELS, skill) ? ' ' + SKILL_LABELS[skill] : '';
-    return `<li><code>${esc(skill)}</code>${label}${mode}</li>`;
-  }).join(''));
-  setText($('sessionSkillNote'), note || (skills.length ? '' : '当前 profile 未开放此构型的运动技能'));
-  const s0Tools = rid && robot?.available && (!plan?.body || plan.body === body?.id)
-    ? robot.sessionS0Tools : null;
-  setHtml($('sessionS0Tools'), (s0Tools || []).map(({name, enabled}) => {
-    const label = Object.hasOwn(S0_LABELS, name) ? ' ' + S0_LABELS[name] : '';
-    return `<li${enabled ? '' : ' class="restricted"'}><code>${esc(name)}</code>${label}${enabled ? '' : ' · 只读复查停用'}</li>`;
-  }).join(''));
-  setText($('sessionS0Note'), Array.isArray(s0Tools)
-    ? (s0Tools.length ? '' : '当前会话未开放 S0 接口') : '等待会话上报 S0 接口');
+    return skillCard(skill, S1_SKILLS, { badge: '<span class="grasp-mode">S1 · 经 skill_run</span>' + mode,
+      restricted: readOnly, status: readOnly ? '只读复查停用' : '' });
+  });
+  for (const [id, tools] of Object.entries(TOOL_GROUPS)) {
+    const cards = tools.filter(name => names.has(name) && (!Object.hasOwn(S0_SKILLS, name) || s0.has(name))).map(name => {
+      const disabled = s0.get(name) === false || (readOnly && MOTION_TOOLS.has(name));
+      const kind = S0_READ_TOOLS.has(name) ? 'S0 · 只读' : s0.has(name) ? 'S0 · 直调'
+        : name === 'ego_explore' ? '会移动机器人' : '';
+      return skillCard(name, ROBOT_TOOLS, { badge: kind ? `<span class="grasp-mode">${kind}</span>` : '',
+        restricted: disabled, status: disabled ? '只读复查停用' : '' });
+    });
+    if (id === 'actionTools') cards.push(...skillCards);
+    setHtml($(id), cards.join('') || (sessionKnown ? '<li class="skill-scope">当前会话未开放此类工具</li>' : ''));
+  }
 }
 let promptSession = null, promptRevision = '', promptLoading = false;
 async function refreshPrompts() {
@@ -1555,6 +1660,43 @@ $('load').onclick = async () => {
 };
 $('reset').onclick = async () => { try { await api('POST', '/wca/episode', { action: 'reset' }); refresh(); refreshChat(); } catch (e) { showError(e); } };
 $('pause').onclick = async () => { try { await api('POST', '/wca/clock', { action: state && state.paused ? 'resume' : 'pause' }); refresh(); } catch (e) { showError(e); } };
+let motionResumePending = false;
+let motionResumeFeedback = null;
+function renderMotionResume() {
+  const robot = state?.robots?.[robotId];
+  const motion = robot?.motion;
+  const protectedMotion = motion?.reason === 'protection';
+  const firstRobot = Object.keys(state?.robots || {})[0];
+  const ego = robotId === firstRobot ? chatState?.agents?.robot : null;
+  const busy = Boolean(ego?.control || ego?.plan?.skill?.state === 'running');
+  const button = $('motionResume');
+  button.hidden = !protectedMotion;
+  button.disabled = !protectedMotion || motion.state !== 'held' || !robot.canRequestMotionResume || busy || motionResumePending;
+  const feedback = motionResumeFeedback && motionResumeFeedback.robot === robotId
+    && motionResumeFeedback.epoch === motion?.epoch ? motionResumeFeedback.text : '';
+  const status = !protectedMotion ? feedback : motionResumePending ? '正在解除保护…'
+    : !robot.canRequestMotionResume ? '等待本体运行时连接'
+    : motion.state !== 'held' ? (state.paused ? '请先继续仿真，等待本体停稳' : '等待本体确认停稳')
+    : busy ? '等待当前操作结束' : feedback || '本体已停稳，可解除保护';
+  setText($('motionResumeStatus'), status);
+}
+$('motionResume').onclick = async () => {
+  if ($('motionResume').disabled) return;
+  const request = { robot: robotId, epoch: state.robots[robotId].motion.epoch };
+  motionResumePending = true;
+  motionResumeFeedback = null;
+  renderMotionResume();
+  try {
+    const resumed = await api('POST', '/console/motion/resume', request);
+    motionResumeFeedback = { robot: request.robot, epoch: resumed.epoch, text: '已解除保护，可以重新规划' };
+  } catch (e) {
+    motionResumeFeedback = { ...request, text: e.message };
+  } finally {
+    await refresh();
+    motionResumePending = false;
+    renderMotionResume();
+  }
+};
 $('speed').onchange = async () => { try { await api('POST', '/wca/clock', { action: 'speed', value: $('speed').value === 'max' ? 'max' : Number($('speed').value) }); refresh(); } catch (e) { showError(e); } };
 for (const id of ['showGtLabels', 'showEgoLabels', 'showSigma', 'showError']) $(id).onchange = drawOverlays;
 

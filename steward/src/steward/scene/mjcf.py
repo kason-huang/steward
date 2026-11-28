@@ -46,12 +46,18 @@ _MOUNT_TO_CAMERA = quat_from_matrix(np.array([[0.0, 0.0, -1.0], [-1.0, 0.0, 0.0]
 _JOINT_KIND = {"revolute": "hinge", "prismatic": "slide", "ball": "ball"}
 _DEFAULT_AXIS = {"revolute": [0.0, 0.0, 1.0], "prismatic": [1.0, 0.0, 0.0]}
 _PIPER = "phyagent-piper"
+_XLEROBOT = "xlerobot"
 
 
 @dataclass
 class EntityNames:
-    """MuJoCo element names generated for one entity."""
+    """MuJoCo element names generated for one entity.
 
+    The root body carries the entity pose in world coordinates. An attached model can place
+    its first link below this body, so the link names remain available separately.
+    """
+
+    root_body: str
     root_joints: list[str] = field(default_factory=list)
     bodies: dict[str, str] = field(default_factory=dict)
     joints: dict[str, str] = field(default_factory=dict)
@@ -76,7 +82,7 @@ class MjcfBuild:
         import mujoco
 
         model = mujoco.MjModel.from_xml_string(self.xml, self.assets or None)
-        # Optional anti-creep: MuJoCo noslip solver iterations. Off by default (unchanged behaviour).
+        # The environment can override the model's no-slip solver iterations.
         if _assembly_enabled():
             import os as _os
             _n = int(_os.environ.get("STEWARD_NOSLIP", "0") or 0)
@@ -170,14 +176,22 @@ def build_mjcf(
     for ent in scene.entities:
         if not isinstance(ent.body, RigidTree):
             raise NotImplementedError(f"entity {ent.id}: deformable bodies are not simulated in Phase 0")
+        if ent.role == "robot" and ent.category.value in (_PIPER, _XLEROBOT):
+            option.attrib.update(cone="elliptic", impratio="10")
         if ent.role == "robot" and ent.category.value == _PIPER:
             from steward.assets.piper import model_path
 
             if textures.element.find(f"model[@name='{_PIPER}']") is None:
                 ET.SubElement(textures.element, "model", name=_PIPER, file=str(model_path()))
-                option.set("cone", "elliptic")
-                option.set("impratio", "10")
             names[ent.id] = _attach_native_piper(world, ent, initial)
+        elif ent.role == "robot" and ent.category.value == _XLEROBOT:
+            from steward.assets.xlerobot import MODEL_FILE, native_model_xml
+
+            if MODEL_FILE not in textures.files:
+                option.set("noslip_iterations", "8")
+                textures.files[MODEL_FILE] = native_model_xml()
+                ET.SubElement(textures.element, "model", name=_XLEROBOT, file=MODEL_FILE)
+            names[ent.id] = _attach_native_xlerobot(world, ent, initial)
         else:
             names[ent.id] = _emit_entity(world, actuators, ent, initial, textures, appearance)
         for coupling in ent.body.couplings:
@@ -227,9 +241,11 @@ def _attach_native_piper(world: ET.Element, ent: Entity, initial: dict) -> Entit
     prefix = f"{ent.id}/"
     base = ent.rigid.links[0]
     at = ent.pose.value
-    mount = ET.SubElement(world, "body", name=f"{ent.id}::mount", pos=_fmt(at["p"]), quat=_fmt(at["q"]))
+    mount_name = f"{ent.id}::mount"
+    mount = ET.SubElement(world, "body", name=mount_name, pos=_fmt(at["p"]), quat=_fmt(at["q"]))
     ET.SubElement(mount, "attach", model=_PIPER, body=base.id, prefix=prefix)
-    names = EntityNames(bodies={link.id: prefix + link.id for link in ent.rigid.links},
+    names = EntityNames(root_body=mount_name,
+                        bodies={link.id: prefix + link.id for link in ent.rigid.links},
                         joints={joint.id: prefix + joint.id for joint in ent.rigid.joints})
     for joint_id, actuator in native_actuators().items():
         names.actuators[joint_id] = prefix + actuator
@@ -239,6 +255,34 @@ def _attach_native_piper(world: ET.Element, ent: Entity, initial: dict) -> Entit
     names.cameras[WRIST_CAMERA] = prefix + WRIST_CAMERA
     for sensor in base.sensors:
         _emit_camera(mount, ent.id, names, sensor)
+    return names
+
+
+def _attach_native_xlerobot(world: ET.Element, ent: Entity, initial: dict) -> EntityNames:
+    from steward.assets.xlerobot import NATIVE_ROOT, ROOT_CONTROLS, ROOT_JOINTS, native_actuators
+
+    if ent.rigid.root.value != "planar":
+        raise ValueError("XLeRobot requires a planar base")
+    at = ent.pose.value
+    prefix = f"{ent.id}/"
+    mount = ET.SubElement(world, "body", name=f"{ent.id}::mount", pos=_fmt([0, 0, at["p"][2]]))
+    ET.SubElement(mount, "attach", model=_XLEROBOT, body=NATIVE_ROOT, prefix=prefix)
+    names = EntityNames(root_body=prefix + NATIVE_ROOT, bodies={"base": prefix + NATIVE_ROOT})
+    names.bodies.update({link.id: prefix + link.id for link in ent.rigid.links if link.id != "base"})
+    for joint, actuator, value in zip(ROOT_JOINTS, ROOT_CONTROLS,
+                                      (*at["p"][:2], yaw_from_quat(at["q"])), strict=True):
+        names.root_joints.append(prefix + joint)
+        names.actuators[actuator] = prefix + actuator
+        names.actuator_joints[actuator] = prefix + joint
+        initial[prefix + joint] = [value]
+    actuator_names = native_actuators()
+    for joint in ent.rigid.joints:
+        if joint.type.value != "fixed":
+            names.joints[joint.id] = prefix + joint.id
+            names.actuators[joint.id] = prefix + actuator_names[joint.id]
+            names.actuator_joints[joint.id] = prefix + joint.id
+            initial[prefix + joint.id] = joint.q.value
+    names.cameras = {sensor["id"]: prefix + sensor["id"] for sensor in ent.rigid.links[0].sensors}
     return names
 
 
@@ -317,11 +361,11 @@ def _solid_png(colour: tuple[float, ...], width: int, height: int) -> bytes:
 def _emit_entity(world: ET.Element, actuators: ET.Element, ent: Entity, initial: dict,
                  textures: _Textures, appearance: str) -> EntityNames:
     tree = ent.rigid
-    names = EntityNames()
     pose = ent.pose.value
     root_type = tree.root.value
     root_link = tree.links[0]
     body_name = f"{ent.id}/{root_link.id}"
+    names = EntityNames(root_body=body_name)
     if root_type == "planar":
         body = ET.SubElement(world, "body", name=body_name, pos=_fmt([0.0, 0.0, pose["p"][2]]))
         root_axes = [("root_x", "slide", "1 0 0"), ("root_y", "slide", "0 1 0"), ("root_yaw", "hinge", "0 0 1")]
@@ -444,6 +488,10 @@ def _emit_link(body: ET.Element, ent: Entity, link_id: str, names: EntityNames, 
         attrs["name"] = f"{body_name}::c{k}"
         if "friction" in material:
             attrs["friction"] = f"{material['friction']} 0.005 0.0001"
+        if ent.category.value == "apple" and g.get("shape") == "sphere":
+            # Round fruit has rolling resistance against the table and plate.
+            attrs["condim"] = "6"
+            attrs["friction"] = f"{material.get('friction', 0.7)} 0.005 0.0006"
         if "contactTime" in material:
             # Stiffer contact (MuJoCo solref time constant): carried contents follow a moving container.
             attrs["solref"] = f"{max(float(material['contactTime']), 0.004)} 1"

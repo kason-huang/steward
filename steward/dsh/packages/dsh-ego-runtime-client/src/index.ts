@@ -6,9 +6,9 @@
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { EgoError, EgoService } from '@steward/dsh-ego'
-import type { Annotation, Forgetting, Candidate, CandidateQuery, DirectBodyCommand, EgoQuery, FailureReport, Reflection, EgoSkill, FaceMatchResult, InspectResult, JsonObject, PredictionReceipt, ProblemReport, SkillJob, RecordingId } from '@steward/dsh-ego'
+import type { Annotation, Forgetting, Candidate, CandidateQuery, DirectBodyCommand, EgoCapabilities, EgoQuery, FailureReport, Reflection, EgoSkill, FaceMatchResult, InspectResult, JsonObject, PredictionReceipt, ProblemReport, SkillJob, RecordingId } from '@steward/dsh-ego'
 import { saveCameraCapture } from './camera-capture.ts'
-import { parseCameraCalibration, parseGripperPose } from './sensor-packet.ts'
+import { object, parseCameraCalibration, parseGripperPose } from './sensor-packet.ts'
 import { reportSessionTools } from './session-tools.ts'
 import { baseUrl, HttpJsonError, requestJson } from '@steward/http-json'
 
@@ -48,6 +48,7 @@ export class EgoRuntimeClient extends EgoService {
   private readonly base: string
   private profileRequest?: Promise<'off' | 'toy'>
   private profile: 'off' | 'toy' = process.env.STEWARD_ASSEMBLY_PROFILE === 'toy' ? 'toy' : 'off'
+  private bodyCapabilities?: EgoCapabilities
 
   constructor(ctx: Context, readonly config: Config) {
     super(ctx)
@@ -64,6 +65,22 @@ export class EgoRuntimeClient extends EgoService {
 
   private async readAssemblyProfile(): Promise<'off' | 'toy'> {
     const response = await this.call<JsonObject>('GET', '/ego/control')
+    if (response.capabilities !== undefined) {
+      const value = object(response.capabilities)
+      const { body, skills, cameras, arms, tcp } = value
+      const tools = object(value.s0Tools)
+      if (typeof body !== 'string'
+        || !Array.isArray(skills) || !skills.every(item => typeof item === 'string')
+        || !Array.isArray(cameras) || !cameras.every(item => typeof item === 'string')
+        || !Array.isArray(arms)) throw new EgoError('Invalid Ego capabilities response')
+      const s0Tools: EgoCapabilities['s0Tools'] = {}
+      for (const [name, access] of Object.entries(tools)) {
+        if (access !== 'read' && access !== 'control') throw new EgoError('Invalid S0 access mode')
+        if (access === 'read' || !this.config.readOnly) s0Tools[name] = access
+      }
+      this.bodyCapabilities = { body, skills, cameras, arms: arms.map(object), s0Tools, readOnly: this.config.readOnly,
+        ...(tcp === undefined ? {} : { tcp: object(tcp) }) }
+    }
     const profile = response.assemblyProfile === undefined ? 'off' : response.assemblyProfile
     if (profile !== 'off' && profile !== 'toy') throw new EgoError('Unsupported Ego assembly profile')
     const environment = process.env.STEWARD_ASSEMBLY_PROFILE || 'off'
@@ -72,6 +89,15 @@ export class EgoRuntimeClient extends EgoService {
     }
     this.profile = profile
     return profile
+  }
+
+  /**
+   * Discover body and sensor capabilities from the runtime's control response.
+   * @returns the connected body descriptor filtered by the session's S0 permissions.
+   */
+  override async capabilities(): Promise<EgoCapabilities | undefined> {
+    await this.assemblyProfile()
+    return this.bodyCapabilities
   }
 
   private async call<T>(method: 'GET' | 'POST', path: string, body?: unknown, signal?: AbortSignal,

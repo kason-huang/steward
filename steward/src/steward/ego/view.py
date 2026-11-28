@@ -192,7 +192,6 @@ class EgoViewRenderer:
             names = compiled.build.names[ent.id]
             p, q = ent.pose.value["p"], ent.pose.value["q"]
             root = ent.rigid.root.value
-            root_bid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, names.bodies[ent.rigid.links[0].id])
             if root == "free":
                 jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, names.root_joints[0])
                 adr = model.jnt_qposadr[jid]
@@ -202,6 +201,7 @@ class EgoViewRenderer:
                 for jname, value in zip(names.root_joints, (p[0], p[1], yaw_from_quat(q)), strict=True):
                     data.qpos[model.jnt_qposadr[mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, jname)]] = value
             else:
+                root_bid = model.body(names.root_body).id
                 model.body_pos[root_bid] = p
                 model.body_quat[root_bid] = q
             for joint in ent.rigid.joints:

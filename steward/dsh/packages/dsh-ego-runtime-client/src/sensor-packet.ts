@@ -109,8 +109,14 @@ export function parseGripperPose(value: unknown): JsonObject {
     if (result[3]!.some((v, i) => v !== (i === 3 ? 1 : 0))) throw new EgoError('Invalid gripper pose transform')
     return result
   }
+  const tcp = pose.tcp_pose === undefined ? undefined : object(pose.tcp_pose)
+  if (tcp !== undefined && ![[tcp.position, 3], [tcp.orientation, 4]].every(([values, size]) =>
+    Array.isArray(values) && values.length === size && values.every(v => typeof v === 'number' && Number.isFinite(v)))) {
+    throw new EgoError('Invalid TCP pose sensor response')
+  }
   return { stamp: pose.stamp, pose_source: pose.pose_source, gripper_frame: pose.gripper_frame,
     gripper_axes: pose.gripper_axes, camera_axes: pose.camera_axes,
+    ...(tcp === undefined ? {} : { tcp_pose: tcp }),
     joint_positions: Object.fromEntries(jointIds.map(id => [id, joints[id]])),
     gripper_to_base: transform(pose.gripper_to_base),
     gripper_to_camera: Object.fromEntries(ids.map(id => [id, transform(cameras[id])])) }

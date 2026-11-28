@@ -40,7 +40,9 @@ open http://127.0.0.1:7400/console   # 浏览器控制台：斜视主视图、�
 
 点击任一预览面板或用 Tab 聚焦：WASD 水平移动共用视角，Shift 加速，拖动原地转头，滚轮缩放。松开按键、焦点离开预览或按 Escape 停止移动，预设视角可回到场景中心。这些操作不移动机器人或其传感器相机。
 
-控制台的“当前思考”为每个分块标明模型步骤，用分隔线区分正文和后续工具调用，并突出最近一步。突出显示表示最近记录的步骤，不代表模型仍在生成。每段不超过2000字符时原样显示，超出时保留末尾2000字符、标明已截断，并提供展开／收起入口。全文通过 `GET /console/thinking?robot=<id>&entry=<id>` 按需读取；同一记录的展开状态在轮询刷新时保留，离开可见记录窗口后清除。读取失败保留预览并提供重试；场景重置后，旧会话也不能通过全文接口读取。
+Ego State 预览在同一坐标系中绘制机器人和感知到的物体。PiPER 等固定机械臂使用实际安装位姿，其中包含工作台高度。
+
+控制台的“当前思考”为每个分块标明模型步骤，用分隔线区分正文和后续工具调用，并突出最近一步。突出显示表示最近记录的步骤，不代表模型仍在生成。每段不超过2000字符时原样显示，超出时保留末尾2000字符、标明已截断，并提供展开／收起入口。全文通过 `GET /console/thinking?robot=<id>&entry=<id>` 按需读取；同一记录的展开状态在轮询刷新时保留，离开可见记录窗口后清除。读取失败保留预览并提供重试；场景重置后，旧会话也不能通过全文接口读取。 每步还会显示 `run_code` 中有记录的 S0 指令及目标和状态。控制器确认到达时，会同时显示编码器读数。
 
 机器人头部有两台 RGB-D 相机：`head_camera` 看前方，`wide_camera` 是短焦广角相机，看身前台面与夹爪；两台都进入感知，见 [steward.md 13.8](../steward.md#138-机器人本体的双相机)。
 
@@ -127,6 +129,37 @@ Phase 0 从盒沿抓取可倾倒容器；空心中心不能与盒内拼图竞争
 本地资产集成测试命令为 `STEWARD_TEST_AGILEX_USD=1 steward/.venv/bin/python -m pytest -q steward/tests/test_agilex.py`。它通过 Ego API 导航、抓起碗并放到桌面另一处，最后核对世界坐标。运动学测试夹具包含源关节数据，以小盒体替代网格；集成测试使用随仓库提供的网格，因完整物理任务耗时较长，需显式启用。
 
 同一资产开关还会启用 [`test_agilex_physics.py`](tests/test_agilex_physics.py)，验证原生肩高、原始升降行程、相机外参、手指联动、多个姿态下的网格遮罩覆盖，以及从记录的释放姿态撤离后物体仍由桌面支撑、从记录的停靠姿态下降时避开柜体并实际拉开抽屉，以及存在小幅感知误差时仍抓住正确的抽屉物体。[`test_cobot_ego.py`](tests/test_cobot_ego.py) 经各本体的正式运行装配执行共享任务断言；未启用开关时会跳过真实 USD 参数。[`test_body_retreat.py`](tests/test_body_retreat.py) 为三种本体验证表面支撑、抽屉打开与关闭、最终收拢姿态和观察位置，以及释放保护。轻量 IK 对照使用相同物理肩高，原生初态检查则保留 USD 配置自身的初始升降位置。
+
+## 在厨房使用 XLeRobot
+
+在 Steward 目录中安装固定版本的 [MuJoCo-GS-Web XLeRobot 模型](https://github.com/Vector-Wangel/MuJoCo-GS-Web/tree/0d60421c6cd8b16525695f32d2f8c5ba1329d45d/assets/robots/xlerobot)，并启动现有的 Phase 0 厨房。
+
+```sh
+.venv/bin/python scripts/install_xlerobot_assets.py
+.venv/bin/steward up --scenario phase0-kitchen --body xlerobot --phase phase0 --no-dispatch-task
+```
+
+模型包含 RÅSKOG 车架、轮组、头部和两只机械臂。可设置 `STEWARD_XLEROBOT_MJCF` 来选择该模型或 PhyAgentOS 版本的本地副本，并保留网格相对于 MJCF 的原始路径。[本体配置](embodiments/xlerobot.yaml)使用右臂、两台仿真 RGB-D 相机和平面底盘位置控制。夹爪依靠 MuJoCo 接触和摩擦保持物体。双指同时对同一可移动物体施力时报告已夹持。
+
+在持有控制权的 Ego Harness 任务中，S2 可调用 `body_set_pose` 设置右夹爪 TCP 位姿。`x` 和 `z` 分别表示相对于底盘的前向距离和高度，单位为米。`pitch` 从夹爪朝下开始向前计角，单位为弧度。横向偏移和腕部滚转固定。S0 检查目标可达并返回由编码器测得的位姿。`body_set_gripper` 接收 `open` 或 `close`，直接开合夹爪。直调受关节限位和运动保护约束。有避障要求时使用 S1 技能。
+
+控制台在主视图与对话下方提供「机器人工具」区域，按用途分为感知、运动规划、动作和代码。每张卡片说明工具的作用和适用范围。导航、抓取和放置等 S1 技能归入动作，主动巡视归入感知，并标注会移动机器人。会话上报已开放的工具前，此区域显示本体目录预览。
+
+使用 `ego_capabilities` 查询本体的机械臂、相机、技能和 S0 工具。XLeRobot 与固定底座 PiPER 的 `body_set_pose` 都接收底座坐标系下以米计的末端位置和 wxyz 顺序的单位四元数，并以相同格式返回编码器确认的末端位姿。通过 `ego_gripper_pose.tcp_pose` 读取当前实测值。机械臂描述会返回 XLeRobot 的固定横向坐标和平面腕部俯仰范围。PiPER 使用六轴运动学求解空间目标。参见 [S0 位姿迁移指南](../docs/upgrade-guide/v0.2.2-alpha.2/steward-s0-tcp-pose/guide.zh.md)。
+
+保护停止后，等待控制台确认本体停稳，再点击「解除保护」以允许新的运动。被中断的技能保持停止，S2 需要根据当前观测重新预测。
+
+S1 放置技能在搬运时监测夹持状态，并在开爪前再检查一次。物体若在释放前滑落，技能会停止，并且不会记录放置。在 Phase 0，`ego_verify_placement` 使用释放后的新检测核对指定的支撑面。
+
+对于带有已验证靠台余量的放置收据，若底盘实测位姿超出范围，S1 会停止下探并保持夹爪闭合。失败作业的 `postcondition` 返回 `dock-outside-receipt` 和 `measuredBasePose`，供 S2 刷新观测后重新规划。
+
+S1 根据检测到的尺寸为台面上的小型紧凑物体选择近侧夹取点。夹爪优先朝下，若该角度无法完成接近、抬起和回撤，则尝试小角度前倾。放到浅支撑面时，S1 搜索可达的落点，补偿夹爪俯仰引起的持物偏移，并缓慢开爪直到物体脱离。
+
+用下面的命令运行厨房回归，测试小瓶上柜、桌上两个摆位的苹果上盘，以及球形橙子放到有边沿的托盘。测试检查 MuJoCo 双指接触、目标支撑关系及 Ego 放置验证结果。
+
+```sh
+STEWARD_TEST_XLEROBOT=1 .venv/bin/python -m pytest -q tests/test_xlerobot.py
+```
 
 ## 与 DeepSeek Harness 一起运行
 

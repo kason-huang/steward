@@ -35,6 +35,39 @@ def test_reasoning_spread_over_several_zstd_frames_is_read_with_its_tool_calls(t
                                              "conclusion": ["run_code"]}], "error": None}
 
 
+def test_thinking_shows_actual_s0_calls_inside_their_run_code_step(tmp_path):
+    session = tmp_path / "sessions/workspace/session-1"
+    session.mkdir(parents=True)
+    path = session / "session.v4.jsonl.zstd"
+    compressor = zstandard.ZstdCompressor()
+    message = {"content": [{"type": "tool-call", "id": "run-1", "name": "run_code",
+                            "arguments": '{"code":"if (false) await tools.body_set_gripper({action:\\"open\\"})"}'}]}
+    call = {"rootCallId": "run-1", "parentCallId": "nested-run", "subCallId": "s0-1",
+            "name": "body_set_joints", "arguments": {"joint3": -0.12}}
+    pending = {**call, "subCallId": "s0-2", "arguments": {"joint3": -0.3}}
+    result = {"state": "reached", "joints": {"joint3": -0.12532341145091186}}
+    completed = {**call, "isError": False, "content": [{"type": "text", "text": json.dumps(result)}]}
+    rows = [_row("step/start", 1), _row("assistant/message", 2, {"step": 1, "message": message}),
+            _row("tool/ptc-dispatch-start", 3, call), _row("tool/ptc-dispatch", 4, completed),
+            _row("tool/ptc-dispatch-start", 5, pending),
+            _row("tool/ptc-dispatch-start", 6, {**pending, "rootCallId": "another-run"})]
+    path.write_bytes(compressor.compress(b"".join(rows)))
+    homes = {"robot-1": str(tmp_path)}
+    entry, = thinking_state(homes)["robot-1"]["entries"]
+    assert entry["conclusion"] == ["run_code"]
+    assert entry["s0Calls"] == [
+        {"name": "body_set_joints", "arguments": {"joint3": -0.12}, "status": "reached",
+         "measuredJoints": result["joints"]},
+        {"name": "body_set_joints", "arguments": {"joint3": -0.3}, "status": "started"},
+    ]
+    with path.open("ab") as fh:
+        failed = {**pending, "isError": True, "content": [{"type": "text", "text": "Motion refused"}]}
+        fh.write(compressor.compress(_row("tool/ptc-dispatch", 7, failed)))
+    updated, = thinking_state(homes)["robot-1"]["entries"]
+    assert updated["id"] == entry["id"]
+    assert updated["s0Calls"][1] == {**entry["s0Calls"][1], "status": "failed"}
+
+
 def test_a_corrupt_session_file_is_reported_not_raised(tmp_path):
     session = tmp_path / "sessions" / "workspace" / "session-1"
     session.mkdir(parents=True)

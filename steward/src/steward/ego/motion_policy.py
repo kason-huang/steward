@@ -45,6 +45,8 @@ class MotionPolicy(Protocol):
     def exit(self, driver: SkillExecutor, plan: dict) -> None: ...
     def unfurl(self, driver: SkillExecutor, xy: list[float], *, reach_cap: float | None = None) -> None: ...
 
+    def stage_before_dock(self, driver: SkillExecutor, plan: dict) -> None: ...
+    def release_onto(self, driver: SkillExecutor, job: Job, plan: dict) -> None: ...
     def prepare_dock(self, driver: SkillExecutor, job: Job, plan: dict, retract: bool) -> None: ...
     def approach_handle(self, driver: SkillExecutor, job: Job, plan: dict) -> tuple[float, float, float]: ...
     def after_place(self, driver: SkillExecutor, plan: dict) -> None: ...
@@ -67,6 +69,11 @@ class PlanarMotionPolicy:
             driver._set_joint("wrist_yaw", 0.0)
         driver._backoff(plan)
         driver._set_joint("lift", driver.config.stow_lift)
+
+    def release_onto(self, driver: SkillExecutor, job: Job, plan: dict) -> None:
+        """Confirm the load immediately before opening the gripper."""
+        driver._allow_place_release(job)
+        driver._command({"gripper": "open"})
 
     def after_handle(self, driver: SkillExecutor, plan: dict) -> None:
         """Stow the planar slides and move to the drawer's viewing position."""
@@ -413,6 +420,9 @@ class PlanarMotionPolicy:
             driver._translate_to(o["x"] + 0.03 * fwd[0], o["y"] + 0.03 * fwd[1], o["yaw"])
             driver._align_lateral(xy)
 
+
+    def stage_before_dock(self, driver: SkillExecutor, plan: dict) -> None:
+        """Keep the current arm pose during the final docking drive."""
 
     def prepare_dock(self, driver: SkillExecutor, job: Job, plan: dict, retract: bool) -> None:
         """Deploy or retract the arm after the base has verified its docking pose."""

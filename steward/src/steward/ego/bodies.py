@@ -15,6 +15,7 @@ import numpy as np
 from steward.ego.arm import Arm
 from steward.ego.piper_workspace import piper_envelope
 from steward.ego.runtime import RuntimeConfig
+from steward.ego.s0 import BodyControl
 from steward.embodiments import robot_entity
 
 
@@ -29,6 +30,10 @@ def body_arm(body: str, model: dict) -> Arm | None:
         from steward.ego.agilex import configured_arm
 
         return configured_arm(model)[0]
+    if body == "xlerobot":
+        from steward.ego.xlerobot_arm import XLeRobotArm
+
+        return XLeRobotArm(model)
     if body == "cobot-magic":
         from steward.ego.piper_arm import PiperArm, PiperArmConfig
 
@@ -37,6 +42,21 @@ def body_arm(body: str, model: dict) -> Arm | None:
         floors = piper_envelope(arm, retract_reach=0.28)
         return PiperArm(model, PiperArmConfig(working_lift=floors["working_lift"],
                                               working_reach=floors["working_reach"]))
+    return None
+
+
+def direct_control(body: str, model: dict, arm: Arm | None) -> BodyControl | None:
+    """Select the direct control adapter once when connecting the body."""
+    if body == "xlerobot":
+        from steward.ego.xlerobot_arm import XLeRobotArm, XLeRobotS0
+
+        if not isinstance(arm, XLeRobotArm):
+            raise ValueError("XLeRobot direct control requires its arm model")
+        return XLeRobotS0(arm)
+    if body == "phyagent-piper":
+        from steward.ego.piper_motion import PiperS0
+
+        return PiperS0(model)
     return None
 
 
@@ -61,6 +81,27 @@ def runtime_config(body: str, base: RuntimeConfig | None = None) -> RuntimeConfi
         from steward.ego.agilex import prepare_agilex
 
         return prepare_agilex(cfg)[2]
+    if body == "xlerobot":
+        from steward.assets.xlerobot import STOW_LIFT, STOW_REACH
+        from steward.ego.xlerobot_arm import PITCH_MAX, PLACE_APPROACH_CLEARANCE, REACH_MAX
+
+        motion = dataclasses.replace(cfg.motion, stow_lift=STOW_LIFT, retract_reach=STOW_REACH,
+                                     working_lift=STOW_LIFT, working_reach=STOW_REACH,
+                                     reach_max=REACH_MAX, wrist_pitch_max=PITCH_MAX, wrist_pitch_tol=0.08,
+                                     tool_down_reach_mid=0.18, tilted_exit_lift=0.86, untilted_exit_lift=0.82,
+                                     tilted_carry_floor=0.86, joint_tol=0.04, release_settle_s=1.5,
+                                     settle_s=0.6, grasp_wait_s=0.35, release_wait_s=0.35,
+                                     verify_pick_hold=True, linear_speed=0.35, angular_speed=0.75,
+                                     gentle_speed=0.16, gentle_turn_speed=0.22)
+        esim = dataclasses.replace(cfg.esim, dock_gap=0.028, receipt_ttl=180.0, edge_grasp_first=True,
+                                   elevated_grasp_floor=0.66,
+                                   edge_grasp_min_m=0.16, place_edge_margin=0.06, tilted_carry_floor=0.86,
+                                   worktop_carry_clearance=0.045, gentle_carry=True,
+                                   compact_worktop_max_extent_m=0.13,
+                                   compact_worktop_grasp_pitches=(0.0, 0.10, 0.20, 0.30),
+                                   compact_place_dock_margin_m=motion.dock_position_tol,
+                                   place_approach_clearance=PLACE_APPROACH_CLEARANCE, place_pitch_change=0.55)
+        return dataclasses.replace(cfg, motion=motion, esim=esim)
     if body == "phyagent-piper":
         from steward.assets.piper import WORKSPACE_CAMERA
 

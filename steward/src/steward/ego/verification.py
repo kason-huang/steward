@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import math
+from dataclasses import replace
 from typing import TYPE_CHECKING
+
+import numpy as np
 
 from steward.math3d import pose_inverse, pose_compose, quat_from_yaw
 
@@ -43,7 +46,13 @@ def placement_verdict(estimator: EgoEstimator, job: Job, receipt: dict, goal: di
             estimator.stamp - observed["stamp"] > max_age):
         return {**result, "reason": "fresh, unobscured post-release evidence is required"}
     track = estimator.tracks.get(entity)
-    support = estimator.support_of(track) if track is not None else None
+    support = None
+    if track is not None and observed.get("source") == "ideal_detection":
+        # Its full object box gives a measured bottom and footprint for support inference.
+        measured = replace(track, pos=np.asarray(observed["centreM"]), size=np.asarray(observed["visibleSizeM"]))
+        support = estimator.support_of(measured, observed_box=True)
+    elif track is not None:
+        support = estimator.support_of(track)
     if support is None or estimator.stamp - support.last_seen > max_age:
         return {**result, "reason": "support could not be inferred from fresh robot observations"}
 

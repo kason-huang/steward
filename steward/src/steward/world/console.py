@@ -67,6 +67,8 @@ def console_state(host) -> dict:
             # Sensor ids in model order (head + wide; Cobot Magic also exposes L/R wrist cameras).
             "cameras": [c["id"] for c in sim.robot_cameras(rid)],
             "embodiment": host.embodiments.get(rid),
+            "motion": sim.motion_status(rid),
+            "canRequestMotionResume": rid in host.ego_apis,
         }
     floor = next((g for g in ground_truth if g["category"] == "floor"), None)
     cx, cy = (floor["center"][0], floor["center"][1]) if floor else (0.0, 0.0)

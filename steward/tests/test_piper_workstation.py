@@ -6,20 +6,47 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from steward.assets.piper import ARM_JOINTS, WORKSPACE_CAMERA, WRIST_CAMERA
+from steward.assets.piper import ARM_JOINTS, WORKSPACE_CAMERA, WRIST_CAMERA, piper_entity
 from steward.assets.generators import printed_board
 from steward.ego.bodies import robot_model, runtime_config
 from steward.ego.monitor import MonitorConfig
 from steward.ego.perception import decode_rgbd
 from steward.ego.runtime import EgoRuntime, RobotLink, RuntimeConfig
 from steward.ego.server import ego_api
+from steward.ego.view import EgoViewRenderer
+from steward.math3d import quat_angle_between
 from steward.net import HttpError, call
+from steward.scene.schema import SceneState
+from steward.viewloop import ViewSettings
 from steward.world.server import StewardHost
 
 ROBOT = "w:robot-1"
 
 pytestmark = pytest.mark.skipif(not os.environ.get("STEWARD_PIPER_MJCF"),
                                 reason="requires the PhyAgentOS robot-control-sim PiPER MJCF")
+
+
+def test_ego_frames_keep_the_piper_base_at_the_workbench_height():
+    robot = piper_entity()
+    robot.id = "e:self"
+    robot.pose.value["p"] = [0.0, 0.0, 0.751]
+    ego = SceneState(mode="ego", self_id=robot.id, entities=[robot]).to_dict()
+    settings = ViewSettings(
+        {"lookat": [0.25, 0.0, 0.83], "distance": 1.1, "azimuth": 140.0, "elevation": -30.0},
+        10, 160, 120,
+    )
+    view = EgoViewRenderer()
+    try:
+        view.render(ego, settings)
+        compiled = view._compiled
+        base = compiled.build.names[robot.id].bodies["base_link"]
+        assert compiled.data.body(base).xpos[2] == pytest.approx(0.751)
+
+        view.render(ego, settings)
+        assert view._compiled is compiled
+        assert compiled.data.body(base).xpos[2] == pytest.approx(0.751)
+    finally:
+        view.close()
 
 
 def test_native_piper_motion_hold_and_camera_ports(tmp_path):
@@ -99,12 +126,25 @@ def test_piper_direct_s0_commands_wait_for_encoders_and_honor_task_stop(tmp_path
 
     try:
         s0_tools = call("GET", f"{api.url}/ego/plan")["availableS0Tools"]
-        assert s0_tools["body_set_joints"] == s0_tools["body_set_gripper"] == "control"
+        assert s0_tools["body_set_pose"] == s0_tools["body_set_joints"] == s0_tools["body_set_gripper"] == "control"
+        capabilities = call("GET", f"{api.url}/ego/control")["capabilities"]
+        assert capabilities["arms"][0]["poseMode"] == "spatial"
+        assert capabilities["skills"] == ["pick", "place"]
+        assert set(capabilities["cameras"]) == {WORKSPACE_CAMERA, WRIST_CAMERA}
+        assert capabilities["s0Tools"] == s0_tools
         initial = link.proprioception()["joints"]
         with pytest.raises(HttpError, match="active, controlled"):
             command({"joints": {"joint1": 0.2}})
         runtime.acquire_control("operator")
         scope = {"owner": "operator", "taskId": "test-direct-s0"}
+        pose = call("GET", f"{api.url}/ego/gripper/pose")["tcp_pose"]
+        target = {**pose, "position": [0.26, 0.0, 0.25]}
+        moved = command({**scope, "pose": target})
+        assert set(moved) == {"id", "state", "pose", "gripper", "stamp"}
+        assert moved["state"] == "reached"
+        assert moved["pose"]["position"] == pytest.approx(target["position"], abs=0.012)
+        assert quat_angle_between(moved["pose"]["orientation"], target["orientation"]) <= 0.05
+        command({**scope, "joints": {name: initial[name] for name in ARM_JOINTS}})
         for invalid in ({"joint1": 0.2, "joint2": 20}, {"joint7": 0.01}, {"joint1": True}):
             with pytest.raises(HttpError):
                 command({**scope, "joints": invalid})

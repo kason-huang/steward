@@ -508,6 +508,7 @@ class HarnessChat:
                 read_only = agent.read_only or (tools is not None and tools.read_only)
                 agents["robot"].update(robot, profile=agent.profile,
                                        readOnly=read_only,
+                                       sessionTools=sorted(tools.names) if tools is not None else None,
                                        sessionSkills=(tools.skills(supported)
                                                       if tools is not None and isinstance(supported, list)
                                                       and all(isinstance(skill, str) for skill in supported) else None))

@@ -266,9 +266,28 @@ export class EgoError extends Error {
   }
 }
 
+/** TCP pose in base metres and a unit tool-to-base quaternion in wxyz order. */
+export interface TcpPose {
+  position: number[]
+  orientation: number[]
+}
+
+/** Supported skills, cameras, arms and S0 operations for the connected robot. */
+export interface EgoCapabilities extends JsonObject {
+  body: string
+  skills: string[]
+  cameras: string[]
+  arms: JsonObject[]
+  s0Tools: Record<string, 'read' | 'control'>
+  tcp?: JsonObject
+  readOnly?: boolean
+}
+
+/** A direct S0 operation; the runtime translates pose targets into native commands. */
 export type DirectBodyCommand =
   | { joints: Record<string, number> }
   | { gripper: 'open' | 'close' }
+  | { pose: TcpPose }
 
 /**
  * The `ego` service. Every method accepts the caller's cancellation signal; providers must
@@ -285,6 +304,14 @@ export abstract class EgoService extends Service {
    */
   async assemblyProfile(): Promise<'off' | 'toy'> {
     return process.env.STEWARD_ASSEMBLY_PROFILE === 'toy' ? 'toy' : 'off'
+  }
+
+  /**
+   * Discover the connected body's capabilities before registering model tools.
+   * @returns the descriptor, if the provider publishes one.
+   */
+  async capabilities(): Promise<EgoCapabilities | undefined> {
+    return undefined
   }
 
   /**

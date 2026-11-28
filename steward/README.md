@@ -40,7 +40,9 @@ open http://127.0.0.1:7400/console   # 浏览器控制台：斜视主视图、�
 
 Focus either preview with a click or Tab: WASD moves the shared view horizontally, Shift accelerates, dragging turns in place, and scrolling zooms. Release the keys, leave the preview or press Escape to stop. Presets recenter the view. These controls do not move the robot or its sensor cameras.
 
-The console's current-thinking panel labels each block with its model step, separates the text from subsequent tool calls, and highlights the latest step. The highlight identifies the latest recorded step, not whether the model is still generating. Blocks up to 2,000 characters appear unchanged; longer blocks show the last 2,000 characters with a truncation label and expand/collapse controls. Full text loads on demand from `GET /console/thinking?robot=<id>&entry=<id>`; expansion survives polling for the same entry and clears when that entry leaves the visible window. A failed load retains the preview and offers retry; episode resets exclude old sessions from full-text reads too.
+The Ego State preview draws the robot and perceived objects in the same coordinate frame. A fixed arm such as PiPER uses its physical mounting pose, including the workbench height.
+
+The console's current-thinking panel labels each block with its model step, separates the text from subsequent tool calls, and highlights the latest step. The highlight identifies the latest recorded step, not whether the model is still generating. Blocks up to 2,000 characters appear unchanged; longer blocks show the last 2,000 characters with a truncation label and expand/collapse controls. Full text loads on demand from `GET /console/thinking?robot=<id>&entry=<id>`; expansion survives polling for the same entry and clears when that entry leaves the visible window. A failed load retains the preview and offers retry; episode resets exclude old sessions from full-text reads too. Each step also shows recorded S0 commands dispatched inside `run_code`, with targets, tool status, and measured joint values when the controller confirms arrival.
 
 The robot has two head RGB-D cameras: `head_camera` looks ahead; the short-focal-length `wide_camera` sees the nearby worktop and gripper. Both contribute to perception; see [steward.md 13.8](../steward.md#138-机器人本体的双相机).
 
@@ -127,6 +129,37 @@ Runtime assembly lives in [`ego/agilex.py`](src/steward/ego/agilex.py); `prepare
 For the local asset integration test, run `STEWARD_TEST_AGILEX_USD=1 steward/.venv/bin/python -m pytest -q steward/tests/test_agilex.py`. It navigates, picks a bowl and places it elsewhere on the table through the Ego API, then checks the world position. The kinematics fixture contains source joint data with small box stand-ins; the integration test uses the bundled meshes and is opt-in because the full physical task is slow.
 
 The same asset opt-in enables [`test_agilex_physics.py`](tests/test_agilex_physics.py) for native shoulder height, raw lift travel, camera extrinsics, finger coupling, mesh-mask coverage across poses and table support after retreat from a recorded release posture, cabinet clearance and drawer travel from a recorded docking posture, and correct-object drawer grasps with small perception offsets. [`test_cobot_ego.py`](tests/test_cobot_ego.py) runs shared task assertions through each body’s formal runtime assembly; without the opt-in its real-USD parameters are skipped. [`test_body_retreat.py`](tests/test_body_retreat.py) checks surface support, drawer opening and closure, final stow and viewing position, and release guards for all three bodies. Lightweight IK comparisons use matched physical shoulder heights, while native-home checks retain the USD profile’s own initial lift.
+
+## XLeRobot in the kitchen
+
+From the Steward directory, install the pinned [MuJoCo-GS-Web XLeRobot model](https://github.com/Vector-Wangel/MuJoCo-GS-Web/tree/0d60421c6cd8b16525695f32d2f8c5ba1329d45d/assets/robots/xlerobot) and launch the existing Phase 0 kitchen.
+
+```sh
+.venv/bin/python scripts/install_xlerobot_assets.py
+.venv/bin/steward up --scenario phase0-kitchen --body xlerobot --phase phase0 --no-dispatch-task
+```
+
+The model includes the RÅSKOG cart, wheel assemblies, head, and both arms. Set `STEWARD_XLEROBOT_MJCF` to select a local copy of this model or the PhyAgentOS variant, and keep the meshes in their original paths relative to the MJCF. The [body profile](embodiments/xlerobot.yaml) uses the right arm, two simulated RGB-D cameras, and planar position control for the base. The jaw holds objects through MuJoCo contact and friction. A grasp is reported when both fingers load the same movable object.
+
+In a controlled Ego Harness task, S2 can call `body_set_pose` with the right gripper TCP's forward position `x` and height `z` in metres relative to the base, and `pitch` in radians from pointing down toward the front. The lateral offset and wrist roll are fixed. S0 checks reachability and returns the encoder-measured pose. For direct gripper actuation, call `body_set_gripper` with `open` or `close`. Direct commands use joint limits and motion protection. Use the S1 skills for collision-aware paths.
+
+The Console's **机器人工具** section below the main view and chat groups robot tools by purpose: perception, motion planning, action, and code. Each card explains what the tool does and when to use it. S1 skills such as navigation, picking, and placing appear under action, while active exploration appears under perception and is marked as moving the robot. The section previews the body's catalogue until the session reports its available tools.
+
+Use `ego_capabilities` to discover the connected robot’s arms, cameras, skills and S0 tools. On XLeRobot and fixed-base PiPER, `body_set_pose` takes a base-relative TCP position in metres and a unit quaternion in wxyz order. It returns the encoder-confirmed TCP pose in the same format. Read the current measured value from `ego_gripper_pose.tcp_pose`. The arm descriptor reports XLeRobot’s fixed lateral coordinate and planar wrist pitch. PiPER resolves spatial targets with its six-axis kinematics. See the [S0 pose migration guide](../docs/upgrade-guide/v0.2.2-alpha.2/steward-s0-tcp-pose/guide.md).
+
+After a protection stop, wait for the Console to confirm that the robot is stationary and click **解除保护**. This permits new motion. The interrupted skill stays stopped and S2 must predict a new plan from the current observations.
+
+The S1 placement skill monitors the grip during transport and checks it again before opening. If the load slips before release, the skill stops without recording a placement. In Phase 0, `ego_verify_placement` uses a fresh detection after release to check the requested support.
+
+For a placement receipt with a checked dock margin, an out-of-range base pose stops descent and leaves the jaw closed. The failed job reports `dock-outside-receipt` and `measuredBasePose` in its postcondition so S2 can refresh observations and request a new plan.
+
+For compact worktop objects, S1 uses the detected dimensions to select a near-side grip. It prefers a downward jaw and tries small forward tilts when the downward grasp cannot complete approach, lift-off, and retraction. On shallow supports it checks reachable landing points, accounts for how tilting shifts the load, and opens the jaw slowly until contact clears.
+
+Run the kitchen regression below to test a small bottle on the cabinet, apples from two table positions onto a plate, and a spherical orange onto a rimmed tray. It checks MuJoCo finger contact, destination support, and the Ego placement verdict.
+
+```sh
+STEWARD_TEST_XLEROBOT=1 .venv/bin/python -m pytest -q tests/test_xlerobot.py
+```
 
 ## Run with DeepSeek Harness
 

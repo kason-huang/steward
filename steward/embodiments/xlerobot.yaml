@@ -1,0 +1,23 @@
+id: xlerobot
+display: XLeRobot
+reference:
+  repository: https://github.com/Vector-Wangel/MuJoCo-GS-Web
+  model: assets/robots/xlerobot/xlerobot.xml
+  model_path_env: STEWARD_XLEROBOT_MJCF
+mechanical:
+  base: simulated_planar_position
+  arm_joints: [Pitch_R, Elbow_R, Wrist_Pitch_R]
+  parked_axes: [Rotation_R, Wrist_Roll_R]
+  joint_angle_unit: rad
+  gripper:
+    joint: Jaw_R
+    simulation_grasp: native_finger_contact
+perception:
+  head_camera: simulated_survey_rgbd
+  wide_camera: simulated_near_rgbd
+control:
+  backend: steward_mujoco
+  state: /motion
+  hold: /motion/hold
+  resume: /motion/resume
+  direct_body: /ego/body/command

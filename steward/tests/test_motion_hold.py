@@ -112,6 +112,42 @@ def test_protective_stop_invalidates_an_intent_recovery_authorization(kitchen_ro
         host.stop()
 
 
+def test_console_resumes_only_the_displayed_settled_protection_hold(kitchen_root):
+    host = StewardHost(kitchen_root, scenario="phase0-kitchen", speed=6).start()
+    link = RobotLink(host.robot_servers[ROBOT].url)
+    runtime = EgoRuntime(link, steward_bot().to_dict())
+    api = ego_api(runtime).start()
+    host.attach_ego_api(ROBOT, api.url)
+    try:
+        route = f"{host.wca.url}/console/motion/resume"
+        with host.sim.lock:
+            host.sim.paused = True
+        hold = link.hold_motion()
+        request = {"robot": ROBOT, "epoch": hold["epoch"]}
+        with pytest.raises(HttpError, match="停稳"):
+            call("POST", route, request)
+
+        call("POST", f"{host.wca.url}/wca/clock", {"action": "resume"})
+        settled = _wait_for(link.motion_status, lambda status: status["state"] == "held")
+        robot = call("GET", f"{host.wca.url}/console/state")["robots"][ROBOT]
+        assert robot["canRequestMotionResume"] and robot["motion"]["epoch"] == settled["epoch"]
+        with pytest.raises(HttpError, match="状态已变化"):
+            call("POST", route, {**request, "epoch": "earlier-hold"})
+        runtime.acquire_control("robot-task")
+        with pytest.raises(HttpError, match="结束当前操作"):
+            call("POST", route, request)
+        assert link.motion_status()["state"] == "held"
+        runtime.release_control("robot-task")
+        status = call("POST", route, request)
+        assert status["state"] == "ready" and status["epoch"] != hold["epoch"]
+        with pytest.raises(HttpError, match="状态已变化"):
+            call("POST", route, request)
+        assert runtime.executor.current is None
+    finally:
+        api.stop()
+        host.stop()
+
+
 def test_a_lost_dispatch_can_be_looked_up_by_receipt_without_starting_a_second_job(kitchen_root):
     host = StewardHost(kitchen_root, scenario="phase0-kitchen", speed=6).start()
     link = RobotLink(host.robot_servers[ROBOT].url)

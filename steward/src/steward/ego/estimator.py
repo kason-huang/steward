@@ -711,7 +711,7 @@ class EgoEstimator:
             # the held track, one per camera, ahead of the nearest-first race: letting a free
             # track win them keeps a phantom alive beside the load (a held car body fed one at its
             # old dock spot for minutes, and the ids changed hands every pick+align cycle).
-            for k, (det, pos, _yaw, _sigma) in enumerate(measurements):
+            for k, (det, pos, *_) in enumerate(measurements):
                 cam = camera_of[k]
                 if held.id in seen_by[cam] or not compatible(det["category"], held.perceived_category):
                     continue
@@ -5402,6 +5402,7 @@ class EgoEstimator:
                     track.pos = track.pos + 0.5 * (pos - track.pos)
                     track.carried_offset = self.gripper_rotation(self.held_gripper).T @ (track.pos - container.pos)
                 return
+            self._observe_ideal_placement(track, det, pos)
             r = sigma**2
             prior_var = track.var + self.config.process_noise
             gain = prior_var / (prior_var + r)
@@ -5450,6 +5451,7 @@ class EgoEstimator:
                     track.pos = track.pos + 0.5 * (pos - track.pos)
                     track.carried_offset = self.gripper_rotation(container.held_by).T @ (track.pos - container.pos)
                 return
+            self._observe_ideal_placement(track, det, pos)
             r = sigma**2
             prior_var = track.var + self.config.process_noise
             gain = prior_var / (prior_var + r)
@@ -5473,6 +5475,14 @@ class EgoEstimator:
             n = track.observations
             track.size = track.size + (np.asarray(det["size"], float) - track.size) / n
             self._remember_screw_holes(track, det, pos, yaw)
+
+    def _observe_ideal_placement(self, track: Track, det: dict, pos: np.ndarray) -> None:
+        """Keep the ideal detector's box for an associated free object after release."""
+        record = track.placement
+        if record is None or track.pinned or self.stamp <= record["releasedAt"]:
+            return
+        record["observation"] = {"stamp": self.stamp, "source": "ideal_detection",
+                                 "centreM": pos.tolist(), "visibleSizeM": list(det["size"])}
 
     def _refine_held(self, track: Track, pos: np.ndarray, sigma: float) -> None:
         """Correct where the held ``track`` sits in the gripper from a detection of it there. The
@@ -6319,10 +6329,11 @@ class EgoEstimator:
                 + self.gripper_rotation(self.held_gripper, joints, odometry) @ track.held_offset)
 
     # ------------------------------------------------------------------ output
-    def support_of(self, track: Track) -> Track | None:
+    def support_of(self, track: Track, *, observed_box: bool = False) -> Track | None:
         """What holds a track: the held container for its contents, else the innermost receptacle
         (drawer, larger bowl, a box its contents can be poured from) whose floor it rests on, else
-        the highest support surface whose top it rests on."""
+        the highest support surface whose top it rests on. An observed full box can
+        distinguish a nearby surface above a receptacle's rim from its interior."""
         if track.carried and track.carried_by in self.tracks:
             return self.tracks[track.carried_by]
         inside, best = None, None
@@ -6348,12 +6359,16 @@ class EgoEstimator:
             # A resting object's base is often hidden from view, so its estimate may float a little above
             # the surface; it never sinks far into it.
             gap = track.bottom() - other.top()
-            if "support-surface" not in affordances or not (-z_tol <= gap <= max(z_tol, 0.12)):
+            near_surface = (abs(gap) <= self.config.rest_gap_m if observed_box
+                            else -z_tol <= gap <= max(z_tol, 0.12))
+            if "support-surface" not in affordances or not near_surface:
                 continue
             margin = max(0.02, 2.0 * track.sigma)
             if abs(local[0]) <= other.size[0] / 2 + margin and abs(local[1]) <= other.size[1] / 2 + margin:
                 if best is None or other.top() > best.top():
                     best = other
+        if observed_box and inside is not None and best is not None and best.top() > inside.top():
+            return best
         return inside or best
 
     def _in_closed_drawer(self, track: Track) -> bool:
@@ -6636,9 +6651,9 @@ class EgoEstimator:
     def placement_evidence(self, track_id: str) -> dict:
         """Report a post-release sensor sample, never the position written by release_at.
 
-        A single view's bounding centre is a measurement of visible surfaces, not proof of
-        support, orientation, mating or fastening. Without a task-supplied acceptance criterion
-        it cannot certify completion, even when its XY residual is zero.
+        An ideal detection supplies an object box. An RGB-D segment measures visible
+        surfaces and needs complete depth and an uncut view. The sample alone does not
+        certify support, orientation, mating or fastening.
         """
         track = self.tracks.get(track_id)
         record = track.placement if track is not None else None
@@ -6663,16 +6678,18 @@ class EgoEstimator:
             return result
         centre = obs["centreM"]
         if not all(math.isfinite(v) for v in centre):
-            result["reason"] = "post-release depth measurement is invalid; obtain another view"
+            result["reason"] = "post-release position measurement is invalid; obtain another view"
             return result
         result.update({"observation": {**obs, "centreM": list(centre), "visibleSizeM": list(obs["visibleSizeM"])},
-                       "deltaXYM": [centre[k] - record["expectedXYM"][k] for k in range(2)],
-                       "reason": "visible-surface centre measured; verify identity, pose and required relation separately"})
-        if obs["truncated"] or obs["invalidDepthFraction"] > 0:
+                       "deltaXYM": [centre[k] - record["expectedXYM"][k] for k in range(2)]})
+        rgbd = obs["source"] == "rgbd_segment"
+        if rgbd and (obs["truncated"] or obs["invalidDepthFraction"] > 0):
             result["reason"] = "partial view or missing depth; residual is diagnostic only, obtain another view"
         else:
             result["status"] = "observed"
-        if "orientationTarget" in record:
+            result["reason"] = ("visible-surface centre measured; verify identity, pose and required relation separately"
+                                if rgbd else "object box measured by the ideal detector")
+        if rgbd and "orientationTarget" in record:
             self._placement_orientation(track, record, result)
         return result
 
@@ -6693,7 +6710,7 @@ class EgoEstimator:
         expected_size = np.asarray(target["sizeM"], float)
 
         def axis(sample):
-            if sample is None or sample["truncated"] or sample["invalidDepthFraction"] > 0 \
+            if sample is None or sample["source"] != "rgbd_segment" or sample["truncated"] or sample["invalidDepthFraction"] > 0 \
                     or self.stamp - sample["stamp"] > self.config.placement_observation_max_age_s:
                 return None
             size = np.asarray(sample["visibleSizeM"], float)

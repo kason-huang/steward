@@ -9,6 +9,121 @@ const cameraScript = html.slice(html.indexOf('function cameraFrame('), html.inde
 const script = html.slice(html.indexOf('let viewPosting ='), html.indexOf('// ------------------------------------------------------------------ refresh'));
 assert.ok(script.includes('function postView()') && script.includes("vp.addEventListener('keydown'"));
 
+test('the tool area groups the catalogue preview and the active session tools', () => {
+  const groups = ['perceptionTools', 'planningTools', 'actionTools', 'codeTools'];
+  const controls = Object.fromEntries(['sessionSkillBody', 'sessionSkillNote', ...groups].map(id => [id, {}]));
+  const robot = {
+    available: true, profile: 'ego',
+    plan: { body: 'xlerobot', availableSkills: ['pick', 'place', 'look_around'],
+      availableS0Tools: { body_set_pose: 'control', ego_gripper_pose: 'read' } },
+    sessionTools: null, sessionSkills: null, sessionS0Tools: null,
+  };
+  const context = vm.createContext({
+    $: id => controls[id],
+    state: { loaded: true, robots: { robot: { embodiment: { id: 'xlerobot', label: 'XLeRobot' } } },
+      holding: { robot: { graspMode: 'contact' } } },
+    chatState: { agents: { robot } },
+    setText: (node, text) => { node.text = text; },
+    setHtml: (node, markup) => { node.markup = markup; },
+  });
+  const esc = html.split('\n').find(line => line.startsWith('const esc = '));
+  const renderer = html.slice(html.indexOf('const S1_SKILLS'), html.indexOf('let promptSession'));
+  vm.runInContext(`${esc}\n${renderer}\nrenderSessionSkills()`, context);
+  assert.match(controls.actionTools.markup, /<code>pick<\/code>.*双指接触与摩擦/);
+  assert.match(controls.actionTools.markup, /<code>place<\/code>.*S1 · 经 skill_run.*适用范围 · 夹爪已持物/);
+  assert.match(controls.perceptionTools.markup, /<code>ego_explore<\/code>.*会移动机器人/);
+  assert.match(controls.perceptionTools.markup, /<code>ego_verify_placement<\/code>/);
+  assert.match(controls.planningTools.markup, /<code>ego_predict<\/code>/);
+  assert.match(controls.codeTools.markup, /<code>run_code<\/code>/);
+  assert.match(controls.sessionSkillNote.text, /工具目录预览/);
+
+  robot.sessionTools = ['body_set_pose', 'ego_gripper_pose', 'ego_explore', 'ego_predict', 'skill_run',
+    'run_code', 'capability_get'];
+  robot.sessionSkills = ['place', 'look_around'];
+  robot.sessionS0Tools = [{ name: 'body_set_pose', enabled: false }, { name: 'ego_gripper_pose', enabled: true }];
+  vm.runInContext('renderSessionSkills()', context);
+  assert.doesNotMatch(controls.actionTools.markup, /<code>(pick|look_around|ego_explore)<\/code>/);
+  assert.doesNotMatch(controls.perceptionTools.markup, /<code>(ego_state|ego_verify_placement)<\/code>/);
+  assert.match(controls.actionTools.markup, /<code>body_set_pose<\/code>.*S0 · 直调.*只读复查停用/);
+  assert.match(controls.perceptionTools.markup, /<code>ego_gripper_pose<\/code>.*S0 · 只读/);
+  assert.match(controls.codeTools.markup, /<code>capability_get<\/code>/);
+  assert.equal(controls.sessionSkillNote.text, '');
+
+  robot.readOnly = true;
+  vm.runInContext('renderSessionSkills()', context);
+  assert.match(controls.actionTools.markup, /<li class="restricted">[^]*?<code>place<\/code>/);
+  assert.match(controls.sessionSkillNote.text, /运动能力受限/);
+  robot.sessionTools = ['ego_gripper_pose'];
+  robot.sessionSkills = null;
+  vm.runInContext('renderSessionSkills()', context);
+  assert.match(controls.actionTools.markup, /当前会话未开放此类工具/);
+  assert.doesNotMatch(controls.actionTools.markup, /<code>/);
+
+  robot.plan.body = 'other';
+  vm.runInContext('renderSessionSkills()', context);
+  for (const id of groups) assert.equal(controls[id].markup, '');
+});
+
+test('the thinking panel names the S0 command and shows its encoder confirmation', () => {
+  const controls = { thinkMeta: {}, thinkBody: {} };
+  const context = vm.createContext({
+    $: id => controls[id],
+    setText: (node, text) => { node.text = text; },
+    setHtml: (node, markup) => { node.markup = markup; },
+    robotId: 'robot',
+    state: { thinking: { robot: { entries: [{
+      id: 'entry', step: 2, text: '', conclusion: ['run_code'],
+      s0Calls: [
+        { name: 'body_set_joints', status: 'reached', arguments: { joint3: -0.12 },
+          measuredJoints: { joint3: -0.12532341145091186 } },
+        { name: 'body_set_gripper', status: 'failed', arguments: { action: '<invalid>' } },
+      ],
+    }] } } },
+  });
+  const esc = html.split('\n').find(line => line.startsWith('const esc = '));
+  const thinking = html.slice(html.indexOf('const thinkingExpanded'), html.indexOf("$('thinkBody').addEventListener"));
+  vm.runInContext(`${esc}\n${thinking}\nrenderThinking()`, context);
+  assert.match(controls.thinkBody.markup, /后续调用：run_code/);
+  assert.match(controls.thinkBody.markup, /S0 调用 <code>body_set_joints<\/code> · 已到达/);
+  assert.match(controls.thinkBody.markup, /目标 \{&quot;joint3&quot;:-0\.12\} · 编码器 \{&quot;joint3&quot;:-0\.12532341145091186\}/);
+  assert.match(controls.thinkBody.markup, /body_set_gripper<\/code> · 失败 · 目标 \{&quot;action&quot;:&quot;&lt;invalid&gt;&quot;\}/);
+});
+
+test('the operator can resume only the displayed settled protection hold', async () => {
+  const controls = { motionResume: {}, motionResumeStatus: {} };
+  const robot = { canRequestMotionResume: true, motion: { state: 'stopping', reason: 'protection', epoch: 'hold' } };
+  const chat = { control: null };
+  const requests = [];
+  const context = vm.createContext({
+    state: { paused: false, robots: { robot } }, robotId: 'robot', chatState: { agents: { robot: chat } },
+    $: id => controls[id], setText: (node, text) => { node.text = text; },
+    api: (...args) => {
+      requests.push(structuredClone(args));
+      robot.motion = { state: 'ready', reason: null, epoch: 'next' };
+      return robot.motion;
+    },
+    refresh: async () => {},
+  });
+  vm.runInContext(html.slice(html.indexOf('let motionResumePending'), html.indexOf("$('speed').onchange"))
+    + '\nrenderMotionResume()', context);
+  assert.equal(controls.motionResume.hidden, false);
+  assert.equal(controls.motionResume.disabled, true);
+  assert.match(controls.motionResumeStatus.text, /等待本体确认停稳/);
+  await controls.motionResume.onclick();
+  assert.deepEqual(requests, []);
+  robot.motion.state = 'held';
+  chat.control = 'robot-turn';
+  vm.runInContext('renderMotionResume()', context);
+  assert.equal(controls.motionResume.disabled, true);
+  chat.control = null;
+  vm.runInContext('renderMotionResume()', context);
+  assert.equal(controls.motionResume.disabled, false);
+  await controls.motionResume.onclick();
+  assert.deepEqual(requests, [['POST', '/console/motion/resume', { robot: 'robot', epoch: 'hold' }]]);
+  assert.equal(controls.motionResume.hidden, true);
+  assert.match(controls.motionResumeStatus.text, /可以重新规划/);
+});
+
 test('World and Ego labels name house objects even when their task role is unknown', () => {
   const world = { labels: [], clearRect() {} }, ego = { labels: [], clearRect() {} };
   const objects = ['table', 'sofa', 'bread'].map((category, i) => ({

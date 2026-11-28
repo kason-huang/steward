@@ -18,8 +18,8 @@ from steward.assembly_profile import enabled as _assembly_enabled
 
 from concurrent.futures import CancelledError
 
-from steward.assets.piper import BODY_ID as PIPER_BODY
 from steward.ego.runtime import EgoRuntime
+from steward.ego.s0 import ORIENTATION_TOLERANCE_RAD, POSITION_TOLERANCE_M
 if _assembly_enabled():
     from steward.ego.public import public_json
 from steward.net import NO_CONTENT, CancellableHandler, HttpError, JsonServer
@@ -31,9 +31,25 @@ _S0_TOOL_ROUTES = {
     "body_stop": ("control", ("POST", "/skill/stop")),
     "ego_motion_status": ("read", ("GET", "/ego/motion")),
     "ego_gripper_pose": ("read", ("GET", "/ego/gripper/pose")),
-    "body_set_joints": ("control", _DIRECT_BODY_ROUTE),
-    "body_set_gripper": ("control", _DIRECT_BODY_ROUTE),
 }
+
+
+def _s0_tools(routes: dict, runtime: EgoRuntime) -> dict[str, str]:
+    tools = {name: access for name, (access, route) in _S0_TOOL_ROUTES.items() if route in routes}
+    if _DIRECT_BODY_ROUTE in routes and runtime.body_control is not None:
+        tools.update(dict.fromkeys(runtime.body_control.tools, "control"))
+    return tools
+
+
+def _capabilities(routes: dict, runtime: EgoRuntime) -> dict:
+    tools = _s0_tools(routes, runtime)
+    result = {**runtime.describe_body(), "s0Tools": tools}
+    if "body_set_pose" in tools:
+        result["tcp"] = {"frame": "base", "baseAxes": "x_forward_y_left_z_up", "toolTipAxis": "+z",
+                         "positionUnit": "m", "orientationOrder": "wxyz",
+                         "positionToleranceM": POSITION_TOLERANCE_M,
+                         "orientationToleranceRad": ORIENTATION_TOLERANCE_RAD}
+    return result
 
 
 # Reads, live motion/protection calls and waits stay outside the recorded world inputs.
@@ -180,7 +196,8 @@ def _routes(runtime: EgoRuntime) -> dict:
             ("POST", "/ego/rgb/prepare-novelanything"): lambda q, b: runtime.prepare_novelanything(b["recording_id"], b.get("num_source_views")),
             ("POST", "/ego/explore"): lambda q, b: runtime.explore(
                 b.get("owner"), b.get("intentRevision"), task_id=b.get("taskId"), timeout_s=b.get("timeoutS", 120.)),
-            ("GET", "/ego/control"): lambda q, b: {**runtime.control(), "assemblyProfile": "toy"},
+            ("GET", "/ego/control"): lambda q, b: {**runtime.control(), "assemblyProfile": "toy",
+                                                    "capabilities": _capabilities(routes, runtime)},
             ("GET", "/ego/alerts"): lambda q, b: runtime.alerts_view(),
             ("GET", "/ego/dropped"): lambda q, b: {"dropped": runtime.dropped()},
             ("POST", "/ego/alert"): lambda q, b: report(b),
@@ -189,7 +206,7 @@ def _routes(runtime: EgoRuntime) -> dict:
             ("POST", "/ego/view"): lambda q, b: runtime.view.configure(ViewSettings.parse(b)),
             ("GET", "/ego/view/frame"): lambda q, b: view_frame(q),
             ("GET", "/ego/plan"): lambda q, b: runtime.plan_view(int(q.get("since", 0))) | {
-                "availableS0Tools": {name: access for name, (access, route) in _S0_TOOL_ROUTES.items() if route in routes}},
+                "availableS0Tools": _s0_tools(routes, runtime)},
             ("POST", "/ego/plan"): lambda q, b: runtime.set_plan(b),
             ("POST", "/ego/control"): lambda q, b: control(b),
             ("POST", "/ego/predict"): lambda q, b: runtime.predict(
@@ -245,7 +262,7 @@ def _routes(runtime: EgoRuntime) -> dict:
         ("POST", "/ego/rgb/prepare-novelanything"): lambda q, b: runtime.prepare_novelanything(b["recording_id"], b.get("num_source_views")),
         ("POST", "/ego/explore"): lambda q, b: runtime.explore(
             b.get("owner"), b.get("intentRevision"), task_id=b.get("taskId")),
-        ("GET", "/ego/control"): lambda q, b: runtime.control(),
+        ("GET", "/ego/control"): lambda q, b: {**runtime.control(), "capabilities": _capabilities(routes, runtime)},
         ("GET", "/ego/alerts"): lambda q, b: runtime.alerts_view(),
         ("GET", "/ego/dropped"): lambda q, b: {"dropped": runtime.dropped()},
         ("POST", "/ego/alert"): lambda q, b: report(b),
@@ -254,7 +271,7 @@ def _routes(runtime: EgoRuntime) -> dict:
         ("POST", "/ego/view"): lambda q, b: runtime.view.configure(ViewSettings.parse(b)),
         ("GET", "/ego/view/frame"): lambda q, b: view_frame(q),
         ("GET", "/ego/plan"): lambda q, b: runtime.plan_view(int(q.get("since", 0))) | {
-            "availableS0Tools": {name: access for name, (access, route) in _S0_TOOL_ROUTES.items() if route in routes}},
+            "availableS0Tools": _s0_tools(routes, runtime)},
         ("POST", "/ego/plan"): lambda q, b: runtime.set_plan(b),
         ("POST", "/ego/control"): lambda q, b: control(b),
         ("POST", "/ego/predict"): lambda q, b: runtime.predict(
@@ -287,6 +304,6 @@ def _routes(runtime: EgoRuntime) -> dict:
         ("POST", "/clock/sleep"): lambda q, b: {"t": runtime.link.sleep(float(b["seconds"]))},
         ("GET", "/ego/inputs"): lambda q, b: {"inputs": runtime.inputs},
     }
-    if runtime.body_id == PIPER_BODY:
+    if runtime.body_control is not None:
         routes[_DIRECT_BODY_ROUTE] = lambda q, b: runtime.direct_body(b, lambda: False)
     return routes

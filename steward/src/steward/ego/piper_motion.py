@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from functools import cached_property
 
 import mink
 import mujoco
@@ -10,8 +11,10 @@ import numpy as np
 
 from steward.assets.piper import ARM_JOINTS, WRIST_LINK, model_path
 from steward.ego.esim import PredictionError, TargetFreshness
+from steward.ego.kinematics import _link_pose
 from steward.ego.planner import entity_box
-from steward.math3d import pose_compose, pose_inverse
+from steward.ego.s0 import BodyControl, BodyMove, TcpPose
+from steward.math3d import matrix_from_quat, pose_compose, pose_inverse, quat_from_matrix
 from steward.scene.schema import SceneState, pose
 
 PIPER_SKILLS = ("pick", "place")
@@ -43,12 +46,14 @@ class PiperMotion:
                                     if isinstance(a["value"], dict) and "tcp-offset" in a["value"]))
         # Tool down, with the jaw orientation held across the transfer.
         self._rotation = np.diag([-1.0, 1.0, -1.0])
-        self._tool = mink.SO3.from_matrix(self._rotation)
 
-    def _pose_goal(self, config: mink.Configuration, at: np.ndarray) -> dict[str, float]:
+    def _pose_goal(self, config: mink.Configuration, at: np.ndarray,
+                   rotation: np.ndarray | None = None) -> dict[str, float]:
+        rotation = self._rotation if rotation is None else rotation
         task = mink.FrameTask(WRIST_LINK, "body", position_cost=1.0, orientation_cost=0.6,
                               gain=0.7, lm_damping=0.01)
-        task.set_target(mink.SE3.from_rotation_and_translation(self._tool, at - self._rotation @ self._tcp))
+        task.set_target(mink.SE3.from_rotation_and_translation(
+            mink.SO3.from_matrix(rotation), at - rotation @ self._tcp))
         posture = mink.PostureTask(self.model, cost=5e-4)
         posture.set_target(config.q)
         for _ in range(60):
@@ -61,7 +66,7 @@ class PiperMotion:
             except mink.NoSolutionFound as exc:
                 raise PredictionError("PiPER inverse kinematics found no solution") from exc
             config.integrate_inplace(v, 0.05)
-        raise PredictionError(f"PiPER cannot reach TCP {at.round(3).tolist()} in its down-facing working pose")
+        raise PredictionError(f"PiPER cannot reach TCP {at.round(3).tolist()} with the requested orientation")
 
     def _configuration(self, es: SceneState) -> tuple[mink.Configuration, dict]:
         me = es.entity(es.self_id)
@@ -160,3 +165,55 @@ class PiperMotion:
             checkpoints.append(program["clearView"])
         self._check_path(config, initial[self._qadr], checkpoints)
         return plan | {"jointProgram": program}
+
+
+class PiperS0(BodyControl):
+    """Map a base-relative TCP to the fixed PiPER's six native joints."""
+
+    tools = (*BodyControl.tools, "body_set_joints")
+    # Match the shared tool axes at tool-down, with +Z pointing through the pinch point.
+    _wrist_from_tool = np.diag([-1.0, -1.0, 1.0])
+
+    @cached_property
+    def motion(self) -> PiperMotion:
+        return PiperMotion(self.model)
+
+    def describe_arm(self) -> dict:
+        return {"id": "arm", "gripper": WRIST_LINK, "poseMode": "spatial"}
+
+    def measured_pose(self, encoders: dict) -> TcpPose:
+        wrist = _link_pose(self.model, encoders, WRIST_LINK)
+        rotation = matrix_from_quat(wrist["q"])
+        tcp = np.asarray(wrist["p"]) + rotation @ self.motion._tcp
+        return TcpPose(tuple(map(float, tcp)), tuple(quat_from_matrix(rotation @ self._wrist_from_tool)))
+
+    def pose_move(self, value: object, encoders: dict) -> BodyMove:
+        pose = TcpPose.parse(value)
+        solver = self.motion
+        q = solver.model.qpos0.copy()
+        for name in self.limits:
+            q[solver.model.joint(name).qposadr[0]] = encoders[name]
+        initial = q[solver._qadr].copy()
+        config = mink.Configuration(solver.model, q)
+        try:
+            wrist_rotation = matrix_from_quat(pose.orientation) @ self._wrist_from_tool.T
+            joints = solver._pose_goal(config, np.asarray(pose.position), wrist_rotation)
+            solver._check_path(config, initial, [joints])
+        except PredictionError as exc:
+            raise ValueError(str(exc)) from exc
+        return BodyMove({"joints": joints}, joints, 0.01, pose)
+
+    def joint_move(self, joints: object) -> BodyMove:
+        if not isinstance(joints, dict) or not joints or not joints.keys() <= set(ARM_JOINTS):
+            raise ValueError("joints must contain one or more PiPER arm joints (joint1 through joint6)")
+        for name, angle in joints.items():
+            limits = self.limits[name]
+            if type(angle) not in (int, float) or not limits["lo"] <= angle <= limits["hi"]:
+                raise ValueError(f"{name} must be a finite angle in radians within [{limits['lo']}, {limits['hi']}]")
+        return BodyMove({"joints": joints}, joints, 0.01)
+
+    def gripper_move(self, action: str) -> BodyMove:
+        opening = action == "open"
+        targets = {"joint7": self.limits["joint7"]["hi" if opening else "lo"],
+                   "joint8": self.limits["joint8"]["lo" if opening else "hi"]}
+        return BodyMove({"gripper": action}, targets, 0.002)

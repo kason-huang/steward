@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.2-alpha.2/steward-s0-tcp-pose/guide.md
+/:
+  en: 5a01857f2832dab2
+  zh: ce2e4de8721f2ca0
+/steward-s0-tool-centre-pose:
+  en: 062740023a55a055
+  zh: 71acd08def607671
+/steward-s0-tool-centre-pose/change:
+  en: 1b876e488e3f74e6
+  zh: 33d68e758a85981a
+/steward-s0-tool-centre-pose/migration:
+  en: 2c5e4004e7ccb8f0
+  zh: d39fb3bab8420909

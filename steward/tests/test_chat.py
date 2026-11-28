@@ -111,7 +111,7 @@ def test_world_chat_keeps_its_session_and_targets_this_hosts_wca(tmp_path):
     assert not state["agents"]["robot"]["available"]
 
 
-def test_console_skills_match_the_tools_reported_by_the_robot_session(tmp_path):
+def test_console_catalogue_matches_the_tools_reported_by_the_robot_session(tmp_path):
     plan = {"body": "test-body", "availableSkills": ["pick", "place", "look_around"],
             "availableS0Tools": {"body_stop": "control", "ego_motion_status": "read", "ego_gripper_pose": "read",
                                  "body_set_joints": "control", "body_set_gripper": "control"}}
@@ -134,10 +134,12 @@ def test_console_skills_match_the_tools_reported_by_the_robot_session(tmp_path):
                                       robot_home=home, ego_api=api.url), lambda: "unused")
         chat.agents["robot"].before_turn = None
         chat.agents["robot"].after_turn = None
+        assert chat.state()["agents"]["robot"]["sessionTools"] is None
         assert chat.state()["agents"]["robot"]["sessionSkills"] is None
         chat.send("robot", "观察")
         _wait_idle(chat, "robot")
         robot = chat.state()["agents"]["robot"]
+        assert robot["sessionTools"] == sorted(event["tools"])
         assert robot["sessionSkills"] == ["pick", "look_around"]
         assert robot["profile"] == "ego" and robot["readOnly"]
         assert robot["sessionS0Tools"] == [{"name": "body_stop", "enabled": False},
@@ -150,11 +152,13 @@ def test_console_skills_match_the_tools_reported_by_the_robot_session(tmp_path):
         chat.send("robot", "再看一下")
         _wait_idle(chat, "robot")
         robot = chat.state()["agents"]["robot"]
+        assert robot["sessionTools"] == sorted(event["tools"])
         assert robot["sessionSkills"] == []
         assert robot["sessionS0Tools"] == [{"name": "body_stop", "enabled": True},
                                            {"name": "ego_gripper_pose", "enabled": True},
                                            {"name": "body_set_joints", "enabled": True}]
         chat.reset("robot")
+        assert chat.state()["agents"]["robot"]["sessionTools"] is None
         assert chat.state()["agents"]["robot"]["sessionSkills"] is None
         assert chat.state()["agents"]["robot"]["sessionS0Tools"] is None
     finally:

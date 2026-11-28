@@ -50,6 +50,11 @@ EMBODIMENTS: dict[str, dict] = {
         "runs_mission": False,
         "skills": True,
     },
+    "xlerobot": {
+        "label": "XLeRobot",
+        "description": "平面移动底盘、单臂抓放和双视角仿真 RGB-D 相机",
+        "profile": "xlerobot.yaml", "ego": "ego", "runs_mission": False, "skills": True,
+    },
 }
 
 
@@ -114,6 +119,10 @@ def robot_entity(embodiment_id: str) -> dict:
         from steward.assets.piper import piper_entity
 
         return piper_entity().to_dict()
+    if embodiment_id == "xlerobot":
+        from steward.assets.xlerobot import xlerobot_entity
+
+        return xlerobot_entity().to_dict()
     raise ValueError(f"unknown body {embodiment_id!r}; registered: {', '.join(EMBODIMENTS)}")
 
 

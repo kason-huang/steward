@@ -455,6 +455,7 @@ class StewardHost:
             ("GET", "/"): console_page,
             ("GET", "/console"): console_page,
             ("GET", "/console/state"): guard(lambda q, b: console_state(self)),
+            ("POST", "/console/motion/resume"): guard(lambda q, b: self.resume_protected_motion(b)),
             ("GET", "/console/thinking"): guard(lambda q, b: console_thinking_text(self, q.get("robot", ""), q.get("entry", ""))),
             ("GET", "/console/frame"): guard(frame),
             ("GET", "/console/segmentation"): guard(lambda q, b: self._relay_segmentation(q)),
@@ -504,6 +505,29 @@ class StewardHost:
             ("POST", "/console/chat/stop"): guard(lambda q, b: self.chat.cancel(b.get("agent", "world"))),
             ("POST", "/console/alerts/ack"): guard(lambda q, b: self.acknowledge_alerts()),
         }
+
+    def resume_protected_motion(self, request: dict) -> dict:
+        """Authorize new motion after the selected robot has stopped under the displayed protection hold."""
+        robot, epoch = request.get("robot"), request.get("epoch")
+        if not isinstance(robot, str) or not isinstance(epoch, str) or not robot or not epoch:
+            raise HttpError(400, "需要指定机器人和当前保护状态")
+        sim = self._require_sim()
+        url = self.ego_apis.get(robot)
+        if robot not in sim.robots or url is None:
+            raise HttpError(404, "此机器人暂未连接本体运行时")
+        status = sim.motion_status(robot)
+        if status["epoch"] != epoch or status["reason"] != "protection":
+            raise HttpError(409, "保护状态已变化，请刷新后确认")
+        if status["state"] != "held":
+            raise HttpError(409, "等待本体确认停稳")
+        try:
+            return call("POST", f"{url}/ego/motion/resume", {"epoch": epoch}, timeout=5)
+        except HttpError as exc:
+            if exc.status == 409:
+                raise HttpError(409, "当前无法解除保护，请等待机器人结束当前操作并刷新状态") from exc
+            raise HttpError(503, "本体恢复结果无法确认，请刷新状态") from exc
+        except OSError as exc:
+            raise HttpError(503, "本体恢复结果无法确认，请刷新状态") from exc
 
     # ------------------------------------------------- perception fault monitor
     def _perception_fault(self, robot: str, anomaly: dict) -> None:

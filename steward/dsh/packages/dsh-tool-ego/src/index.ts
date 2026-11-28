@@ -2,7 +2,7 @@
  * Consumer of `ctx.ego`: the robot tools the Ego Harness model calls.
  *
  * The model sees the world through the robot's Ego-State. Skills follow predict → run;
- * an opted-in PiPER profile can also issue explicit joint and gripper targets to S0.
+ * Connected robots describe their support for direct TCP, gripper and native joint commands.
  * @module @steward/dsh-tool-ego
  */
 
@@ -10,7 +10,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { defineTool, type InferValue, type ToolDefinition } from '@deepseek-ai/dsh-tools'
 import z from '@deepseek-ai/schemastery'
 import { recordingId } from '@steward/dsh-ego'
-import type { EgoService, JsonObject, PredictionReceipt, SkillJob } from '@steward/dsh-ego'
+import type { EgoCapabilities, EgoService, EgoSkill, JsonObject, PredictionReceipt, SkillJob } from '@steward/dsh-ego'
 
 export const name = 'steward-tool-ego'
 export const inject = ['tools', 'ego']
@@ -26,6 +26,33 @@ function json(value: unknown): Json {
 
 function text(value: unknown): [{ type: 'text'; text: string }] {
   return [{ type: 'text', text: JSON.stringify(value, null, 1) }]
+}
+
+function skillChoices(skills: EgoSkill[], capabilities?: EgoCapabilities): EgoSkill[] {
+  const available = capabilities === undefined ? skills : skills.filter(skill => capabilities.skills.includes(skill))
+  return available.length > 0 ? available : skills
+}
+
+function describeTools(tools: ToolDefinition[], capabilities?: EgoCapabilities): ToolDefinition[] {
+  if (capabilities === undefined) return tools
+  const registered = tools.filter(tool => {
+    if (tool.name === 'ego_explore') return capabilities.skills.includes('look_around')
+    if (['ego_predict', 'skill_run', 'skill_status'].includes(tool.name)) {
+      return capabilities.skills.some(skill => skill !== 'look_around')
+    }
+    return true
+  })
+  const names = new Set(registered.map(tool => tool.name))
+  const s0Tools = Object.fromEntries(Object.entries(capabilities.s0Tools).filter(([name]) => names.has(name)))
+  const descriptor = { ...capabilities, s0Tools }
+  registered.push(defineTool({
+    name: 'ego_capabilities',
+    description: 'Read the connected robot’s arm and camera capabilities, available skills, S0 tools and TCP pose constraints.',
+    parameters: {},
+    output: { schema: JSON_OUTPUT, render: (_a, v) => text(v) },
+    async execute() { return json(descriptor) },
+  }))
+  return registered
 }
 
 function receiptView(r: PredictionReceipt): JsonObject {
@@ -53,10 +80,12 @@ function jobView(job: SkillJob): JsonObject {
  * @param ego - the `ctx.ego` service.
  * @param profile - resolved runtime profile, or the environment for standalone factories.
  * @param allowDirectS0 - profile opt-in to PiPER commissioning controls.
+ * @param capabilities - the connected body and its session-scoped S0 permissions.
  * @returns tool definitions in registration order.
  */
-export function egoTools(ego: EgoService, profile = process.env.STEWARD_ASSEMBLY_PROFILE, allowDirectS0 = false): ToolDefinition[] {
-  if (profile === 'toy') return assemblyTools(ego)
+export function egoTools(ego: EgoService, profile = process.env.STEWARD_ASSEMBLY_PROFILE,
+  allowDirectS0 = false, capabilities?: EgoCapabilities): ToolDefinition[] {
+  if (profile === 'toy') return describeTools(assemblyTools(ego, capabilities), capabilities)
   const tools: ToolDefinition[] = [
     defineTool({
       name: 'ego_state',
@@ -259,7 +288,7 @@ export function egoTools(ego: EgoService, profile = process.env.STEWARD_ASSEMBLY
         + 'A correction proposal keeps the measured centre: re-identify the object, predict pick, then predict '
         + 'the supplied place parameters and reobserve. Confirm asymmetric features before accepting a directed orientation.',
       parameters: {
-        skill: { type: 'string', enum: ['regrasp_upright', 'assemble_onto', 'fasten_onto', 'seat_screw', 'drive_screw', 'flip_assembly', 'insert_screw_into_hole', 'navigate', 'pick', 'place', 'pour', 'open', 'close'], required: true, description: 'Skill to predict.' },
+        skill: { type: 'string', enum: skillChoices(['regrasp_upright', 'assemble_onto', 'fasten_onto', 'seat_screw', 'drive_screw', 'flip_assembly', 'insert_screw_into_hole', 'navigate', 'pick', 'place', 'pour', 'open', 'close'], capabilities), required: true, description: 'Skill to predict.' },
         turnOver: { type: 'boolean', description: 'flip_assembly: turn the assembly over (default true); false lifts and sets down to inspect following.' },
         drive: { type: 'boolean', description: 'fasten_onto: false seats screws without using a powered driver; default false; explicitly set true to drive. Action choice only, independent of environment mode.' },
         correctOnce: { type: 'boolean', description: 'Simple seating: observe and compensate a fresh out-of-capture landing error (default true).' },
@@ -503,7 +532,23 @@ export function egoTools(ego: EgoService, profile = process.env.STEWARD_ASSEMBLY
       },
     }),
   ]
-  if (allowDirectS0) {
+  const s0 = capabilities?.s0Tools
+  if (s0?.body_set_pose === 'control') {
+    tools.push(defineTool({
+      name: 'body_set_pose',
+      description: 'Move the tool centre to an absolute base-relative pose via S0. Read ego_capabilities for the arm constraints and use tcp_pose from ego_gripper_pose as a measured starting pose. This command does not plan a path around obstacles. Returns the encoder-confirmed TCP pose and timestamp.',
+      parameters: {
+        position: { type: 'array', items: { type: 'number' }, required: true,
+          description: 'Three coordinates [x, y, z] in metres, base axes forward, left, up.' },
+        orientation: { type: 'array', items: { type: 'number' }, required: true,
+          description: 'Unit quaternion [w, x, y, z] rotating the tool frame into the base frame.' },
+      },
+      output: { schema: JSON_OUTPUT, render: (_a, v) => text(v) },
+      execute: async ({ position, orientation }, exec) =>
+        json(await ego.directBody({ pose: { position, orientation } }, exec.signal)),
+    }))
+  }
+  if (allowDirectS0 && (s0 === undefined || s0.body_set_joints === 'control')) {
     const angle = { type: 'number', description: 'Absolute target angle in radians.' } as const
     tools.push(
       defineTool({
@@ -521,24 +566,26 @@ export function egoTools(ego: EgoService, profile = process.env.STEWARD_ASSEMBLY
           return json(await ego.directBody({ joints }, exec.signal))
         },
       }),
-      defineTool({
-        name: 'body_set_gripper',
-        description: 'Open or close the PiPER gripper directly via S0. Use for explicit gripper-control tasks. '
-          + 'Returns the finger encoders and whether the gripper holds anything.',
-        parameters: {
-          action: { type: 'string', enum: ['open', 'close'], required: true },
-        },
-        output: { schema: JSON_OUTPUT, render: (_a, v) => text(v) },
-        execute: async ({ action }, exec) => json(await ego.directBody({ gripper: action }, exec.signal)),
-      }),
     )
   }
-  return tools
+  if (s0?.body_set_gripper === 'control' || (s0 === undefined && allowDirectS0)) {
+    tools.push(defineTool({
+      name: 'body_set_gripper',
+      description: 'Open or close the working gripper directly via S0. Use for explicit gripper-control tasks. '
+        + 'Returns the finger encoders and whether the gripper holds anything.',
+      parameters: {
+        action: { type: 'string', enum: ['open', 'close'], required: true },
+      },
+      output: { schema: JSON_OUTPUT, render: (_a, v) => text(v) },
+      execute: async ({ action }, exec) => json(await ego.directBody({ gripper: action }, exec.signal)),
+    }))
+  }
+  return describeTools(tools, capabilities)
 }
 
 export async function apply(ctx: Context, config: { allowDirectS0?: boolean } = {}): Promise<void> {
   const profile = await ctx.ego.assemblyProfile()
-  const tools = egoTools(ctx.ego, profile, config.allowDirectS0)
+  const tools = egoTools(ctx.ego, profile, config.allowDirectS0, await ctx.ego.capabilities?.())
   if (profile === 'toy') {
     console.error('STEWARD_HARNESS_INTERFACE ' + JSON.stringify({ profile: 'toy', module: import.meta.url,
       tools: tools.map(tool => tool.name), predict: tools.find(tool => tool.name === 'ego_predict')?.parameters }))
@@ -591,6 +638,7 @@ function assemblyReceiptView(r: PredictionReceipt): JsonObject {
 
 
 function assemblyJobView(job: SkillJob): JsonObject {
+  if (job.postcondition?.reason === 'dock-outside-receipt') return jobView(job)
   if (job.skill === 'complete_assembly') {
     const source = job.postcondition ?? {}
     const result: JsonObject = { job: job.id, skill: job.skill,
@@ -645,7 +693,7 @@ function assemblyJobView(job: SkillJob): JsonObject {
  * @param ego - the `ctx.ego` service.
  * @returns tool definitions in registration order.
  */
-function assemblyTools(ego: EgoService): ToolDefinition[] {
+function assemblyTools(ego: EgoService, capabilities?: EgoCapabilities): ToolDefinition[] {
   return [
     defineTool({
       name: 'ego_state',
@@ -859,7 +907,7 @@ function assemblyTools(ego: EgoService): ToolDefinition[] {
         + 'A correction proposal keeps the measured centre: re-identify the object, predict pick, then predict '
         + 'the supplied place parameters and reobserve. Confirm asymmetric features before accepting a directed orientation.',
       parameters: {
-        skill: { type: 'string', enum: ['complete_assembly', 'regrasp_upright', 'assemble_onto', 'fasten_onto', 'seat_screw', 'drive_screw', 'flip_assembly', 'navigate', 'pick', 'place', 'pour', 'open', 'close'], required: true, description: 'Skill to predict.' },
+        skill: { type: 'string', enum: skillChoices(['complete_assembly', 'regrasp_upright', 'assemble_onto', 'fasten_onto', 'seat_screw', 'drive_screw', 'flip_assembly', 'navigate', 'pick', 'place', 'pour', 'open', 'close'], capabilities), required: true, description: 'Skill to predict.' },
         interfaces: { type: 'json', description: 'complete_assembly: user-selected [{part,body,hole?,heldHole?}], each one complete compatible interface. Support dependencies and reachability determine internal order.' },
         materials: { type: 'json', description: 'complete_assembly: explicitly bound [{entity,source}] from current observations and user task; no category-wide or cross-task supply.' },
         tools: { type: 'json', description: 'complete_assembly: {mode:"none"|"one"|"all",entity?}; a tool entity is required for one/all. Tool actions run only after every requested interface is released without contradiction.' },

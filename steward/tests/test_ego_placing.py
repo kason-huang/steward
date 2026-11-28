@@ -83,3 +83,46 @@ def test_placement_verification_distinguishes_no_evidence_wrong_goal_and_success
     observation["status"] = "unknown"
     obscured = placement_verdict(estimator, job, receipt, goal)
     assert obscured["effect"] == obscured["intent"] == "unknown"
+
+
+def test_ideal_detection_uses_the_measured_position_to_verify_the_support():
+    from steward.assets.generators import steward_bot
+    from steward.ego.estimator import EgoEstimator, Track
+    from steward.ego.skills import Job
+    from steward.ego.verification import placement_verdict
+
+    def track(eid, category, position, size):
+        return Track(id=eid, category_counts={category: 5.0}, pos=np.array(position),
+                     size=np.array(size), var=np.full(3, 0.01**2), yaw=0.0, yaw_var=0.01,
+                     observations=5, first_seen=0.0, last_seen=3.0)
+
+    estimator = EgoEstimator(robot_model=steward_bot().to_dict())
+    load = track("e:load", "box", [0.0, 0.0, 0.8], [0.10, 0.09, 0.10])
+    target = track("e:target", "table", [0.0, 0.0, 0.375], [0.5, 0.5, 0.75])
+    adjacent = track("e:adjacent", "cabinet", [0.6, 0.0, 0.375], [0.5, 0.5, 0.75])
+    drawer = track("e:drawer", "drawer", [0.6, 0.0, 0.62], [0.49, 0.49, 0.20])
+    estimator.tracks = {obj.id: obj for obj in (load, target, adjacent, drawer)}
+    estimator.release_at(load.id, [0.0, 0.0], body={"stamp": 2.0})
+    receipt = {"plan": {"object": load.id}}
+    job = Job("j", "place", "r", state="succeeded", started=1.0, finished=3.0)
+    goal = {"entity": load.id, "support": target.id}
+    det = {"category": "box", "size": [0.10, 0.09, 0.10]}
+    measured = np.array([0.6, 0.0, 0.8])
+
+    estimator.stamp = 2.0
+    estimator._fuse(load, det, measured, 0.0, 0.01)
+    assert estimator.placement_evidence(load.id)["status"] == "unknown"
+
+    estimator.stamp = 3.0
+    estimator._fuse(load, det, measured, 0.0, 0.01)
+    load.pos[:] = [0.0, 0.0, 0.8]
+    verdict = placement_verdict(estimator, job, receipt, goal)
+    assert verdict["evidence"]["observation"]["source"] == "ideal_detection"
+    assert verdict["effect"] == "satisfied"
+    assert verdict["intent"] == "unsatisfied"
+    assert verdict["observedSupport"] == adjacent.id
+
+    estimator.stamp = 3.1
+    estimator._fuse(load, det, np.array([0.0, 0.0, 0.88]), 0.0, 0.01)
+    verdict = placement_verdict(estimator, job, receipt, goal)
+    assert verdict["effect"] == verdict["intent"] == "unknown"

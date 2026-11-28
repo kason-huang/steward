@@ -36,6 +36,7 @@ import mujoco
 import numpy as np
 
 from steward.assets.piper import BODY_ID as PIPER_BODY, WRIST_LINK as PIPER_WRIST
+from steward.assets.xlerobot import BODY_ID as XLEROBOT_BODY, FINGERS as XLEROBOT_FINGERS, GRIPPER as XLEROBOT_GRIPPER
 from steward.glrender import close_renderer, encode_image, free_camera
 from steward.math3d import matrix_from_quat, pose_compose, pose_inverse, quat_from_yaw, quat_mul, quat_normalize, yaw_from_quat
 from steward.scene.extent import entity_body_ids, entity_obb
@@ -213,6 +214,7 @@ class _GripState:
     saved_contacts: dict[int, tuple[int, int]] = field(default_factory=dict)
     handle: dict | None = None  # articulated grasp: {"entity", "link", "dof", ..., "gripper": link id}
     contact_entity: str | None = None
+    contact_fingers: tuple[str, str] | None = None
 
     @property
     def held(self) -> str | None:
@@ -228,7 +230,10 @@ class _RobotState:
     hold_reason: str | None = None
     require_motion_epoch: bool = False
     still_since: float | None = None
-    contact_grasp: bool = False
+
+    @property
+    def contact_grasp(self) -> bool:
+        return any(grip.contact_fingers is not None for grip in self.grippers.values())
 
     @property
     def grasp_mode(self) -> str:
@@ -253,9 +258,14 @@ def _gripper_links(ent) -> list[str]:
 def _finger_joints(ent, gripper_link: str) -> list[tuple[str, float, float]]:
     """Finger joints of a gripper: ``(joint id, closed target, open target)``.
 
-    A finger is a prismatic joint whose parent is the gripper link. Its closed position is 0 when
+    A gripper may declare targets for its actuated joints. Otherwise a finger is a prismatic
+    joint whose parent is the gripper link. Its closed position is 0 when
     the range contains it (the Piper URDF has 0..0.05 and -0.05..0), so the open position is the
     range end farthest from 0."""
+    for affordance in ent.rigid.link(gripper_link).affordances:
+        value = affordance.value
+        if isinstance(value, dict) and "finger-targets" in value:
+            return [(joint, shut, open_) for joint, (shut, open_) in value["finger-targets"].items()]
     out = []
     for joint in ent.rigid.joints:
         if joint.parent != gripper_link or joint.type.value != "prismatic":
@@ -294,8 +304,11 @@ if _assembly_enabled():
 
 
 def _robot_state(ent) -> _RobotState:
-    return _RobotState(ent.id, {lid: _GripState() for lid in _gripper_links(ent)},
-                       contact_grasp=ent.category.value == PIPER_BODY)
+    fingers = {
+        PIPER_BODY: {PIPER_WRIST: ("link7", "link8")},
+        XLEROBOT_BODY: {XLEROBOT_GRIPPER: XLEROBOT_FINGERS},
+    }.get(ent.category.value, {})
+    return _RobotState(ent.id, {lid: _GripState(contact_fingers=fingers.get(lid)) for lid in _gripper_links(ent)})
 
 
 if _assembly_enabled():
@@ -987,7 +1000,7 @@ class WorldSim:
                         if action == "close" and not g.closed:
                             g.closed = True
                             self._set_fingers(rs, link_id, closed=True)
-                            if not rs.contact_grasp:
+                            if g.contact_fingers is None:
                                 self._try_attach(rs, g, link_id)
                             self._finger_display_set(rs, link_id, closed=True)
                         elif action == "open" and g.closed:
@@ -1024,7 +1037,7 @@ class WorldSim:
                         if action == "close" and not g.closed:
                             g.closed = True
                             self._set_fingers(rs, link_id, closed=True)
-                            if not rs.contact_grasp:
+                            if g.contact_fingers is None:
                                 self._try_attach(rs, g, link_id)
                         elif action == "open" and g.closed:
                             g.closed = False
@@ -1169,35 +1182,36 @@ class WorldSim:
         return pose
 
     def _sample_contact_grasps(self) -> None:
-        """Report a PiPER grasp when the same free object loads both native fingers."""
+        """Report a physical grasp when the same free object loads both fingers."""
         for rs in self.robots.values():
-            if not rs.contact_grasp:
+            for grip in rs.grippers.values():
+                fingers = grip.contact_fingers
+                if fingers is not None and (grip.closed or grip.contact_entity is not None):
+                    grip.contact_entity = self._grasped_by(rs.entity_id, fingers)
+
+    def _grasped_by(self, robot_id: str, fingers: tuple[str, str]) -> str | None:
+        contacts: dict[str, set[str]] = {finger: set() for finger in fingers}
+        force = np.zeros(6)
+        for idx, contact in enumerate(self.data.contact):
+            if contact.efc_address < 0:
                 continue
-            grip = rs.grippers[PIPER_WRIST]
-            if not grip.closed and grip.contact_entity is None:
+            first, second = self.model.geom_bodyid[contact.geom]
+            if self._body_entity.get(second) == robot_id:
+                first, second = second, first
+            if self._body_entity.get(first) != robot_id:
                 continue
-            contacts: dict[str, set[str]] = {"link7": set(), "link8": set()}
-            force = np.zeros(6)
-            for idx, contact in enumerate(self.data.contact):
-                if contact.efc_address < 0:
-                    continue
-                first, second = self.model.geom_bodyid[contact.geom]
-                if self._body_entity.get(second) == rs.entity_id:
-                    first, second = second, first
-                if self._body_entity.get(first) != rs.entity_id:
-                    continue
-                finger = self._body_link.get(first)
-                object_id = self._body_entity.get(second)
-                if finger not in contacts or object_id is None:
-                    continue
-                other = self.template.find(object_id)
-                if other is None or other.role != "object" or other.rigid.root.value != "free":
-                    continue
-                mujoco.mj_contactForce(self.model, self.data, idx, force)
-                if force[0] > 0.01:
-                    contacts[finger].add(other.id)
-            both = contacts["link7"] & contacts["link8"]
-            grip.contact_entity = next(iter(both)) if len(both) == 1 else None
+            finger = self._body_link.get(first)
+            object_id = self._body_entity.get(second)
+            if finger not in contacts or object_id is None:
+                continue
+            other = self.template.find(object_id)
+            if other is None or other.role != "object" or other.rigid.root.value != "free":
+                continue
+            mujoco.mj_contactForce(self.model, self.data, idx, force)
+            if force[0] > 0.01:
+                contacts[finger].add(other.id)
+        both = contacts[fingers[0]] & contacts[fingers[1]]
+        return next(iter(both)) if len(both) == 1 else None
 
     def _try_attach(self, rs: _RobotState, g: _GripState, gripper_link: str) -> None:
         """Ideal grasp: attach the nearest free object within capture range of the pinch point (inside
