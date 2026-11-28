@@ -406,30 +406,70 @@ def test_an_established_object_is_dropped_only_after_free_views_from_two_places(
     assert est.dropped[-1]["id"] == "e:5" and est.dropped[-1]["reason"].startswith("seen through")
 
 
-def test_a_clear_glass_is_not_deleted_when_the_camera_sees_the_room_behind_it():
-    from steward.ego.estimator import EgoEstimator
+@pytest.mark.parametrize(("category", "height", "mean_invalid"), [
+    ("wine_glass", 0.26, 0.0),
+    ("unknown", 0.9, 0.4),
+    ("cup", 0.95, 0.0),
+])
+def test_potentially_transparent_tracks_fade_after_repeated_clear_views_from_separate_positions(
+    category, height, mean_invalid,
+):
+    est = EgoEstimator(robot_model=steward_bot().to_dict())
+    track = _remembered("e:14", category, [2.0, 0.0, height], [0.121, 0.060, 0.17])
+    track.mean_invalid = mean_invalid
+    track.observations = 2
+    track.existence = 0.5
+    est.tracks[track.id] = track
+    frame = {"depth": np.full((240, 320), 4.0, np.float32), "fovy": 60.0}
+    other_position = {**LOOKING_ALONG_X, "p": [0.0, 0.5, 1.2]}
+
+    _views(est, LOOKING_ALONG_X, frame, 10.0)
+    assert track.existence == 0.5
+    _views(est, other_position, frame, 0.6, dt=0.6)
+    assert track.existence == 0.5
+    _views(est, other_position, frame, 0.6, dt=0.6)
+    assert 0 < track.existence < 0.5 and track.id in est.tracks
+    _views(est, other_position, frame, 1.2, dt=0.6)
+    assert track.id not in est.tracks
+    assert est.dropped[-1]["reason"] == "seen through from 8 views at multiple camera positions"
+
+
+@pytest.mark.parametrize("unreliable_depth", [0.0, np.inf, 1.5])
+def test_a_clear_glass_keeps_its_confidence_when_a_second_view_has_a_depth_hole_or_occlusion(unreliable_depth):
+    est = EgoEstimator(robot_model=steward_bot().to_dict())
+    glass = _remembered("e:5", "wine_glass", [2.0, 0.0, 1.2], [0.08, 0.08, 0.19])
+    est.tracks[glass.id] = glass
+    frame = {"depth": np.full((240, 320), 4.0, np.float32), "fovy": 60.0}
+    other_position = {**LOOKING_ALONG_X, "p": [0.5, 0.0, 1.2]}
+    _views(est, LOOKING_ALONG_X, frame, 10.0)
+    frame["depth"][120, 160] = unreliable_depth  # centred probe in the second view
+    _views(est, other_position, frame, 10.0)
+    assert len(glass.absent_views) == 4
+    assert glass.existence == 1.0 and glass.id in est.tracks
+
+
+def test_seeing_a_clear_glass_again_resets_accumulated_absence():
+    from steward.ego.perception import Segment
 
     est = EgoEstimator(robot_model=steward_bot().to_dict())
     glass = _remembered("e:5", "wine_glass", [2.0, 0.0, 0.9], [0.08, 0.08, 0.19])
-    glass.mean_invalid = 0.4
-    est.tracks["e:5"] = glass
+    est.tracks[glass.id] = glass
     frame = {"depth": np.full((240, 320), 4.0, np.float32), "fovy": 60.0}
+    other_position = {**LOOKING_ALONG_X, "p": [0.0, 0.5, 1.2]}
     _views(est, LOOKING_ALONG_X, frame, 10.0)
-    _views(est, {"p": [0.0, 0.5, 1.2], "q": [1.0, 0.0, 0.0, 0.0]}, frame, 0.6)
-    assert "e:5" in est.tracks
-
-
-def test_a_cup_on_a_counter_is_not_deleted_when_depth_reads_the_counter_behind_it():
-    from steward.ego.estimator import EgoEstimator
-
-    est = EgoEstimator(robot_model=steward_bot().to_dict())
-    cup = _remembered("e:5", "cup", [2.0, 0.0, 0.95], [0.08, 0.08, 0.10])
-    cup.mean_invalid = 0.0
-    est.tracks["e:5"] = cup
-    frame = {"depth": np.full((240, 320), 4.0, np.float32), "fovy": 60.0}
-    _views(est, LOOKING_ALONG_X, frame, 10.0)
-    _views(est, {"p": [0.0, 0.5, 1.2], "q": [1.0, 0.0, 0.0, 0.0]}, frame, 0.6)
-    assert "e:5" in est.tracks
+    _views(est, other_position, frame, 1.2, dt=0.6)
+    confidence = glass.existence
+    assert confidence < 1.0
+    points = glass.pos + np.random.default_rng(1).uniform(-0.5, 0.5, (40, 3)) * glass.size
+    seg = Segment(points=points, color=np.full(3, 0.8), pixels=40, invalid_frac=0.4, border=False, range=2.0)
+    est._fuse_cloud(glass, {"seg": seg, "centre": glass.pos, "size": glass.size,
+                            "yaw": 0.0, "probs": {"wine_glass": 1.0}, "footprint": 0.08},
+                    np.array(LOOKING_ALONG_X["p"]))
+    assert not glass.absent_views
+    assert glass.existence > confidence
+    confidence = glass.existence
+    _views(est, other_position, frame, 10.0)
+    assert glass.existence == confidence and glass.id in est.tracks
 
 
 def test_a_floating_cup_sits_on_the_counter_and_a_strip_or_a_table_top_does_not():

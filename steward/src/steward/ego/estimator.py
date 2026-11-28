@@ -163,6 +163,7 @@ class Track:
     yaw_conflicts: int = 0  # views in a row at a clearly different heading from its settled one
     absent_views: list[tuple[float, float, float, float]] = field(default_factory=list)
     # (t, camera x, camera y, camera yaw) of views that saw through its place since it was last observed
+    absence_requires_full_depth: bool = False
     recent: collections.deque = field(default_factory=lambda: collections.deque(maxlen=RECENT_VIEWS))
     # (centre, size) of its latest single-view measurements, for the robust box of small objects
     appearance: Appearance | None = None
@@ -289,8 +290,8 @@ class EstimatorConfig:
     voxels_max: int = 6000
     points_per_cloud: int = 150
     missed_decay: float = 0.97
-    """Existence factor per view for a young track (fewer than ESTABLISHED_VIEWS observations) that
-    should be in view but was not segmented."""
+    """Existence factor for a missed young track or a clear view after repeated multi-position
+    confirmation of a potentially transparent track's absence."""
     absence_free_share: float = 0.9
     """Share of a track's depth probes that must lie beyond its box for a view to count as free space."""
     absence_depth_margin_m: float = 0.15
@@ -300,9 +301,10 @@ class EstimatorConfig:
     absence_views: int = 3
     """Free-space views that drop a young track."""
     absence_views_established: int = 8
-    """Free-space views that drop an established track."""
+    """Free-space views that drop an established or potentially transparent track."""
     absence_viewpoints: int = 2
-    """Clearly different camera poses among the free-space views that drop an established track."""
+    """Clearly different camera poses required for established tracks. Potentially transparent
+    tracks require at least this many camera positions, with a minimum of two."""
     viewpoint_spread_m: float = 0.3
     viewpoint_spread_deg: float = 20.0
     drop_below: float = 0.05
@@ -1554,7 +1556,9 @@ class EgoEstimator:
         surface where the track should be (a table whose regions went to another track, a view
         the segmentation missed) is no evidence of absence. Tracks seen fewer than
         :data:`ESTABLISHED_VIEWS` times are often fragments or noise: they also fade by
-        ``missed_decay`` per view and need only ``absence_views`` free views."""
+        ``missed_decay`` per view and need only ``absence_views`` free views. Potentially transparent
+        tracks require valid free-space depth at every probe and repeated views from different
+        camera positions before losing confidence."""
         depth = frame["depth"]
         h, w = depth.shape
         f = (h / 2.0) / math.tan(math.radians(frame["fovy"]) / 2.0)
@@ -1577,25 +1581,33 @@ class EgoEstimator:
             if tid in matched or track.held or track.carried or self._in_closed_drawer(track) \
                     or self._in_open_drawer(track):
                 continue
-            # A clear glass returns the room behind it. That is not evidence the glass has gone.
-            # A cup or mug on a surface does too: the depth reading is the counter behind the glass.
-            if track.mean_invalid >= 0.25 or track.category == "wine_glass" \
-                    or (track.category in ("cup", "mug") and track.bottom() > 0.40):
-                continue
+            # Glass and some cups or mugs can return the depth of the surface behind them.
+            potentially_transparent = (track.mean_invalid >= 0.25 or track.category == "wine_glass"
+                                       or (track.category in ("cup", "mug") and track.bottom() > 0.40))
+            if track.absence_requires_full_depth != potentially_transparent:
+                track.absent_views.clear()
+                track.absence_requires_full_depth = potentially_transparent
             centre = reading(track.pos)
             if centre is None:
                 continue
             tol = max(0.10, track.footprint / 2)
             free = filled = 0
-            for probe in self._probes(track):
+            probes = self._probes(track)
+            for probe in probes:
                 r = reading(probe)
                 if r is None or r[1] <= 0.05:
                     continue
                 d, seen = r
+                if potentially_transparent and not 0.05 < seen < self.config.max_range:
+                    continue
                 if seen > d + max(self.config.absence_depth_margin_m, track.footprint / 2):
                     free += 1
                 else:
                     filled += 1  # a surface where the track should be, or something nearer hiding it
+            if potentially_transparent:
+                if free == len(probes):
+                    self._note_transparent_absence(track, cam["p"], cam_yaw)
+                continue
             established = track.observations >= ESTABLISHED_VIEWS
             young_in_view = not established and centre[1] > 0.05 and centre[1] >= centre[0] - tol
             if young_in_view:
@@ -1636,6 +1648,36 @@ class EgoEstimator:
         if len(track.absent_views) >= required and not self._new_viewpoint(track.absent_views, view):
             return
         track.absent_views.append(view)
+
+    def _note_transparent_absence(self, track: Track, cam_p: list[float], cam_yaw: float) -> None:
+        """Count clear views only with repeated coverage from separated camera positions."""
+        views = track.absent_views
+        if views and self.stamp - views[-1][0] < self.config.absence_interval_s:
+            return
+        counts: dict[tuple[float, float], int] = {}
+
+        def viewpoint(xy: tuple[float, float]) -> tuple[float, float]:
+            return next((position for position in counts
+                         if math.dist(xy, position) < self.config.viewpoint_spread_m), xy)
+
+        for _, x, y, _ in views:
+            position = viewpoint((x, y))
+            counts[position] = counts.get(position, 0) + 1
+        xy = (float(cam_p[0]), float(cam_p[1]))
+        position = viewpoint(xy)
+        viewpoints = max(2, self.config.absence_viewpoints)
+        required = max(2 * viewpoints, self.config.absence_views_established)
+        max_per_position = (required + 1) // 2
+        count = counts.get(position, 0)
+        if count >= max_per_position:
+            return
+        views.append((self.stamp, *xy, cam_yaw))
+        counts[position] = count + 1
+        confirmed = [count for count in counts.values() if count >= 2]
+        if counts[position] >= 2 and len(confirmed) >= viewpoints:
+            track.existence *= self.config.missed_decay
+            if sum(confirmed) >= required:
+                self._drop(track, f"seen through from {sum(confirmed)} views at multiple camera positions")
 
     def _new_viewpoint(self, views: list[tuple[float, float, float, float]], view: tuple[float, float, float, float]) -> bool:
         _, x, y, yaw = view
