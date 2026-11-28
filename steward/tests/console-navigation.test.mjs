@@ -9,6 +9,31 @@ const cameraScript = html.slice(html.indexOf('function cameraFrame('), html.inde
 const script = html.slice(html.indexOf('let viewPosting ='), html.indexOf('// ------------------------------------------------------------------ refresh'));
 assert.ok(script.includes('function postView()') && script.includes("vp.addEventListener('keydown'"));
 
+test('Ego object truth uses the Observer match and the geometry of a matched part', () => {
+  const controls = { egoInspectorTruthNote: {}, egoInspectorTruth: {} };
+  const robot = { matches: { 'e:plate': 'w:plate', 'e:drawer': 'w:cabinet/drawer' } };
+  const context = vm.createContext({
+    $: id => controls[id],
+    robotId: 'robot',
+    state: { robots: { robot },
+      groundTruth: [{ id: 'w:plate', category: 'plate', center: [0, 0, 0.7], size: [0.3, 0.3, 0.03] }],
+      groundTruthParts: { 'w:cabinet/drawer': { category: 'drawer', center: [1, 1, 0.6], size: [0.4, 0.4, 0.2] } } },
+    NAMES: { plate: '盘子', drawer: '抽屉' },
+    vec: v => v.join(', '),
+    setText: (node, value) => { node.text = value; },
+    setHtml: (node, markup) => { node.markup = markup; },
+  });
+  const esc = html.split('\n').find(line => line.startsWith('const esc = '));
+  const renderer = html.slice(html.indexOf('function renderEgoInspectorTruth'), html.indexOf('function drawEgoInspectorMap'));
+  vm.runInContext(`${esc}\n${renderer}\nrenderEgoInspectorTruth({ id: 'e:plate', center: [0.03, 0.04, 0.7] }, vec)`, context);
+  assert.match(controls.egoInspectorTruth.markup, /盘子 · w:plate.*位置误差（3D）<\/dt><dd>5.0 cm/);
+  vm.runInContext("renderEgoInspectorTruth({ id: 'e:drawer', center: [1, 1, 0.6] }, vec)", context);
+  assert.match(controls.egoInspectorTruth.markup, /抽屉 · w:cabinet\/drawer/);
+  vm.runInContext("renderEgoInspectorTruth({ id: 'e:unknown' }, vec)", context);
+  assert.equal(controls.egoInspectorTruth.markup, '');
+  assert.match(controls.egoInspectorTruthNote.text, /暂无/);
+});
+
 test('the tool area groups the catalogue preview and the active session tools', () => {
   const groups = ['perceptionTools', 'planningTools', 'actionTools', 'codeTools'];
   const controls = Object.fromEntries(['sessionSkillBody', 'sessionSkillNote', 'savedCapabilities', ...groups].map(id => [id, {}]));
@@ -32,13 +57,14 @@ test('the tool area groups the catalogue preview and the active session tools', 
   assert.match(controls.actionTools.markup, /<code>pick<\/code>.*双指接触与摩擦/);
   assert.match(controls.actionTools.markup, /<code>place<\/code>.*S1 · 经 skill_run.*适用范围 · 夹爪已持物/);
   assert.match(controls.perceptionTools.markup, /<code>ego_explore<\/code>.*会移动机器人/);
-  assert.match(controls.perceptionTools.markup, /<code>ego_verify_placement<\/code>/);
+  assert.match(controls.perceptionTools.markup, /<code>ego_verify_placement<\/code><span class="grasp-mode">结果核验<\/span>/);
+  assert.doesNotMatch(controls.actionTools.markup, /<code>ego_verify_placement<\/code>/);
   assert.match(controls.planningTools.markup, /<code>ego_predict<\/code>/);
   assert.match(controls.codeTools.markup, /<code>run_code<\/code>/);
   assert.match(controls.savedCapabilities.markup, /尚未保存程序/);
   assert.match(controls.sessionSkillNote.text, /工具目录预览/);
 
-  robot.sessionTools = ['body_set_pose', 'ego_gripper_pose', 'ego_explore', 'ego_predict', 'skill_run',
+  robot.sessionTools = ['body_set_pose', 'ego_gripper_pose', 'ego_explore', 'ego_predict', 'skill_run', 'skill_status',
     'run_code', 'capability_get'];
   robot.sessionSkills = ['place', 'look_around'];
   robot.sessionS0Tools = [{ name: 'body_set_pose', enabled: false }, { name: 'ego_gripper_pose', enabled: true }];
@@ -49,6 +75,8 @@ test('the tool area groups the catalogue preview and the active session tools', 
   assert.doesNotMatch(controls.actionTools.markup, /<code>(pick|look_around|ego_explore)<\/code>/);
   assert.doesNotMatch(controls.perceptionTools.markup, /<code>(ego_state|ego_verify_placement)<\/code>/);
   assert.match(controls.actionTools.markup, /<code>body_set_pose<\/code>.*S0 · 直调.*只读复查停用/);
+  assert.match(controls.actionTools.markup, /<code>skill_run<\/code><span class="grasp-mode">S1 · 执行<\/span>/);
+  assert.match(controls.actionTools.markup, /<code>skill_status<\/code><span class="grasp-mode">S1 · 只读<\/span>/);
   assert.match(controls.perceptionTools.markup, /<code>ego_gripper_pose<\/code>.*S0 · 只读/);
   assert.match(controls.codeTools.markup, /<code>capability_get<\/code>/);
   assert.match(controls.savedCapabilities.markup, /move_apple.*Capability.*组合流程.*已验证/);

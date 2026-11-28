@@ -36,6 +36,7 @@ def console_state(host) -> dict:
     if sim is None:
         return {"loaded": False, "scenario": None}
     ground_truth = []
+    truth_parts = {}
     for ent in sim.template.entities:
         if ent.role == "environment":
             for link in ent.rigid.links:
@@ -46,6 +47,9 @@ def console_state(host) -> dict:
                     ground_truth.append(_box(f"{ent.id}/floor", "floor", "environment", floor))
         else:
             ground_truth.append(_box(ent.id, ent.category.value, ent.role, sim.entity_obb(ent.id)))
+            for part, links, category in sim.perception_parts(ent):
+                if links is not None:
+                    truth_parts[part] = _box(part, category, ent.role, sim.entity_obb(ent.id, links))
     status = sim.status()
     robots = {}
     # The robots of the loaded scenario, not every robot port the host has ever opened: after a
@@ -91,6 +95,7 @@ def console_state(host) -> dict:
         "paused": status["paused"],
         "speed": status["speed"],
         "groundTruth": ground_truth,
+        "groundTruthParts": truth_parts,
         "holding": status["robots"],
         "events": status["events"],
         "robots": robots,
@@ -136,6 +141,9 @@ def console_thinking_text(host, robot: str, entry: str) -> dict:
 def _ego_view(ego: dict) -> dict:
     objects = []
     self_pose = None
+    relations = ego.get("relations", [])
+    supports = {r["a"]["entity"]: r["b"]["entity"] for r in relations if r["type"] == "supported-by"}
+    stamp = ego.get("stamp")
     for ent in ego["entities"]:
         p = ent["pose"]["value"]
         cov = (ent["pose"].get("unc") or {}).get("cov")
@@ -144,9 +152,12 @@ def _ego_view(ego: dict) -> dict:
             self_pose = {"x": p["p"][0], "y": p["p"][1], "yaw": yaw_from_quat(p["q"]), "sigma": sigma}
             continue
         size = ent["body"]["links"][0]["geometry"]["collision"][0]["size"]
+        seen = ent["pose"].get("t")
         objects.append({"id": ent["id"], "category": ent["category"]["value"], "center": p["p"], "size": size,
                         "yaw": yaw_from_quat(p["q"]), "sigma": sigma, "existence": ent.get("existence", 1.0),
+                        "support": supports.get(ent["id"]),
+                        "lastSeenAgoS": round(max(0, stamp - seen), 2) if stamp is not None and seen is not None else None,
                         "color": (ent.get("stateVars", {}).get("color") or {}).get("value"),
                         "role": (ent.get("stateVars", {}).get("role") or {}).get("value")})
-    held = [r["a"]["entity"] for r in ego.get("relations", []) if r["type"] == "attached"]
-    return {"version": ego.get("version"), "t": ego.get("stamp"), "self": self_pose, "objects": objects, "holding": held}
+    held = [r["a"]["entity"] for r in relations if r["type"] == "attached" and r["b"]["entity"] == ego.get("self")]
+    return {"version": ego.get("version"), "t": stamp, "self": self_pose, "objects": objects, "holding": held}

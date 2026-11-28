@@ -165,3 +165,43 @@ def test_console_box_says_whether_an_object_lies_upright():
     down = SimpleNamespace(center=[0.1, 0.2, 0.77], size=[0.115, 0.115, 0.006], quat=quat_mul([0.0, 1.0, 0.0, 0.0], [c, 0.0, 0.0, s]))
     assert _box("w:x", "puzzle_piece", "object", up)["upright"] is True
     assert _box("w:y", "puzzle_piece", "object", down)["upright"] is False
+
+
+def test_console_ego_projection_exposes_observed_support_and_robot_holding():
+    from steward.world.console import _ego_view
+
+    def entity(eid, category, seen):
+        return {"id": eid, "category": {"value": category},
+                "pose": {"t": seen, "value": {"p": [0, 0, 0.8], "q": [1, 0, 0, 0]}},
+                "body": {"links": [{"geometry": {"collision": [{"size": [0.1, 0.1, 0.1]}]}}]}}
+
+    ego = _ego_view({
+        "self": "e:self", "stamp": 3.25, "version": 5,
+        "entities": [entity("e:self", "robot", 3.25), entity("e:1", "apple", 3.0),
+                     entity("e:2", "plate", None), entity("e:3", "box", 0)],
+        "relations": [
+            {"type": "supported-by", "a": {"entity": "e:1"}, "b": {"entity": "e:2"}},
+            {"type": "attached", "a": {"entity": "e:1"}, "b": {"entity": "e:2"}},
+            {"type": "attached", "a": {"entity": "e:3"}, "b": {"entity": "e:self"}},
+        ],
+    })
+    assert [(obj["id"], obj["support"], obj["lastSeenAgoS"]) for obj in ego["objects"]] == [
+        ("e:1", "e:2", 0.25), ("e:2", None, None), ("e:3", None, 3.25),
+    ]
+    assert ego["holding"] == ["e:3"]
+
+
+def test_console_world_truth_includes_geometry_of_individually_tracked_drawers(kitchen_root):
+    from steward.world.console import console_state
+    from steward.world.server import StewardHost
+
+    host = StewardHost(kitchen_root, scenario="phase0-kitchen")
+    try:
+        state = console_state(host)
+        drawer = state["groundTruthParts"]["w:cabinet-1/drawer"]
+        cabinet = state["groundTruthParts"]["w:cabinet-1"]
+        assert drawer["category"] == "drawer"
+        assert drawer["size"] != cabinet["size"]
+        assert "w:cabinet-1/drawer" not in {box["id"] for box in state["groundTruth"]}
+    finally:
+        host.stop()
