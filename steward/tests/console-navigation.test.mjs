@@ -11,12 +11,12 @@ assert.ok(script.includes('function postView()') && script.includes("vp.addEvent
 
 test('the tool area groups the catalogue preview and the active session tools', () => {
   const groups = ['perceptionTools', 'planningTools', 'actionTools', 'codeTools'];
-  const controls = Object.fromEntries(['sessionSkillBody', 'sessionSkillNote', ...groups].map(id => [id, {}]));
+  const controls = Object.fromEntries(['sessionSkillBody', 'sessionSkillNote', 'savedCapabilities', ...groups].map(id => [id, {}]));
   const robot = {
     available: true, profile: 'ego',
     plan: { body: 'xlerobot', availableSkills: ['pick', 'place', 'look_around'],
       availableS0Tools: { body_set_pose: 'control', ego_gripper_pose: 'read' } },
-    sessionTools: null, sessionSkills: null, sessionS0Tools: null,
+    sessionTools: null, sessionSkills: null, sessionS0Tools: null, savedCapabilities: [],
   };
   const context = vm.createContext({
     $: id => controls[id],
@@ -35,18 +35,27 @@ test('the tool area groups the catalogue preview and the active session tools', 
   assert.match(controls.perceptionTools.markup, /<code>ego_verify_placement<\/code>/);
   assert.match(controls.planningTools.markup, /<code>ego_predict<\/code>/);
   assert.match(controls.codeTools.markup, /<code>run_code<\/code>/);
+  assert.match(controls.savedCapabilities.markup, /尚未保存程序/);
   assert.match(controls.sessionSkillNote.text, /工具目录预览/);
 
   robot.sessionTools = ['body_set_pose', 'ego_gripper_pose', 'ego_explore', 'ego_predict', 'skill_run',
     'run_code', 'capability_get'];
   robot.sessionSkills = ['place', 'look_around'];
   robot.sessionS0Tools = [{ name: 'body_set_pose', enabled: false }, { name: 'ego_gripper_pose', enabled: true }];
+  robot.savedCapabilities = [{ name: 'move_apple', layer: 'recipe', status: 'verified',
+    description: '移动苹果 <test>', requires: '苹果可见', ensures: '苹果在柜面上',
+    tools: ['ego_predict', 'skill_run'], skills: ['pick', 'place'] }];
   vm.runInContext('renderSessionSkills()', context);
   assert.doesNotMatch(controls.actionTools.markup, /<code>(pick|look_around|ego_explore)<\/code>/);
   assert.doesNotMatch(controls.perceptionTools.markup, /<code>(ego_state|ego_verify_placement)<\/code>/);
   assert.match(controls.actionTools.markup, /<code>body_set_pose<\/code>.*S0 · 直调.*只读复查停用/);
   assert.match(controls.perceptionTools.markup, /<code>ego_gripper_pose<\/code>.*S0 · 只读/);
   assert.match(controls.codeTools.markup, /<code>capability_get<\/code>/);
+  assert.match(controls.savedCapabilities.markup, /move_apple.*Capability.*组合流程.*已验证/);
+  assert.match(controls.savedCapabilities.markup, /移动苹果 &lt;test&gt;.*使用条件 · 苹果可见.*预期结果 · 苹果在柜面上/);
+  assert.match(controls.savedCapabilities.markup, /组合工具 · <code>ego_predict<\/code>、<code>skill_run<\/code>/);
+  assert.match(controls.savedCapabilities.markup, /S1 工具 · 抓取 <code>pick<\/code>、放置 <code>place<\/code>/);
+  assert.doesNotMatch(controls.actionTools.markup, /move_apple/);
   assert.equal(controls.sessionSkillNote.text, '');
 
   robot.readOnly = true;
@@ -58,6 +67,7 @@ test('the tool area groups the catalogue preview and the active session tools', 
   vm.runInContext('renderSessionSkills()', context);
   assert.match(controls.actionTools.markup, /当前会话未开放此类工具/);
   assert.doesNotMatch(controls.actionTools.markup, /<code>/);
+  assert.equal(controls.savedCapabilities.markup, '');
 
   robot.plan.body = 'other';
   vm.runInContext('renderSessionSkills()', context);

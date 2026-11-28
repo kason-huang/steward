@@ -172,7 +172,14 @@ def test_robot_chat_takes_control_for_the_turn_and_gives_it_back(tmp_path):
     (library / "flip_flat_objects_face_up.json").write_text(json.dumps({
         "name": "flip_flat_objects_face_up", "layer": "skill", "status": "verified",
         "description": "Inspects flat objects and flips face-down ones picture side up.",
+        "requires": "Flat object in view.", "ensures": "Picture side up.",
+        "code": ("// tools.fake()\nawait tools.ego_state({}); await tools['skill_run']({});"
+                 "await tools.ego_predict({target, skill: 'pick'});"
+                 "await tools['ego_predict']({other: {skill: 'fake'}, 'skill': /* next */ 'place'});"
+                 "await tools.ego_predict({skill: 'pick'}); await tools.ego_predict({skill: args.skill});"
+                 "await tools.ego_state({}); return 'private code tools.fake()'"),
     }), encoding="utf-8")
+    (library / "invalid.json").write_text("[]", encoding="utf-8")
     calls = []
 
     def control(q, b):
@@ -186,6 +193,12 @@ def test_robot_chat_takes_control_for_the_turn_and_gives_it_back(tmp_path):
                                       robot_home=robot, ego_api=ego.url), lambda: "unused")
         chat.send("robot", "把杯子放到餐桌上")
         _wait_idle(chat, "robot")
+        assert chat.state()["agents"]["robot"]["savedCapabilities"] == [{
+            "name": "flip_flat_objects_face_up", "layer": "skill", "status": "verified",
+            "description": "Inspects flat objects and flips face-down ones picture side up.",
+            "requires": "Flat object in view.", "ensures": "Picture side up.",
+            "tools": ["ego_state", "skill_run", "ego_predict"], "skills": ["pick", "place"],
+        }]
     finally:
         ego.stop()
     assert calls == ["acquire", "release"]

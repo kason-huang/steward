@@ -95,6 +95,8 @@
   .grasp-mode { margin-inline-start: 5px; padding: 0 4px; border: 1px solid var(--line); border-radius: 4px;
                 font-size: 11px; color: var(--muted); }
   .skill-list li:not(.restricted) .grasp-mode.contact { color: #8fe0b8; border-color: #2f7a57; }
+  .grasp-mode.capability { color: #d7c5ff; border-color: #69558e; }
+  .saved-capabilities h4 { margin: 12px 0 0; font-size: 13px; }
   .skill-list li.restricted, .skill-list li.restricted code { color: var(--muted); }
   .tool-groups { display: grid; gap: 16px; margin-top: 12px; }
   .tool-group + .tool-group { padding-top: 12px; border-top: 1px solid var(--line); }
@@ -297,6 +299,7 @@
       <section class="tool-group" aria-labelledby="codeToolsTitle">
         <h3 id="codeToolsTitle">代码 · Code</h3>
         <ul class="skill-list" id="codeTools" aria-labelledby="codeToolsTitle"></ul>
+        <div class="saved-capabilities" id="savedCapabilities"></div>
       </section>
     </div>
   </section>
@@ -1335,6 +1338,24 @@ function skillCard(name, catalogue, { badge = '', restricted = false, status = '
   return `<li${restricted ? ' class="restricted"' : ''}><div class="skill-name">${title}<code>${esc(name)}</code>${badge}</div>`
     + detail + (status ? `<p class="skill-disabled">${esc(status)}</p>` : '') + '</li>';
 }
+const CAPABILITY_LAYERS = { recipe: '组合流程', skill: '可复用操作' };
+const CAPABILITY_STATUSES = { verified: '已验证', candidate: '候选', deprecated: '已弃用' };
+function capabilityCard({ name, layer, status, description, requires, ensures, tools, skills = [] }) {
+  const tags = [Object.hasOwn(CAPABILITY_LAYERS, layer) && CAPABILITY_LAYERS[layer],
+    Object.hasOwn(CAPABILITY_STATUSES, status) && CAPABILITY_STATUSES[status]].filter(Boolean);
+  const badges = tags.map(tag => `<span class="grasp-mode">${esc(tag)}</span>`).join('');
+  const skillNames = skills.map(skill => {
+    const label = Object.hasOwn(S1_SKILLS, skill) ? S1_SKILLS[skill][0] : '';
+    return `${label ? esc(label) + ' ' : ''}<code>${esc(skill)}</code>`;
+  }).join('、');
+  return `<li><div class="skill-name"><code>${esc(name)}</code><span class="grasp-mode capability">Capability</span>${badges}</div>`
+    + (description ? `<p>${esc(description)}</p>` : '')
+    + (requires ? `<p class="skill-scope">使用条件 · ${esc(requires)}</p>` : '')
+    + (ensures ? `<p class="skill-scope">预期结果 · ${esc(ensures)}</p>` : '')
+    + (Array.isArray(tools) ? `<p class="skill-scope">组合工具 · ${tools.map(tool => `<code>${esc(tool)}</code>`).join('、')
+      || '未识别到直接调用'}</p>` : '')
+    + (skillNames ? `<p class="skill-scope">S1 工具 · ${skillNames}</p>` : '') + '</li>';
+}
 function renderSessionSkills() {
   const robot = chatState?.agents?.robot;
   const rid = state?.loaded && Object.keys(state.robots)[0];
@@ -1382,6 +1403,12 @@ function renderSessionSkills() {
     if (id === 'actionTools') cards.push(...skillCards);
     setHtml($(id), cards.join('') || (sessionKnown ? '<li class="skill-scope">当前会话未开放此类工具</li>' : ''));
   }
+  const catalogue = robot?.savedCapabilities;
+  const showCatalogue = currentBody && Array.isArray(catalogue) && (!sessionKnown || names.has('capability_get'));
+  setHtml($('savedCapabilities'), showCatalogue
+    ? '<h4 id="savedCapabilitiesTitle">可复用程序</h4><ul class="skill-list" aria-labelledby="savedCapabilitiesTitle">'
+      + (catalogue.map(capabilityCard).join('') || '<li class="skill-scope">尚未保存程序</li>') + '</ul>'
+    : '');
 }
 let promptSession = null, promptRevision = '', promptLoading = false;
 async function refreshPrompts() {

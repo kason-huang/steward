@@ -19,6 +19,7 @@ from steward.assembly_profile import enabled as _assembly_enabled, harness_envir
 
 import json
 import os
+import re
 import signal
 import subprocess
 import tempfile
@@ -283,6 +284,69 @@ ROBOT_OWNER = "operator"
 TURN_BUDGET_S = 24 * 24 * 3600.0
 
 
+_CAPABILITY_COMMENT = r"//[^\n]*|/\*[\s\S]*?\*/"
+_CAPABILITY_STRING = r'''"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`'''
+_CAPABILITY_CALL = re.compile(rf"""
+    (?<![\w$.])tools\s*(?:\.\s*(?P<member>[A-Za-z_$][\w$]*)
+      |\[\s*(?P<quote>['"])(?P<key>[\w$-]+)(?P=quote)\s*\])\s*\(
+    | {_CAPABILITY_COMMENT} | {_CAPABILITY_STRING}
+""", re.VERBOSE)
+_CAPABILITY_ARG = re.compile(rf"(?P<comment>{_CAPABILITY_COMMENT})|{_CAPABILITY_STRING}|[\w$]+|\S")
+_CAPABILITY_SKILL = re.compile(r"""(['"])([a-z][a-z0-9_]*)\1""")
+
+
+def _prediction_skill(code: str, start: int) -> str | None:
+    """Read a literal top-level skill argument without evaluating the program."""
+    tokens = (m[0] for m in _CAPABILITY_ARG.finditer(code, start) if m["comment"] is None)
+    if next(tokens, None) != "{":
+        return None
+    depth = 1
+    previous = "{"
+    for token in tokens:
+        if depth == 1 and previous in ("{", ",") and token in ("skill", '"skill"', "'skill'"):
+            if next(tokens, None) != ":":
+                return None
+            value = _CAPABILITY_SKILL.fullmatch(next(tokens, ""))
+            return value[2] if value and next(tokens, None) in (",", "}") else None
+        if token in ("{", "[", "("):
+            depth += 1
+        elif token in ("}", "]", ")"):
+            depth -= 1
+            if depth == 0:
+                break
+        previous = token
+    return None
+
+
+def _capability_catalog(home: Path | None) -> list[dict]:
+    """Read capability metadata from the robot's library for discovery."""
+    if home is None:
+        return []
+    entries = []
+    for path in sorted((home / "steward-capabilities").glob("*.json")):
+        try:
+            record = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        if not isinstance(record, dict) or not isinstance(record.get("name"), str) or not record["name"]:
+            continue
+        metadata = {key: value if isinstance(value := record.get(key), str) else default
+                    for key, default in (("name", ""), ("layer", "?"), ("status", "?"),
+                                         ("description", ""), ("requires", ""), ("ensures", ""))}
+        code = record.get("code")
+        tools, skills = {}, {}
+        if isinstance(code, str):
+            for match in _CAPABILITY_CALL.finditer(code):
+                name = match["member"] or match["key"]
+                if name is None:
+                    continue
+                tools[name] = None
+                if name == "ego_predict" and (skill := _prediction_skill(code, match.end())):
+                    skills[skill] = None
+        entries.append({**metadata, "tools": list(tools), "skills": list(skills)})
+    return entries
+
+
 def capabilities_digest(home: Path | None, *, max_description: int = 120) -> str:
     """A short list of saved capabilities to prepend to the first robot turn, so the model sees
     what it can reuse without calling ``capability_list`` first.
@@ -290,28 +354,12 @@ def capabilities_digest(home: Path | None, *, max_description: int = 120) -> str
     :param home: the robot's DSH home (``DSH_HOME``); ``None`` or a missing library yields "".
     :param max_description: longest description kept per capability.
     :returns: a Chinese paragraph ending with a blank line, or "" when there is nothing to list."""
-    if home is None:
-        return ""
-    root = home / "steward-capabilities"
-    if not root.is_dir():
-        return ""
-    lines: list[str] = []
-    for path in sorted(root.glob("*.json")):
-        try:
-            record = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            continue
-        name = record.get("name")
-        if not isinstance(name, str) or not name:
-            continue
-        layer = record.get("layer", "?")
-        status = record.get("status", "?")
-        description = record.get("description", "")
-        if not isinstance(description, str):
-            description = ""
+    lines = []
+    for entry in _capability_catalog(home):
+        description = entry["description"]
         if len(description) > max_description:
             description = description[: max_description - 1] + "…"
-        lines.append(f"- {name}（{layer}，{status}）：{description}")
+        lines.append(f"- {entry['name']}（{entry['layer']}，{entry['status']}）：{description}")
     if not lines:
         return ""
     return ("你已保存的能力（本轮开始时的清单；有合适的先用 capability_get 取出来运行，不要重写）：\n"
@@ -492,7 +540,8 @@ class HarnessChat:
         robot = {}
         if "robot" in self.agents and self.config and self.config.ego_api:
             robot = {"control": self._robot_owner(), "alerts": self._robot_alerts(),
-                     "plan": self._robot_plan(activity_since)}
+                     "plan": self._robot_plan(activity_since),
+                     "savedCapabilities": _capability_catalog(self.agents["robot"].home)}
         with self._lock:
             agents = {key: {"label": a.label, "available": self.unavailable_reason(key) is None,
                             "reason": self.unavailable_reason(key), "busy": a.busy, "sessionId": a.session_id,
